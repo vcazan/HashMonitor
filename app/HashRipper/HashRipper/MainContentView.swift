@@ -29,6 +29,7 @@ struct MainContentView: View {
 
     @State private var sideBarSelection: String = "hashops"
     @State private var showAddMinerSheet: Bool = false
+    @State private var showManualMinerSheet: Bool = false
     @State private var showProfileRolloutSheet: Bool = false
     @State private var showMinerCharts: Bool = false
     @State private var offlineMinersCount: Int = 0
@@ -124,9 +125,10 @@ struct MainContentView: View {
                     case "hashops":
                         HashOpsToolbarItems(
                             addNewMiner: addNewMiner,
+                            addMinerManually: addMinerManually,
                             rolloutProfile: rolloutProfile,
                             showMinerCharts: showMinerChartsSheet,
-                            openDiagnosticWindow: openDiagnosticWindow,
+                            openDiagnosticWindow: openDiagnosticWindow
                         )
                     case "profiles":
                         HStack {}
@@ -176,6 +178,11 @@ struct MainContentView: View {
             .frame(width: 800, height: 700)
                 .toolbar(.hidden)
         }
+        .sheet(isPresented: $showManualMinerSheet) {
+            ManualMinerAddView(onDismiss: {
+                self.showManualMinerSheet = false
+            })
+        }
         .sheet(isPresented: $showProfileRolloutSheet) {
             MinerProfileRolloutWizard() {
                 self.showProfileRolloutSheet = false
@@ -195,6 +202,10 @@ struct MainContentView: View {
 
     private func addNewMiner() {
         showAddMinerSheet = true
+    }
+
+    private func addMinerManually() {
+        showManualMinerSheet = true
     }
 
     private func showMinerChartsSheet() {

@@ -18,16 +18,24 @@ struct HashOpsToolbarItems: View {
     private var unreadActions: [WatchDogActionLog]
 
     var addNewMiner: () -> Void
+    var addMinerManually: () -> Void
     var rolloutProfile: () -> Void
     var showMinerCharts: () -> Void
     var openDiagnosticWindow: () -> Void
     
     var body: some View {
         HStack {
-            Button(action: addNewMiner) {
+            Menu {
+                Button(action: addNewMiner) {
+                    Label("Setup New Miner (AP Mode)", systemImage: "wifi.circle")
+                }
+                Button(action: addMinerManually) {
+                    Label("Add by IP Address", systemImage: "network")
+                }
+            } label: {
                 Image(systemName: "plus.rectangle.portrait")
             }
-            .help("Resume miner stats updates")
+            .help("Add a new miner")
             
             
             if (self.minerClientManager?.isPaused ?? false) {
