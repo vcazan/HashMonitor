@@ -84,7 +84,10 @@ struct FirmwareReleaseNotesView: View {
             Divider()
             ScrollView {
                 Markdown(releaseNotesReplacingHTMLComments)
+                    .markdownTheme(.gitHub)
                     .markdownImageProvider(RemoteImageProvider())
+                    .textSelection(.enabled)
+                    .frame(maxWidth: .infinity, alignment: .leading)
             }.padding(.horizontal, 12)
         }
         .padding(.horizontal, 12)
