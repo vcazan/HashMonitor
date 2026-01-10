@@ -252,6 +252,7 @@ private struct SheetTimeRangeButtonsView: View {
                         )
                         .foregroundStyle(selectedRange == range ? .white : .primary)
                         .clipShape(RoundedRectangle(cornerRadius: 6))
+                        .contentShape(RoundedRectangle(cornerRadius: 6))
                 }
                 .buttonStyle(.plain)
                 .disabled(isPaginating)

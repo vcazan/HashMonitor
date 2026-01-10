@@ -385,7 +385,6 @@ private struct InteractiveChartView: View {
     }
 }
 
-
 // MARK: - Stable Time Range Buttons
 
 /// Separate view for time range buttons to prevent unnecessary re-renders
@@ -411,6 +410,7 @@ private struct TimeRangeButtonsView: View {
                         )
                         .foregroundStyle(selectedRange == range ? .white : .primary)
                         .clipShape(RoundedRectangle(cornerRadius: 5))
+                        .contentShape(RoundedRectangle(cornerRadius: 5))
                 }
                 .buttonStyle(.plain)
                 .disabled(isPaginating)
