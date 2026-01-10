@@ -152,6 +152,8 @@ struct HashRipperApp: App {
             SettingsCommands()
         }
         .windowToolbarStyle(.unified)
+        .defaultSize(width: 1100, height: 750)
+        .windowResizability(.contentMinSize)
         .modelContainer(SharedDatabase.shared.modelContainer)
         .database(SharedDatabase.shared.database)
         .minerClientManager(minerClientManager)

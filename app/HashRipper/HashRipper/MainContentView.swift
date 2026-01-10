@@ -93,6 +93,7 @@ struct MainContentView: View {
             detail: { detailWithResizableInspector }
         )
         .navigationSplitViewStyle(.balanced)
+        .frame(minWidth: 900, minHeight: 600)
         .task {
             // Note: We don't auto-scan for new miners on app launch.
             // Scanning only happens when user clicks the scan button.
