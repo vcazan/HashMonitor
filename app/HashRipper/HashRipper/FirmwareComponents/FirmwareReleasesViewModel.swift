@@ -361,6 +361,20 @@ extension FirmwareReleaseInfo {
         })
     }
 
+    /// Maps device model names (as reported by miner) to firmware filenames (as named in GitHub releases)
+    /// The miner reports names with Greek letters (γ) but firmware files use ASCII (Gamma)
+    private func firmwareFilename(for deviceModel: String) -> String {
+        // Map device model names to their firmware file equivalents
+        let firmwareNameMap: [String: String] = [
+            "NerdOCTAXE-γ": "NerdOCTAXE-Gamma",
+            "NerdAxe-γ": "NerdAxeGamma",
+            "NerdHaxe-γ": "NerdHaxe-Gamma"
+        ]
+        
+        let firmwareName = firmwareNameMap[deviceModel] ?? deviceModel
+        return "esp-miner-\(firmwareName).bin"
+    }
+    
     func getNerdQAxeReleaseAssets(deviceModels: [String]) -> [DeviceModelAsset] {
         guard
             let releaseUrl = MinerDeviceGenre.nerdQAxe.firmareUpdateUrlString,
@@ -369,7 +383,10 @@ extension FirmwareReleaseInfo {
             print("Possibly wrong release repo check for NerdQAxe release")
             return []
         }
-        let espMinerNames = deviceModels.map({ ($0, "esp-miner-\($0).bin" )})
+        
+        // Build mapping: (deviceModel, expectedFilename)
+        let espMinerNames = deviceModels.map({ ($0, firmwareFilename(for: $0)) })
+        
         guard let wwwAsset = assets.first(where: { $0.name == "www.bin"}) else {
             return []
         }
