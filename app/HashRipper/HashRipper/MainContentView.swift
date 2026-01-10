@@ -881,6 +881,7 @@ private struct SidebarTabButton: View {
                     : Color.clear
             )
             .clipShape(RoundedRectangle(cornerRadius: 6))
+            .contentShape(Rectangle()) // Makes entire button area clickable
         }
         .buttonStyle(.plain)
     }
