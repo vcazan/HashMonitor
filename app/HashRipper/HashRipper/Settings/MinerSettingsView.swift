@@ -24,6 +24,7 @@ struct MinerSettingsView: View {
     @State private var currentAutoFan: Bool = true
     
     // Editable settings
+    @State private var hostname: String = ""
     @State private var frequency: Int = 500
     @State private var coreVoltage: Int = 1200
     @State private var fanSpeed: Int = 100
@@ -78,6 +79,9 @@ struct MinerSettingsView: View {
             } else {
                 ScrollView {
                     VStack(spacing: 20) {
+                        // Device Settings
+                        deviceSettingsCard
+                        
                         // Current Status Card
                         currentStatusCard
                         
@@ -169,6 +173,35 @@ struct MinerSettingsView: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Device Settings Card
+    
+    private var deviceSettingsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Device", systemImage: "desktopcomputer")
+                .font(.headline)
+            
+            HStack {
+                Text("Hostname")
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                
+                Spacer()
+                
+                TextField("Hostname", text: $hostname)
+                    .textFieldStyle(.roundedBorder)
+                    .frame(width: 200)
+                    .onChange(of: hostname) { _, _ in hasChanges = true }
+            }
+            
+            Text("The hostname identifies this miner on your network")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
     }
     
     // MARK: - Current Status Card
@@ -409,6 +442,9 @@ struct MinerSettingsView: View {
                 let updates = try modelContext.fetch(descriptor)
                 
                 await MainActor.run {
+                    // Load hostname from miner
+                    hostname = miner.hostName
+                    
                     if let latestUpdate = updates.first {
                         // Use target coreVoltage if available, otherwise estimate from measured voltage
                         if let targetVoltage = latestUpdate.coreVoltage {
@@ -465,7 +501,7 @@ struct MinerSettingsView: View {
                 fallbackStratumPort: nil,
                 ssid: nil,
                 wifiPass: nil,
-                hostname: nil,
+                hostname: hostname.isEmpty ? nil : hostname,
                 coreVoltage: coreVoltage,
                 frequency: frequency,
                 flipscreen: flipScreen ? 1 : 0,

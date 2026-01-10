@@ -32,6 +32,9 @@ struct MinerSettingsSheet: View {
     @State private var invertScreen: Bool = false
     @State private var invertFanPolarity: Bool = false
     
+    // Device settings
+    @State private var hostname: String = ""
+    
     // Pool settings
     @State private var stratumURL: String = ""
     @State private var stratumPort: String = ""
@@ -139,6 +142,9 @@ struct MinerSettingsSheet: View {
     
     private var settingsForm: some View {
         Form {
+            // Device Section
+            deviceSection
+            
             // Pool Configuration Section
             poolSection
             
@@ -156,6 +162,23 @@ struct MinerSettingsSheet: View {
             
             // Danger Zone
             dangerZoneSection
+        }
+    }
+    
+    // MARK: - Device Section
+    
+    private var deviceSection: some View {
+        Section {
+            TextField("Hostname", text: Binding(
+                get: { hostname },
+                set: { hostname = $0; hasChanges = true }
+            ))
+            .autocorrectionDisabled()
+            .textInputAutocapitalization(.never)
+        } header: {
+            Label("Device", systemImage: "desktopcomputer")
+        } footer: {
+            Text("The hostname identifies this miner on your network")
         }
     }
     
@@ -452,6 +475,9 @@ struct MinerSettingsSheet: View {
                 invertScreen = (info.invertscreen ?? 0) == 1
                 invertFanPolarity = (info.invertfanpolarity ?? 0) == 1
                 
+                // Device settings
+                hostname = info.hostname
+                
                 // Pool settings
                 stratumURL = info.stratumURL ?? ""
                 stratumPort = String(info.stratumPort ?? 0)
@@ -489,7 +515,7 @@ struct MinerSettingsSheet: View {
             fallbackStratumPort: nil,
             ssid: nil,
             wifiPass: nil,
-            hostname: nil,
+            hostname: hostname.isEmpty ? nil : hostname,
             coreVoltage: tuningEnabled ? coreVoltage : nil,
             frequency: tuningEnabled ? frequency : nil,
             flipscreen: flipScreen ? 1 : 0,
