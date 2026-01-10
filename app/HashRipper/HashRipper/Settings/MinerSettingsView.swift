@@ -34,6 +34,12 @@ struct MinerSettingsView: View {
     @State private var invertScreen: Bool = false
     @State private var invertFanPolarity: Bool = false
     
+    // Pool settings
+    @State private var stratumURL: String = ""
+    @State private var stratumPort: String = ""
+    @State private var stratumUser: String = ""
+    @State private var stratumPassword: String = ""
+    
     // UI State
     @State private var isLoading: Bool = true
     @State private var isSaving: Bool = false
@@ -67,6 +73,9 @@ struct MinerSettingsView: View {
                     VStack(spacing: 20) {
                         // Device Settings
                         deviceSettingsCard
+                        
+                        // Pool Settings
+                        poolSettingsCard
                         
                         // Current Status Card
                         currentStatusCard
@@ -182,6 +191,71 @@ struct MinerSettingsView: View {
             }
             
             Text("The hostname identifies this miner on your network")
+                .font(.caption)
+                .foregroundStyle(.tertiary)
+        }
+        .padding(16)
+        .background(.ultraThinMaterial)
+        .clipShape(RoundedRectangle(cornerRadius: 12))
+    }
+    
+    // MARK: - Pool Settings Card
+    
+    private var poolSettingsCard: some View {
+        VStack(alignment: .leading, spacing: 16) {
+            Label("Mining Pool", systemImage: "server.rack")
+                .font(.headline)
+            
+            VStack(spacing: 12) {
+                HStack {
+                    Text("Pool URL")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    TextField("stratum+tcp://pool.example.com", text: $stratumURL)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: stratumURL) { _, _ in hasChanges = true }
+                }
+                
+                HStack {
+                    Text("Port")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    TextField("3333", text: $stratumPort)
+                        .textFieldStyle(.roundedBorder)
+                        .frame(width: 100)
+                        .onChange(of: stratumPort) { _, _ in hasChanges = true }
+                    
+                    Spacer()
+                }
+                
+                HStack {
+                    Text("Worker")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    TextField("bc1q...your_address.worker1", text: $stratumUser)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: stratumUser) { _, _ in hasChanges = true }
+                }
+                
+                HStack {
+                    Text("Password")
+                        .font(.subheadline)
+                        .foregroundStyle(.secondary)
+                        .frame(width: 80, alignment: .leading)
+                    
+                    SecureField("Optional", text: $stratumPassword)
+                        .textFieldStyle(.roundedBorder)
+                        .onChange(of: stratumPassword) { _, _ in hasChanges = true }
+                }
+            }
+            
+            Text("Configure the stratum pool your miner connects to")
                 .font(.caption)
                 .foregroundStyle(.tertiary)
         }
@@ -453,6 +527,12 @@ struct MinerSettingsView: View {
                         flipScreen = latestUpdate.flipscreen == 1
                         invertScreen = latestUpdate.invertscreen == 1
                         invertFanPolarity = latestUpdate.invertfanpolarity == 1
+                        
+                        // Load pool settings
+                        stratumURL = latestUpdate.stratumURL ?? ""
+                        stratumPort = latestUpdate.stratumPort > 0 ? String(latestUpdate.stratumPort) : ""
+                        stratumUser = latestUpdate.stratumUser ?? ""
+                        stratumPassword = "" // Password is not stored in updates for security
                     }
                     
                     isLoading = false
@@ -477,13 +557,13 @@ struct MinerSettingsView: View {
         Task {
             // Note: coreVoltage is sent as-is (the API expects mV directly)
             let settings = MinerSettings(
-                stratumURL: nil,
+                stratumURL: stratumURL.isEmpty ? nil : stratumURL,
                 fallbackStratumURL: nil,
-                stratumUser: nil,
-                stratumPassword: nil,
+                stratumUser: stratumUser.isEmpty ? nil : stratumUser,
+                stratumPassword: stratumPassword.isEmpty ? nil : stratumPassword,
                 fallbackStratumUser: nil,
                 fallbackStratumPassword: nil,
-                stratumPort: nil,
+                stratumPort: Int(stratumPort),
                 fallbackStratumPort: nil,
                 ssid: nil,
                 wifiPass: nil,

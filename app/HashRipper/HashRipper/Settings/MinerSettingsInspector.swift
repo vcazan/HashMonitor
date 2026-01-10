@@ -35,6 +35,12 @@ struct MinerSettingsInspector: View {
     @State private var invertScreen: Bool = false
     @State private var invertFanPolarity: Bool = false
     
+    // Pool settings
+    @State private var stratumURL: String = ""
+    @State private var stratumPort: String = ""
+    @State private var stratumUser: String = ""
+    @State private var stratumPassword: String = ""
+    
     // UI State
     @State private var isLoading: Bool = true
     @State private var isSaving: Bool = false
@@ -69,6 +75,9 @@ struct MinerSettingsInspector: View {
                     VStack(alignment: .leading, spacing: 16) {
                         // Device Settings
                         deviceGroup
+                        
+                        // Pool Settings
+                        poolGroup
                         
                         // Current Status
                         currentStatusGroup
@@ -193,6 +202,85 @@ struct MinerSettingsInspector: View {
             }
         } label: {
             Text("Device")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
+    }
+    
+    // MARK: - Pool Group
+    
+    private var poolGroup: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                // Pool URL
+                HStack {
+                    Text("Pool URL")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .leading)
+                    TextField("stratum+tcp://pool.example.com", text: Binding(
+                        get: { stratumURL },
+                        set: { stratumURL = $0; hasChanges = true }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11))
+                    .controlSize(.small)
+                }
+                
+                // Port
+                HStack {
+                    Text("Port")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .leading)
+                    TextField("3333", text: Binding(
+                        get: { stratumPort },
+                        set: { stratumPort = $0; hasChanges = true }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11))
+                    .controlSize(.small)
+                    .frame(width: 70)
+                    Spacer()
+                }
+                
+                // Worker
+                HStack {
+                    Text("Worker")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .leading)
+                    TextField("bc1q...address.worker", text: Binding(
+                        get: { stratumUser },
+                        set: { stratumUser = $0; hasChanges = true }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11))
+                    .controlSize(.small)
+                }
+                
+                // Password
+                HStack {
+                    Text("Password")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                        .frame(width: 60, alignment: .leading)
+                    SecureField("Optional", text: Binding(
+                        get: { stratumPassword },
+                        set: { stratumPassword = $0; hasChanges = true }
+                    ))
+                    .textFieldStyle(.roundedBorder)
+                    .font(.system(size: 11))
+                    .controlSize(.small)
+                }
+                
+                Text("Stratum pool configuration")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        } label: {
+            Text("Mining Pool")
                 .font(.system(size: 10, weight: .medium))
                 .foregroundStyle(.secondary)
                 .textCase(.uppercase)
@@ -499,6 +587,12 @@ struct MinerSettingsInspector: View {
                         // Load overclock state from UserDefaults (persisted per-miner)
                         overclockEnabled = UserDefaults.standard.bool(forKey: "overclockEnabled_\(miner.macAddress)")
                         
+                        // Load pool settings
+                        stratumURL = latestUpdate.stratumURL ?? ""
+                        stratumPort = latestUpdate.stratumPort > 0 ? String(latestUpdate.stratumPort) : ""
+                        stratumUser = latestUpdate.stratumUser ?? ""
+                        stratumPassword = "" // Password is not stored for security
+                        
                         isLoading = false
                     }
                 } else {
@@ -528,13 +622,13 @@ struct MinerSettingsInspector: View {
         
         Task {
             let settings = MinerSettings(
-                stratumURL: nil,
+                stratumURL: stratumURL.isEmpty ? nil : stratumURL,
                 fallbackStratumURL: nil,
-                stratumUser: nil,
-                stratumPassword: nil,
+                stratumUser: stratumUser.isEmpty ? nil : stratumUser,
+                stratumPassword: stratumPassword.isEmpty ? nil : stratumPassword,
                 fallbackStratumUser: nil,
                 fallbackStratumPassword: nil,
-                stratumPort: nil,
+                stratumPort: Int(stratumPort),
                 fallbackStratumPort: nil,
                 ssid: nil,
                 wifiPass: nil,
