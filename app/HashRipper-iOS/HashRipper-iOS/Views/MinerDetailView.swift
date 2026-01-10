@@ -80,9 +80,30 @@ struct MinerDetailView: View {
         return Array(filtered.reversed())
     }
     
-    // Check if we have enough data for meaningful charts
-    private var hasEnoughChartData: Bool {
+    // Check if we have any data at all (not time-range specific)
+    private var hasAnyChartData: Bool {
+        !updates.isEmpty
+    }
+    
+    // Check if we have data for the selected time range
+    private var hasDataForSelectedRange: Bool {
         chartUpdates.count >= 2
+    }
+    
+    // The time domain for the chart (either actual data range or selected range)
+    private var chartTimeDomain: ClosedRange<Date> {
+        if chartUpdates.count >= 2,
+           let first = chartUpdates.first,
+           let last = chartUpdates.last {
+            let startDate = Date(timeIntervalSince1970: TimeInterval(first.timestamp) / 1000)
+            let endDate = Date(timeIntervalSince1970: TimeInterval(last.timestamp) / 1000)
+            return startDate...endDate
+        } else {
+            // Show empty chart with the selected time range
+            let endDate = Date()
+            let startDate = endDate.addingTimeInterval(-Double(selectedTimeRange.hours) * 3600)
+            return startDate...endDate
+        }
     }
     
     // Get the best time range based on available data
@@ -456,8 +477,8 @@ struct MinerDetailView: View {
                 selectedChartTime = nil
             }
             
-            // Chart content or placeholder
-            if hasEnoughChartData {
+            // Chart content - always show chart with proper time axes
+            if hasAnyChartData || totalDataPoints > 0 {
                 // Chart with value badge overlay
                 ZStack(alignment: .topTrailing) {
                     Group {
@@ -474,15 +495,34 @@ struct MinerDetailView: View {
                     }
                     .frame(height: 180)
                     
-                    // Value badge in corner
-                    selectedValueBadge
+                    // Value badge in corner (only show when we have data selected)
+                    if hasDataForSelectedRange {
+                        selectedValueBadge
+                            .padding(8)
+                    }
+                    
+                    // Show "No data for this range" overlay when empty
+                    if !hasDataForSelectedRange {
+                        VStack(spacing: 4) {
+                            Text("No data for \(selectedTimeRange.displayName.lowercased())")
+                                .font(.caption)
+                                .foregroundStyle(.secondary)
+                            if totalDataPoints > 0 {
+                                Text("Try a shorter time range")
+                                    .font(.caption2)
+                                    .foregroundStyle(.tertiary)
+                            }
+                        }
                         .padding(8)
+                        .background(.ultraThinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
                 }
                 .padding()
                 .background(Color(.systemGray6))
                 .clipShape(RoundedRectangle(cornerRadius: 12))
             } else {
-                // Not enough data placeholder
+                // Initial state - no data collected yet
                 VStack(spacing: 12) {
                     Image(systemName: "chart.line.uptrend.xyaxis")
                         .font(.system(size: 32))
@@ -492,16 +532,13 @@ struct MinerDetailView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                     
-                    Text("Charts will appear after a few data points are collected.\nData refreshes every \(chartPollingInterval) second\(chartPollingInterval == 1 ? "" : "s").")
+                    Text("Charts will appear after data is collected.\nRefreshing every \(chartPollingInterval) second\(chartPollingInterval == 1 ? "" : "s").")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .multilineTextAlignment(.center)
                     
-                    if totalDataPoints > 0 {
-                        Text("\(totalDataPoints) of 2 minimum points")
-                            .font(.caption2.monospacedDigit())
-                            .foregroundStyle(.tertiary)
-                    }
+                    ProgressView()
+                        .scaleEffect(0.8)
                 }
                 .frame(maxWidth: .infinity)
                 .frame(height: 180)
@@ -583,6 +620,7 @@ struct MinerDetailView: View {
     
     private var hashRateChart: some View {
         let unit = hashRateUnit
+        let domain = chartTimeDomain
         
         return Chart {
             ForEach(chartUpdates, id: \.timestamp) { update in
@@ -622,6 +660,7 @@ struct MinerDetailView: View {
                 .symbolSize(80)
             }
         }
+        .chartXScale(domain: domain)
         .chartXSelection(value: $selectedChartTime)
         .chartYAxisLabel(unit.label)
         .chartYAxis {
@@ -643,7 +682,9 @@ struct MinerDetailView: View {
     }
     
     private var powerChart: some View {
-        Chart {
+        let domain = chartTimeDomain
+        
+        return Chart {
             ForEach(chartUpdates, id: \.timestamp) { update in
                 let date = Date(timeIntervalSince1970: TimeInterval(update.timestamp) / 1000)
                 LineMark(
@@ -677,6 +718,7 @@ struct MinerDetailView: View {
                 .symbolSize(80)
             }
         }
+        .chartXScale(domain: domain)
         .chartXSelection(value: $selectedChartTime)
         .chartYAxisLabel("W")
         .chartYAxis {
@@ -698,7 +740,9 @@ struct MinerDetailView: View {
     }
     
     private var temperatureChart: some View {
-        Chart {
+        let domain = chartTimeDomain
+        
+        return Chart {
             ForEach(chartUpdates, id: \.timestamp) { update in
                 let date = Date(timeIntervalSince1970: TimeInterval(update.timestamp) / 1000)
                 if let temp = update.temp {
@@ -749,6 +793,7 @@ struct MinerDetailView: View {
                 }
             }
         }
+        .chartXScale(domain: domain)
         .chartXSelection(value: $selectedChartTime)
         .chartYAxisLabel("°C")
         .chartYAxis {
