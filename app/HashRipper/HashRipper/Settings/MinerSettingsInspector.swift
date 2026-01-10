@@ -25,6 +25,7 @@ struct MinerSettingsInspector: View {
     @State private var currentAutoFan: Bool = true
     
     // Editable settings
+    @State private var hostname: String = ""
     @State private var frequency: Int = 500
     @State private var coreVoltage: Int = 1200
     @State private var fanSpeed: Int = 100
@@ -66,6 +67,9 @@ struct MinerSettingsInspector: View {
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
+                        // Device Settings
+                        deviceGroup
+                        
                         // Current Status
                         currentStatusGroup
                         
@@ -155,6 +159,38 @@ struct MinerSettingsInspector: View {
                 .foregroundStyle(.secondary)
         }
         .frame(maxWidth: .infinity, maxHeight: .infinity)
+    }
+    
+    // MARK: - Device Group
+    
+    private var deviceGroup: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Hostname")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                }
+                
+                TextField("Hostname", text: Binding(
+                    get: { hostname },
+                    set: { hostname = $0; hasChanges = true }
+                ))
+                .textFieldStyle(.roundedBorder)
+                .font(.system(size: 11))
+                .controlSize(.small)
+                
+                Text("Network identifier for this miner")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        } label: {
+            Text("Device")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
     }
     
     // MARK: - Current Status Group
@@ -431,6 +467,7 @@ struct MinerSettingsInspector: View {
                         currentAutoFan = (latestUpdate.autofanspeed ?? 1) == 1
                         
                         // Set editable values to current
+                        hostname = miner.hostName
                         frequency = Int(latestUpdate.frequency ?? 500)
                         coreVoltage = latestUpdate.coreVoltage ?? 1200
                         fanSpeed = Int(latestUpdate.fanspeed ?? 100)
@@ -445,6 +482,7 @@ struct MinerSettingsInspector: View {
                     }
                 } else {
                     await MainActor.run {
+                        hostname = miner.hostName
                         isLoading = false
                     }
                 }
@@ -479,7 +517,7 @@ struct MinerSettingsInspector: View {
                 fallbackStratumPort: nil,
                 ssid: nil,
                 wifiPass: nil,
-                hostname: nil,
+                hostname: hostname.isEmpty ? nil : hostname,
                 coreVoltage: coreVoltage,
                 frequency: frequency,
                 flipscreen: flipScreen ? 1 : 0,
@@ -499,6 +537,12 @@ struct MinerSettingsInspector: View {
                 switch result {
                 case .success:
                     hasChanges = false
+                    
+                    // Update the miner's hostname if it changed
+                    if !hostname.isEmpty && miner.hostName != hostname {
+                        miner.hostName = hostname
+                    }
+                    
                     showSuccessAlert = true
                     
                     // Update current values
