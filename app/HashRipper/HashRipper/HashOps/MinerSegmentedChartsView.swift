@@ -233,27 +233,6 @@ struct MinerSegmentedUpdateChartsView: View {
         ChartSegments.allCases.filter({ $0 != ChartSegments.voltageRegulatorTemperature })
     }
     
-    var timeRangeText: String {
-        guard let hashRateData = viewModel.chartDataBySegment[.hashRate],
-              let firstEntry = hashRateData.first,
-              let lastEntry = hashRateData.last else {
-            return "No data"
-        }
-        
-        let formatter = DateFormatter()
-        let calendar = Calendar.current
-        
-        if calendar.isDate(firstEntry.time, inSameDayAs: lastEntry.time) {
-            formatter.dateFormat = "MMM d, h:mm a"
-            let endFormatter = DateFormatter()
-            endFormatter.dateFormat = "h:mm a"
-            return "\(formatter.string(from: firstEntry.time)) – \(endFormatter.string(from: lastEntry.time))"
-        } else {
-            formatter.dateFormat = "MMM d, h:mm a"
-            return "\(formatter.string(from: firstEntry.time)) – \(formatter.string(from: lastEntry.time))"
-        }
-    }
-
     var body: some View {
         VStack(spacing: 0) {
             // Header section
@@ -301,42 +280,43 @@ struct MinerSegmentedUpdateChartsView: View {
                         .frame(maxWidth: .infinity)
                         .padding(.vertical, 40)
                     } else {
-                        // Data pagination controls
+                        // Time range controls
                         VStack(spacing: 8) {
                             HStack {
-                                Text(timeRangeText)
-                                    .font(.caption)
-                                    .foregroundColor(.secondary)
+                                VStack(alignment: .leading, spacing: 2) {
+                                    Text(viewModel.timeRangeInfo)
+                                        .font(.caption)
+                                        .foregroundColor(.secondary)
+                                    Text(viewModel.dataPointsInfo)
+                                        .font(.caption2)
+                                        .foregroundStyle(.secondary.opacity(0.7))
+                                }
 
                                 if viewModel.isPaginating {
                                     ProgressView()
                                         .scaleEffect(0.6)
                                         .controlSize(.mini)
                                 }
+                                
+                                Spacer()
                             }
 
-                            HStack(spacing: 16) {
-                                Button(action: {
-                                    Task { await viewModel.goToOlderData() }
-                                }) {
-                                    Label("Older", systemImage: "chevron.left")
+                            // Time range picker
+                            HStack(spacing: 4) {
+                                ForEach(ChartTimeRange.allCases) { range in
+                                    Button(action: {
+                                        Task { await viewModel.setTimeRange(range) }
+                                    }) {
+                                        Text(range.shortName)
+                                            .font(.caption2.weight(.semibold))
+                                    }
+                                    .buttonStyle(.bordered)
+                                    .tint(viewModel.selectedTimeRange == range ? .blue : .secondary)
+                                    .controlSize(.small)
+                                    .disabled(viewModel.isPaginating)
+                                    .help(range.displayName)
                                 }
-                                .disabled(!viewModel.canGoToOlderData || viewModel.isPaginating)
-
-                                Button("Most Recent") {
-                                    Task { await viewModel.goToMostRecentData() }
-                                }
-                                .disabled(!viewModel.canGoToNewerData || viewModel.isPaginating)
-
-                                Button(action: {
-                                    Task { await viewModel.goToNewerData() }
-                                }) {
-                                    Label("Newer", systemImage: "chevron.right")
-                                }
-                                .disabled(!viewModel.canGoToNewerData || viewModel.isPaginating)
                             }
-                            .buttonStyle(.bordered)
-                            .controlSize(.small)
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)

@@ -109,89 +109,54 @@ struct MinerChartsSheet: View {
         .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Pagination
-    
-    private var timeRangeText: String {
-        // Get the time range from chart data
-        guard let hashRateData = viewModel.chartDataBySegment[.hashRate],
-              let firstEntry = hashRateData.first,
-              let lastEntry = hashRateData.last else {
-            return "No data"
-        }
-        
-        let formatter = DateFormatter()
-        let calendar = Calendar.current
-        
-        // Check if same day
-        if calendar.isDate(firstEntry.time, inSameDayAs: lastEntry.time) {
-            formatter.dateFormat = "MMM d, h:mm a"
-            let startTime = DateFormatter()
-            startTime.dateFormat = "h:mm a"
-            let endTime = DateFormatter()
-            endTime.dateFormat = "h:mm a"
-            return "\(formatter.string(from: firstEntry.time)) – \(endTime.string(from: lastEntry.time))"
-        } else {
-            formatter.dateFormat = "MMM d, h:mm a"
-            return "\(formatter.string(from: firstEntry.time)) – \(formatter.string(from: lastEntry.time))"
-        }
-    }
+    // MARK: - Time Range Controls
     
     private var paginationControls: some View {
         HStack(spacing: 16) {
-            Text(timeRangeText)
-                .font(.system(size: 12, weight: .medium))
-                .foregroundStyle(.secondary)
+            // Time range info
+            VStack(alignment: .leading, spacing: 2) {
+                Text(viewModel.timeRangeInfo)
+                    .font(.system(size: 12, weight: .medium))
+                    .foregroundStyle(.secondary)
+                Text(viewModel.dataPointsInfo)
+                    .font(.system(size: 10))
+                    .foregroundStyle(.tertiary)
+            }
             
             Spacer()
             
-            HStack(spacing: 8) {
-                Button(action: { Task { await viewModel.goToOlderData() } }) {
-                    HStack(spacing: 4) {
-                        Image(systemName: "chevron.left")
-                            .font(.system(size: 10, weight: .semibold))
-                        Text("Older")
-                            .font(.system(size: 12, weight: .medium))
+            // Time range picker
+            HStack(spacing: 4) {
+                ForEach(ChartTimeRange.allCases) { range in
+                    Button(action: {
+                        Task { await viewModel.setTimeRange(range) }
+                    }) {
+                        Text(range.shortName)
+                            .font(.system(size: 11, weight: .semibold))
+                            .padding(.horizontal, 10)
+                            .padding(.vertical, 6)
+                            .background(
+                                viewModel.selectedTimeRange == range
+                                    ? Color.blue
+                                    : (colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.94))
+                            )
+                            .foregroundStyle(viewModel.selectedTimeRange == range ? .white : .primary)
+                            .clipShape(RoundedRectangle(cornerRadius: 6))
                     }
+                    .buttonStyle(.plain)
+                    .disabled(viewModel.isPaginating)
+                    .help(range.displayName)
                 }
-                .buttonStyle(.plain)
-                .foregroundStyle(viewModel.canGoToOlderData ? .primary : .secondary)
-                .disabled(!viewModel.canGoToOlderData || viewModel.isPaginating)
-                
-                Divider()
-                    .frame(height: 14)
-                
-                Button(action: { Task { await viewModel.goToMostRecentData() } }) {
-                    Text("Latest")
-                        .font(.system(size: 12, weight: .medium))
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(viewModel.canGoToNewerData ? .blue : .secondary)
-                .disabled(!viewModel.canGoToNewerData || viewModel.isPaginating)
-                
-                Divider()
-                    .frame(height: 14)
-                
-                Button(action: { Task { await viewModel.goToNewerData() } }) {
-                    HStack(spacing: 4) {
-                        Text("Newer")
-                            .font(.system(size: 12, weight: .medium))
-                        Image(systemName: "chevron.right")
-                            .font(.system(size: 10, weight: .semibold))
-                    }
-                }
-                .buttonStyle(.plain)
-                .foregroundStyle(viewModel.canGoToNewerData ? .primary : .secondary)
-                .disabled(!viewModel.canGoToNewerData || viewModel.isPaginating)
                 
                 if viewModel.isPaginating {
                     ProgressView()
                         .scaleEffect(0.6)
+                        .padding(.leading, 8)
                 }
             }
-            .padding(.horizontal, 12)
-            .padding(.vertical, 6)
+            .padding(4)
             .background(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 6))
+            .clipShape(RoundedRectangle(cornerRadius: 8))
             .shadow(color: colorScheme == .dark ? .black.opacity(0.3) : .black.opacity(0.06), radius: 2, x: 0, y: 1)
         }
     }

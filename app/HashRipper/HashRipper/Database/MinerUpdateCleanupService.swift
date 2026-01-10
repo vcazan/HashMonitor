@@ -9,21 +9,19 @@ import Foundation
 import SwiftData
 
 /// Efficient cleanup service for MinerUpdate records that runs batched operations in the background
+/// Now uses time-based retention (30 days) instead of count-based
 actor MinerUpdateCleanupService {
     private let database: Database
     private var cleanupTask: Task<Void, Never>?
     private var lastCleanupTime: Date = Date()
 
-    // Cleanup configuration
-    private let maxUpdatesPerMiner = kMaxUpdateHistory // 3000
-    private let cleanupBuffer = 100 // Delete extra records to avoid frequent cleanups
-    private let targetUpdatesPerMiner: Int
-    private let cleanupInterval: TimeInterval = 300 // 5 minutes
-    private let batchSize = 50 // Process this many miners per cleanup cycle
+    // Cleanup configuration - time-based retention
+    private let retentionDays: Int = 30 // Keep 30 days of history
+    private let cleanupInterval: TimeInterval = 3600 // Run cleanup every hour (less frequently since time-based)
+    private let batchSize = 1000 // Process more records per batch since we're less frequent
 
     init(database: Database) {
         self.database = database
-        self.targetUpdatesPerMiner = maxUpdatesPerMiner - cleanupBuffer // Keep 2900 records
     }
 
     func startCleanupService() {
@@ -67,135 +65,65 @@ actor MinerUpdateCleanupService {
     }
 
     private func performBatchedCleanup() async {
-        print("🧹 Starting batched MinerUpdate cleanup...")
+        print("🧹 Starting time-based MinerUpdate cleanup (retention: \(retentionDays) days)...")
         lastCleanupTime = Date()
 
         do {
-            // Create a dedicated context for ProfilesAndConfig to ensure MinerUpdate is accessible
+            // Create a dedicated context for cleanup
             let modelContainer = SharedDatabase.shared.modelContainer
             let context = ModelContext(modelContainer)
 
-            // Get all miners that have updates using database context
-            let minersWithUpdates = try getMinersNeedingCleanupSync(context: context)
+            // Calculate cutoff timestamp (30 days ago in milliseconds)
+            let cutoffDate = Calendar.current.date(byAdding: .day, value: -retentionDays, to: Date()) ?? Date()
+            let cutoffTimestamp = Int64(cutoffDate.timeIntervalSince1970 * 1000)
 
-            if minersWithUpdates.isEmpty {
-                print("✅ No miners need cleanup")
-                return
-            }
-
-            print("🔍 Found \(minersWithUpdates.count) miners that may need cleanup")
-
-            // Process miners in batches to avoid overwhelming the database
-            var totalDeleted = 0
-
-            for batch in minersWithUpdates.chunked(into: batchSize) {
-                if Task.isCancelled { break }
-
-                let deletedInBatch = try cleanupBatchOfMinersSync(batch, context: context)
-                totalDeleted += deletedInBatch
-
-                // Small delay between batches to avoid overwhelming the system
-                try? await Task.sleep(nanoseconds: 100_000_000) // 100ms
-            }
+            // Delete all records older than retention period
+            let totalDeleted = try deleteOldRecordsSync(cutoffTimestamp: cutoffTimestamp, context: context)
 
             // Save all changes at the end
             try context.save()
 
             if totalDeleted > 0 {
-                print("✅ Cleanup completed: deleted \(totalDeleted) old MinerUpdate records")
+                print("✅ Cleanup completed: deleted \(totalDeleted) records older than \(retentionDays) days")
             } else {
                 print("✅ Cleanup completed: no records needed deletion")
             }
 
         } catch {
-            print("❌ Error during batched cleanup: \(error)")
+            print("❌ Error during time-based cleanup: \(error)")
         }
     }
 
-    nonisolated private func getMinersNeedingCleanupSync(context: ModelContext) throws -> [String] {
-        // Get distinct mac addresses - this is much more efficient than fetching all records
-        let distinctMacDescriptor = FetchDescriptor<MinerUpdate>(
-            sortBy: [SortDescriptor(\MinerUpdate.macAddress)]
-        )
-
-        let allUpdates = try context.fetch(distinctMacDescriptor)
-        let uniqueMacAddresses = Set(allUpdates.map { $0.macAddress })
-
-        // Now check count for each unique mac address
-        var minersNeedingCleanup: [String] = []
-
-        for macAddress in uniqueMacAddresses {
-            let countDescriptor = FetchDescriptor<MinerUpdate>(
-                predicate: #Predicate<MinerUpdate> { update in
-                    update.macAddress == macAddress
-                }
-            )
-
-            let count = try context.fetchCount(countDescriptor)
-            if count > maxUpdatesPerMiner {
-                minersNeedingCleanup.append(macAddress)
-            }
-        }
-
-        return minersNeedingCleanup
-    }
-
-    nonisolated private func cleanupBatchOfMinersSync(_ macAddresses: [String], context: ModelContext) throws -> Int {
-        var totalDeleted = 0
-
-        for macAddress in macAddresses {
-            do {
-                let deleted = try cleanupSingleMinerSync(macAddress: macAddress, context: context)
-                totalDeleted += deleted
-            } catch {
-                print("⚠️ Failed to cleanup miner \(macAddress): \(error)")
-            }
-        }
-
-        // Note: Context saving is handled by database.withModelContext
-        return totalDeleted
-    }
-
-    nonisolated private func cleanupSingleMinerSync(macAddress: String, context: ModelContext) throws -> Int {
-        // Count total updates for this miner
-        let countDescriptor = FetchDescriptor<MinerUpdate>(
+    nonisolated private func deleteOldRecordsSync(cutoffTimestamp: Int64, context: ModelContext) throws -> Int {
+        // Fetch records older than cutoff in batches
+        var oldRecordsDescriptor = FetchDescriptor<MinerUpdate>(
             predicate: #Predicate<MinerUpdate> { update in
-                update.macAddress == macAddress
-            }
-        )
-
-        let totalCount = try context.fetchCount(countDescriptor)
-
-        // If we're under threshold, nothing to do
-        guard totalCount > maxUpdatesPerMiner else { return 0 }
-
-        // Calculate how many to delete (delete extra to avoid frequent cleanups)
-        let deletionCount = totalCount - targetUpdatesPerMiner
-
-        // Get oldest records and delete them individually to handle relationship issues safely
-        var oldestDescriptor = FetchDescriptor<MinerUpdate>(
-            predicate: #Predicate<MinerUpdate> { update in
-                update.macAddress == macAddress
+                update.timestamp < cutoffTimestamp
             },
             sortBy: [SortDescriptor(\MinerUpdate.timestamp, order: .forward)]
         )
-        oldestDescriptor.fetchLimit = deletionCount
+        oldRecordsDescriptor.fetchLimit = batchSize
 
-        let oldestUpdates = try context.fetch(oldestDescriptor)
-
-        // Delete records individually to ensure proper relationship handling
-        var actualDeleted = 0
-        for update in oldestUpdates {
-            // Simply delete the update - no need to verify relationship
-            // The miner might be in ephemeral storage and could be deleted,
-            // causing a fatal error if we try to access it
-            context.delete(update)
-            actualDeleted += 1
+        var totalDeleted = 0
+        
+        // Delete in batches until no more old records
+        while true {
+            let oldRecords = try context.fetch(oldRecordsDescriptor)
+            
+            if oldRecords.isEmpty { break }
+            
+            for record in oldRecords {
+                context.delete(record)
+                totalDeleted += 1
+            }
+            
+            // Save periodically to avoid memory pressure
+            if totalDeleted % batchSize == 0 {
+                try context.save()
+            }
         }
 
-        print("🗑️ Deleted \(actualDeleted) old updates for miner \(macAddress) (had \(totalCount), now has ~\(targetUpdatesPerMiner))")
-
-        return actualDeleted
+        return totalDeleted
     }
 
     /// Clean up orphaned MinerUpdate records that have broken miner relationships

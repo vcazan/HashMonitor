@@ -10,6 +10,58 @@ import SwiftData
 import SwiftUI
 import Combine
 
+/// Intuitive time range options for charts
+enum ChartTimeRange: String, CaseIterable, Identifiable {
+    case oneHour = "1h"
+    case threeHours = "3h"
+    case eightHours = "8h"
+    case twentyFourHours = "24h"
+    case threeDays = "3d"
+    case sevenDays = "7d"
+    case thirtyDays = "30d"
+    
+    var id: String { rawValue }
+    
+    var displayName: String {
+        switch self {
+        case .oneHour: return "Last Hour"
+        case .threeHours: return "Last 3 Hours"
+        case .eightHours: return "Last 8 Hours"
+        case .twentyFourHours: return "Last 24 Hours"
+        case .threeDays: return "Last 3 Days"
+        case .sevenDays: return "Last 7 Days"
+        case .thirtyDays: return "Last 30 Days"
+        }
+    }
+    
+    var shortName: String {
+        rawValue.uppercased()
+    }
+    
+    /// Returns the time interval in seconds
+    var timeInterval: TimeInterval {
+        switch self {
+        case .oneHour: return 3600
+        case .threeHours: return 3600 * 3
+        case .eightHours: return 3600 * 8
+        case .twentyFourHours: return 3600 * 24
+        case .threeDays: return 3600 * 24 * 3
+        case .sevenDays: return 3600 * 24 * 7
+        case .thirtyDays: return 3600 * 24 * 30
+        }
+    }
+    
+    /// Start date for this time range
+    var startDate: Date {
+        Date().addingTimeInterval(-timeInterval)
+    }
+    
+    /// Timestamp in milliseconds for database queries
+    var startTimestamp: Int64 {
+        Int64(startDate.timeIntervalSince1970 * 1000)
+    }
+}
+
 @MainActor
 class MinerChartsViewModel: ObservableObject {
     @Published var miners: [Miner] = []
@@ -17,18 +69,15 @@ class MinerChartsViewModel: ObservableObject {
     @Published var chartDataBySegment: [ChartSegments: [ChartSegmentedDataEntry]] = [:]
     @Published var isLoading = false
     @Published var currentMiner: Miner?
-    @Published var currentPage = 0
+    @Published var selectedTimeRange: ChartTimeRange = .oneHour
     @Published var totalDataPoints = 0
-    @Published var hasMoreData = false
     @Published var isPaginating = false
+    @Published var dataTimeRange: (start: Date, end: Date)?
 
     private var modelContext: ModelContext?
     private let initialMinerMacAddress: String?
     private var notificationSubscription: AnyCancellable?
     private var debounceTask: Task<Void, Never>?
-
-    // Pagination settings
-    let dataPointsPerPage = 200 // Show 200 data points per page
     
     init(modelContext: ModelContext?, initialMinerMacAddress: String?) {
         self.modelContext = modelContext
@@ -111,10 +160,9 @@ class MinerChartsViewModel: ObservableObject {
             isPaginating = true
         }
 
-        // Capture pagination values on main actor
-        let currentPageValue = currentPage
-        let dataPointsPerPageValue = dataPointsPerPage
+        // Capture values on main actor
         let macAddress = miner.macAddress
+        let startTimestamp = selectedTimeRange.startTimestamp
 
         // Perform database operations on background thread
         let result = await Task.detached {
@@ -122,37 +170,18 @@ class MinerChartsViewModel: ObservableObject {
             let backgroundContext = ModelContext(SharedDatabase.shared.modelContainer)
 
             do {
-                // First, get total count for pagination info
-                let countDescriptor = FetchDescriptor<MinerUpdate>(
+                // Fetch data within the selected time range
+                let descriptor = FetchDescriptor<MinerUpdate>(
                     predicate: #Predicate<MinerUpdate> { update in
-                        update.macAddress == macAddress
-                    }
-                )
-                let allUpdates = try backgroundContext.fetch(countDescriptor)
-                let totalCount = allUpdates.count
-
-                // Calculate pagination
-                let offset = currentPageValue * dataPointsPerPageValue
-                let hasMore = offset + dataPointsPerPageValue < totalCount
-
-                // Fetch paginated data - most recent first, then take our window
-                var descriptor = FetchDescriptor<MinerUpdate>(
-                    predicate: #Predicate<MinerUpdate> { update in
-                        update.macAddress == macAddress
+                        update.macAddress == macAddress && update.timestamp >= startTimestamp
                     },
-                    sortBy: [SortDescriptor(\MinerUpdate.timestamp, order: .reverse)]
+                    sortBy: [SortDescriptor(\MinerUpdate.timestamp, order: .forward)] // Oldest first for chronological order
                 )
-                descriptor.fetchLimit = offset + dataPointsPerPageValue
 
                 let updates = try backgroundContext.fetch(descriptor)
+                let totalCount = updates.count
 
-                // Take the window we want (skip older data, take our page)
-                let pageUpdates = Array(updates.dropFirst(offset).prefix(dataPointsPerPageValue))
-
-                // Reverse to get chronological order (oldest first) for proper chart display
-                let sortedUpdates = pageUpdates.reversed()
-
-                let nextChartData = sortedUpdates.map { update in
+                let nextChartData = updates.map { update in
                     ChartSegmentedDataEntry(
                         time: Date(milliseconds: update.timestamp),
                         values: [
@@ -165,24 +194,32 @@ class MinerChartsViewModel: ObservableObject {
                         ]
                     )
                 }
+                
+                // Get actual time range of data
+                let firstTime = updates.first.map { Date(milliseconds: $0.timestamp) }
+                let lastTime = updates.last.map { Date(milliseconds: $0.timestamp) }
 
-                return (nextChartData, totalCount, hasMore, nil as Error?)
+                return (nextChartData, totalCount, firstTime, lastTime, nil as Error?)
             } catch {
-                return ([], 0, false, error)
+                return ([], 0, nil as Date?, nil as Date?, error)
             }
         }.value
 
         // Update UI on main actor with smooth animation
-        let (nextChartData, totalCount, hasMore, error) = result
+        let (nextChartData, totalCount, firstTime, lastTime, error) = result
 
         if let error = error {
             print("Error loading chart data: \(error)")
             chartData = []
             totalDataPoints = 0
-            hasMoreData = false
+            dataTimeRange = nil
         } else {
             totalDataPoints = totalCount
-            hasMoreData = hasMore
+            if let first = firstTime, let last = lastTime {
+                dataTimeRange = (first, last)
+            } else {
+                dataTimeRange = nil
+            }
 
             // Update all charts simultaneously with optimized animation
             let chartsToShow: [ChartSegments] = ChartSegments.allCases.filter({ $0 != ChartSegments.voltageRegulatorTemperature })
@@ -212,7 +249,6 @@ class MinerChartsViewModel: ObservableObject {
         guard currentMiner?.id != miner.id else { return }
 
         currentMiner = miner
-        currentPage = 0 // Reset to most recent data when switching miners
         await loadChartData(for: miner)
 
         // Update notification subscription for the new miner
@@ -235,46 +271,41 @@ class MinerChartsViewModel: ObservableObject {
         await selectMiner(miners[currentIndex - 1])
     }
 
-    // Pagination methods
-    func goToNewerData() async {
-        guard currentPage > 0, let miner = currentMiner else { return }
-        currentPage -= 1
+    // Time range selection
+    func setTimeRange(_ range: ChartTimeRange) async {
+        guard let miner = currentMiner else { return }
+        selectedTimeRange = range
         await loadChartData(for: miner, showLoading: false)
     }
 
-    func goToOlderData() async {
-        guard hasMoreData, let miner = currentMiner else { return }
-        currentPage += 1
-        await loadChartData(for: miner, showLoading: false)
+    var timeRangeInfo: String {
+        if totalDataPoints == 0 {
+            return "No data for \(selectedTimeRange.displayName.lowercased())"
+        }
+        
+        guard let range = dataTimeRange else {
+            return "\(totalDataPoints) data points"
+        }
+        
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+        
+        if calendar.isDate(range.start, inSameDayAs: range.end) {
+            formatter.dateFormat = "MMM d, h:mm a"
+            let endTime = DateFormatter()
+            endTime.dateFormat = "h:mm a"
+            return "\(formatter.string(from: range.start)) – \(endTime.string(from: range.end))"
+        } else {
+            formatter.dateFormat = "MMM d, h:mm a"
+            return "\(formatter.string(from: range.start)) – \(formatter.string(from: range.end))"
+        }
     }
-
-    func goToMostRecentData() async {
-        guard currentPage > 0, let miner = currentMiner else { return }
-        currentPage = 0
-        await loadChartData(for: miner, showLoading: false)
-    }
-
-    var canGoToNewerData: Bool {
-        currentPage > 0
-    }
-
-    var canGoToOlderData: Bool {
-        hasMoreData
-    }
-
-    var currentPageInfo: String {
+    
+    var dataPointsInfo: String {
         if totalDataPoints == 0 {
             return "No data"
         }
-
-        let startIndex = currentPage * dataPointsPerPage + 1
-        let endIndex = min((currentPage + 1) * dataPointsPerPage, totalDataPoints)
-
-        if currentPage == 0 {
-            return "Most recent \(endIndex) of \(totalDataPoints) data points"
-        } else {
-            return "Showing \(startIndex)-\(endIndex) of \(totalDataPoints) data points"
-        }
+        return "\(totalDataPoints) data points"
     }
     
     var isNextMinerButtonDisabled: Bool {
