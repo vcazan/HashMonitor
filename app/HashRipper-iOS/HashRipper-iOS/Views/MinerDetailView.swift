@@ -359,7 +359,7 @@ struct MinerDetailView: View {
                 title: "Hash Rate",
                 value: hashRate.rateString,
                 unit: hashRate.rateSuffix,
-                icon: "bolt.fill",
+                icon: "cube.fill",
                 color: .green
             )
             

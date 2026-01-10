@@ -19,7 +19,7 @@ enum MinerSortOption: String, CaseIterable {
     var icon: String {
         switch self {
         case .name: return "textformat"
-        case .hashRate: return "bolt.fill"
+        case .hashRate: return "cube.fill"
         case .temperature: return "thermometer.medium"
         case .power: return "bolt.fill"
         }
@@ -445,7 +445,7 @@ struct MinerRowView: View {
                         // Hash rate
                         let formatted = formatMinerHashRate(rawRateValue: update.hashRate)
                         HStack(spacing: 3) {
-                            Image(systemName: "bolt.fill")
+                            Image(systemName: "cube.fill")
                                 .font(.system(size: 9))
                                 .foregroundStyle(.green)
                             Text("\(formatted.rateString) \(formatted.rateSuffix)")
@@ -523,7 +523,7 @@ struct MinerStatsSummaryCard: View {
                         .foregroundStyle(.secondary)
                 }
                 
-                Label("Hash Rate", systemImage: "bolt.fill")
+                Label("Hash Rate", systemImage: "cube.fill")
                     .font(.caption)
                     .foregroundStyle(.green)
             }

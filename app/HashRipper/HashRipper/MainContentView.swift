@@ -398,9 +398,9 @@ struct MainContentView: View {
         HStack(spacing: 16) {
             // Hash Rate
             HStack(spacing: 4) {
-                Image(systemName: "bolt.fill")
+                Image(systemName: "cube.fill")
                     .font(.system(size: 10))
-                    .foregroundStyle(.orange)
+                    .foregroundStyle(.green)
                 HStack(spacing: 2) {
                     Text(formattedTotalHashRate.0)
                         .font(.system(size: 11, weight: .semibold, design: .rounded))
