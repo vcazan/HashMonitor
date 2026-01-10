@@ -299,8 +299,8 @@ struct MinerListView: View {
                 miner.consecutiveTimeoutErrors = 0
                 
                 // Update hostname if it changed on the miner
-                if let newHostname = info.hostname, !newHostname.isEmpty, miner.hostName != newHostname {
-                    miner.hostName = newHostname
+                if !info.hostname.isEmpty && miner.hostName != info.hostname {
+                    miner.hostName = info.hostname
                 }
                 
                 let update = MinerUpdate(
