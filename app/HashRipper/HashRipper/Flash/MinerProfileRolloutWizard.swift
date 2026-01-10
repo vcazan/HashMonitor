@@ -297,7 +297,7 @@ struct MinerProfileRolloutWizard: View {
                     Button("Back") { onPrevious() }
                         .buttonStyle(.bordered)
                         .controlSize(.large)
-                        .disabled(model.stage == .one)
+                        .disabled(model.stage == .one || (preSelectedProfile != nil && model.stage == .two))
                     
                     Spacer()
                     
