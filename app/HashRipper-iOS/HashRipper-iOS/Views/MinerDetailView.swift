@@ -29,8 +29,8 @@ struct MinerDetailView: View {
     @State private var isInitialLoad = true
     @State private var selectedChartTime: Date? = nil
     
-    // Refresh interval in seconds
-    private let refreshInterval: TimeInterval = 5
+    // Refresh interval in seconds (1 second matches web UI behavior)
+    private let refreshInterval: TimeInterval = 1
     
     enum ChartTimeRange: String, CaseIterable {
         case oneHour = "1H"
@@ -487,7 +487,7 @@ struct MinerDetailView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                     
-                    Text("Charts will appear after a few data points are collected.\nData refreshes every \(Int(refreshInterval)) seconds.")
+                    Text("Charts will appear after a few data points are collected.\nData refreshes every second.")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .multilineTextAlignment(.center)
