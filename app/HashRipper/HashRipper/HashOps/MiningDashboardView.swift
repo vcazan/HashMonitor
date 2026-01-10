@@ -480,6 +480,8 @@ private struct MinerTileStat: View {
             Text(value)
                 .font(.system(size: 11, weight: .medium, design: .rounded))
                 .foregroundStyle(.secondary)
+                .lineLimit(1)
+                .minimumScaleFactor(0.7)
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(.vertical, 6)
