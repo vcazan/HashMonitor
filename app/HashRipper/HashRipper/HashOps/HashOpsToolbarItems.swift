@@ -11,10 +11,6 @@ import SwiftData
 struct HashOpsToolbarItems: View {
     @Environment(\.newMinerScanner) private var deviceRefresher
     @Environment(\.minerClientManager) private var minerClientManager
-    @Environment(\.openWindow) private var openWindow
-    @Environment(\.modelContext) private var modelContext
-    
-    @State private var unreadActionsCount: Int = 0
 
     var addNewMiner: () -> Void
     var addMinerManually: () -> Void
@@ -64,37 +60,6 @@ struct HashOpsToolbarItems: View {
                 Image(systemName: "iphone.and.arrow.forward.inward")
             }
             .help("Deploy a miner profile to your miners")
-            
-            Button(action: openWatchDogActionsWindow) {
-                ZStack(alignment: .topTrailing) {
-                    Image(systemName: "shield.checkered")
-                    
-                    if unreadActionsCount > 0 {
-                        Circle()
-                            .fill(.red)
-                            .frame(width: 8, height: 8)
-                            .offset(x: 6, y: -6)
-                    }
-                }
-            }
-            .help("View WatchDog action history")
-        }
-        .task {
-            await loadUnreadCount()
-        }
-    }
-    
-    private func loadUnreadCount() async {
-        let descriptor = FetchDescriptor<WatchDogActionLog>(
-            predicate: #Predicate<WatchDogActionLog> { $0.isRead == false }
-        )
-        do {
-            let count = try modelContext.fetchCount(descriptor)
-            await MainActor.run {
-                unreadActionsCount = count
-            }
-        } catch {
-            // Ignore errors
         }
     }
 
@@ -114,9 +79,5 @@ struct HashOpsToolbarItems: View {
         Task {
             await self.deviceRefresher?.rescanDevicesStreaming()
         }
-    }
-    
-    private func openWatchDogActionsWindow() {
-        NotificationCenter.default.post(name: .showAlertsTab, object: nil)
     }
 }
