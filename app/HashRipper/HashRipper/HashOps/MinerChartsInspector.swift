@@ -66,8 +66,10 @@ struct MinerChartsInspector: View {
             viewModel.setModelContext(modelContext)
             await viewModel.loadMiners()
         }
-        .onChange(of: miner.macAddress) { _, _ in
+        .onChange(of: miner.macAddress) { _, newMacAddress in
             Task {
+                // Update the view model with the new miner
+                viewModel.initialMinerMacAddress = newMacAddress
                 await viewModel.loadMiners()
             }
         }

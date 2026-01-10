@@ -92,6 +92,12 @@ struct MinerSettingsInspector: View {
         .frame(minWidth: 280)
         .background(Color(nsColor: .controlBackgroundColor))
         .onAppear { loadCurrentSettings() }
+        .onChange(of: miner.macAddress) { _, _ in
+            // Reload settings when user switches to a different miner
+            isLoading = true
+            hasChanges = false
+            loadCurrentSettings()
+        }
         .alert("Settings Saved", isPresented: $showSuccessAlert) {
             Button("OK") { }
         } message: {

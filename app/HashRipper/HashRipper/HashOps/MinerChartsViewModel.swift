@@ -89,7 +89,7 @@ class MinerChartsViewModel: ObservableObject {
     @Published var dataTimeRange: (start: Date, end: Date)?
 
     private var modelContext: ModelContext?
-    private let initialMinerMacAddress: String?
+    var initialMinerMacAddress: String?
     private var notificationSubscription: AnyCancellable?
     private var debounceTask: Task<Void, Never>?
     
