@@ -636,6 +636,11 @@ class MinerClientManager: @unchecked Sendable {
                 case .success(let info):
                     // Reset timeout error counter on successful update
                     miner.consecutiveTimeoutErrors = 0
+                    
+                    // Update hostname if it changed on the miner
+                    if !info.hostname.isEmpty && miner.hostName != info.hostname {
+                        miner.hostName = info.hostname
+                    }
 
                     let updateModel = MinerUpdate(
                         miner: miner,
