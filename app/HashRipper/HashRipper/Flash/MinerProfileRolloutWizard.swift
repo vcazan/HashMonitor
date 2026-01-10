@@ -229,17 +229,19 @@ struct MinerProfileRolloutWizard: View {
     @Environment(\.colorScheme) var colorScheme
 
     @State private var model: RolloutWizardModel = .init()
-
+    @State private var hasInitialized = false
+    
     private var onClose: () -> Void
+    private var preSelectedProfile: MinerProfileTemplate?
 
     init(onClose: @escaping () -> Void) {
         self.onClose = onClose
+        self.preSelectedProfile = nil
     }
 
     init(onClose: @escaping () -> Void, profile: MinerProfileTemplate? = nil) {
         self.onClose = onClose
-        self.model.selectedProfile = profile
-        self.model.nextPage()
+        self.preSelectedProfile = profile
     }
 
     var body: some View {
@@ -258,9 +260,12 @@ struct MinerProfileRolloutWizard: View {
             .padding(.top, 28)
             .padding(.bottom, 20)
             
-            // Step indicator
-            StepIndicatorView(currentStep: model.stage.rawValue, totalSteps: 3)
-                .padding(.bottom, 20)
+            // Step indicator - show 2 steps if profile pre-selected, otherwise 3
+            StepIndicatorView(
+                currentStep: preSelectedProfile != nil ? model.stage.rawValue - 1 : model.stage.rawValue,
+                totalSteps: preSelectedProfile != nil ? 2 : 3
+            )
+            .padding(.bottom, 20)
             
             Divider()
             
@@ -331,6 +336,14 @@ struct MinerProfileRolloutWizard: View {
         .background(Color(nsColor: .windowBackgroundColor))
         .onChange(of: model.stage) { _, newValue in
             if newValue == .three { model.beginRollout() }
+        }
+        .onAppear {
+            // If a profile was pre-selected, skip to miner selection
+            if !hasInitialized, let profile = preSelectedProfile {
+                hasInitialized = true
+                model.selectedProfile = profile
+                model.nextPage()
+            }
         }
         .frame(width: 700, height: 650)
     }
