@@ -29,8 +29,8 @@ struct MinerDetailView: View {
     @State private var isInitialLoad = true
     @State private var selectedChartTime: Date? = nil
     
-    // Refresh interval in seconds (1 second matches web UI behavior)
-    private let refreshInterval: TimeInterval = 1
+    // Chart polling interval from settings (default 1 second)
+    @AppStorage("chartPollingInterval") private var chartPollingInterval = 1
     
     enum ChartTimeRange: String, CaseIterable {
         case oneHour = "1H"
@@ -169,6 +169,11 @@ struct MinerDetailView: View {
         }
         .onDisappear {
             stopAutoRefresh()
+        }
+        .onChange(of: chartPollingInterval) { _, _ in
+            // Restart timer with new interval
+            stopAutoRefresh()
+            startAutoRefresh()
         }
         .sheet(isPresented: $showSettings) {
             MinerSettingsSheet(miner: miner)
@@ -487,7 +492,7 @@ struct MinerDetailView: View {
                         .font(.subheadline.weight(.medium))
                         .foregroundStyle(.secondary)
                     
-                    Text("Charts will appear after a few data points are collected.\nData refreshes every second.")
+                    Text("Charts will appear after a few data points are collected.\nData refreshes every \(chartPollingInterval) second\(chartPollingInterval == 1 ? "" : "s").")
                         .font(.caption)
                         .foregroundStyle(.tertiary)
                         .multilineTextAlignment(.center)
@@ -976,7 +981,7 @@ struct MinerDetailView: View {
         }
         
         // Set up periodic refresh timer
-        refreshTimer = Timer.scheduledTimer(withTimeInterval: refreshInterval, repeats: true) { _ in
+        refreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(chartPollingInterval), repeats: true) { _ in
             Task {
                 await refreshMiner()
             }
