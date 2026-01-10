@@ -45,26 +45,13 @@ struct MinerSettingsInspector: View {
     
     // Miner type specific limits
     private var frequencyRange: ClosedRange<Int> {
-        switch miner.minerType {
-        case .BitaxeGamma, .BitaxeGammaTurbo:
-            return 400...800
-        case .BitaxeSupra:
-            return 400...800
-        case .BitaxeUltra:
-            return 400...750
-        case .NerdQAxePlus, .NerdQAxePlusPlus:
-            return 400...800
-        case .NerdOCTAXE:
-            return 400...800
-        case .NerdQX:
-            return 400...800
-        default:
-            return 400...800
-        }
+        // Universal frequency range for all supported ASICs
+        return 495...1000
     }
     
     private var voltageRange: ClosedRange<Int> {
-        return 1000...1500
+        // Safe voltage range for BM1366/BM1368/BM1370 ASICs
+        return 1085...1350
     }
     
     var body: some View {
