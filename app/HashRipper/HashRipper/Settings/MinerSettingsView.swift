@@ -18,15 +18,15 @@ struct MinerSettingsView: View {
     let miner: Miner
     
     // Current settings (from latest update)
-    @State private var currentFrequency: Double = 0
-    @State private var currentVoltage: Double = 0
-    @State private var currentFanSpeed: Double = 0
+    @State private var currentFrequency: Int = 0
+    @State private var currentVoltage: Int = 0
+    @State private var currentFanSpeed: Int = 0
     @State private var currentAutoFan: Bool = true
     
     // Editable settings
-    @State private var frequency: Double = 500
-    @State private var coreVoltage: Double = 1200
-    @State private var fanSpeed: Double = 100
+    @State private var frequency: Int = 500
+    @State private var coreVoltage: Int = 1200
+    @State private var fanSpeed: Int = 100
     @State private var autoFanSpeed: Bool = true
     @State private var overclockEnabled: Bool = false
     @State private var flipScreen: Bool = false
@@ -41,37 +41,29 @@ struct MinerSettingsView: View {
     @State private var errorMessage: String = ""
     @State private var hasChanges: Bool = false
     
-    // Miner type specific limits
-    private var frequencyRange: ClosedRange<Double> {
+    // Miner type specific limits - expanded for overclocking
+    private var frequencyRange: ClosedRange<Int> {
         switch miner.minerType {
         case .BitaxeGamma, .BitaxeGammaTurbo:
-            return 400...650
+            return 400...800
         case .BitaxeSupra:
-            return 400...650
+            return 400...800
         case .BitaxeUltra:
-            return 400...600
+            return 400...750
         case .NerdQAxePlus, .NerdQAxePlusPlus:
-            return 400...625
+            return 400...800
         case .NerdOCTAXE:
-            return 400...600
+            return 400...800
         case .NerdQX:
-            return 400...600
+            return 400...800
         default:
-            return 400...600
+            return 400...800
         }
     }
     
-    private var voltageRange: ClosedRange<Double> {
-        switch miner.minerType {
-        case .BitaxeGamma, .BitaxeGammaTurbo, .BitaxeSupra:
-            return 1100...1300
-        case .BitaxeUltra:
-            return 1100...1250
-        case .NerdQAxePlus, .NerdQAxePlusPlus:
-            return 1100...1300
-        default:
-            return 1100...1300
-        }
+    private var voltageRange: ClosedRange<Int> {
+        // All miners use similar voltage ranges for BM1366/BM1368/BM1370 ASICs
+        return 1000...1500
     }
     
     var body: some View {
@@ -85,7 +77,7 @@ struct MinerSettingsView: View {
                 loadingView
             } else {
                 ScrollView {
-                    VStack(spacing: 24) {
+                    VStack(spacing: 20) {
                         // Current Status Card
                         currentStatusCard
                         
@@ -112,7 +104,7 @@ struct MinerSettingsView: View {
             // Footer buttons
             footer
         }
-        .frame(width: 500, height: 650)
+        .frame(width: 480, height: 620)
         .onAppear {
             loadCurrentSettings()
         }
@@ -186,25 +178,25 @@ struct MinerSettingsView: View {
             Label("Current Status", systemImage: "gauge.with.dots.needle.bottom.50percent")
                 .font(.headline)
             
-            HStack(spacing: 20) {
+            HStack(spacing: 16) {
                 StatusItem(
                     icon: "speedometer",
                     label: "Frequency",
-                    value: "\(Int(currentFrequency)) MHz",
+                    value: "\(currentFrequency) MHz",
                     color: .blue
                 )
                 
                 StatusItem(
                     icon: "bolt.fill",
                     label: "Voltage",
-                    value: "\(Int(currentVoltage)) mV",
+                    value: "\(currentVoltage) mV",
                     color: .orange
                 )
                 
                 StatusItem(
                     icon: "fan.fill",
                     label: "Fan",
-                    value: currentAutoFan ? "Auto" : "\(Int(currentFanSpeed))%",
+                    value: currentAutoFan ? "Auto" : "\(currentFanSpeed)%",
                     color: .cyan
                 )
             }
@@ -231,7 +223,7 @@ struct MinerSettingsView: View {
                     Text("Enable Overclock Mode")
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    Text("Allows frequency and voltage adjustments beyond stock settings")
+                    Text("Allows frequency and voltage beyond stock")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -240,63 +232,27 @@ struct MinerSettingsView: View {
             
             Divider()
             
-            // Frequency Slider
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Frequency")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text("\(Int(frequency)) MHz")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.blue)
-                }
-                
-                Slider(value: $frequency, in: frequencyRange, step: 25) {
-                    Text("Frequency")
-                }
-                .onChange(of: frequency) { _, _ in hasChanges = true }
-                
-                HStack {
-                    Text("\(Int(frequencyRange.lowerBound))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(Int(frequencyRange.upperBound)) MHz")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            // Frequency Input
+            SettingInputRow(
+                label: "Frequency",
+                value: $frequency,
+                unit: "MHz",
+                range: frequencyRange,
+                step: 25,
+                color: .blue,
+                onChange: { hasChanges = true }
+            )
             
-            // Voltage Slider
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Text("Core Voltage")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Spacer()
-                    Text("\(Int(coreVoltage)) mV")
-                        .font(.system(.subheadline, design: .monospaced))
-                        .fontWeight(.semibold)
-                        .foregroundStyle(.orange)
-                }
-                
-                Slider(value: $coreVoltage, in: voltageRange, step: 10) {
-                    Text("Voltage")
-                }
-                .onChange(of: coreVoltage) { _, _ in hasChanges = true }
-                
-                HStack {
-                    Text("\(Int(voltageRange.lowerBound))")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                    Spacer()
-                    Text("\(Int(voltageRange.upperBound)) mV")
-                        .font(.caption2)
-                        .foregroundStyle(.secondary)
-                }
-            }
+            // Voltage Input
+            SettingInputRow(
+                label: "Core Voltage",
+                value: $coreVoltage,
+                unit: "mV",
+                range: voltageRange,
+                step: 10,
+                color: .orange,
+                onChange: { hasChanges = true }
+            )
         }
         .padding(16)
         .background(.ultraThinMaterial)
@@ -315,7 +271,7 @@ struct MinerSettingsView: View {
                     Text("Automatic Fan Speed")
                         .font(.subheadline)
                         .fontWeight(.medium)
-                    Text("Let the miner control fan speed based on temperature")
+                    Text("Adjusts based on temperature")
                         .font(.caption)
                         .foregroundStyle(.secondary)
                 }
@@ -325,44 +281,21 @@ struct MinerSettingsView: View {
             if !autoFanSpeed {
                 Divider()
                 
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Fan Speed")
-                            .font(.subheadline)
-                            .fontWeight(.medium)
-                        Spacer()
-                        Text("\(Int(fanSpeed))%")
-                            .font(.system(.subheadline, design: .monospaced))
-                            .fontWeight(.semibold)
-                            .foregroundStyle(.cyan)
-                    }
-                    
-                    Slider(value: $fanSpeed, in: 0...100, step: 5) {
-                        Text("Fan Speed")
-                    }
-                    .onChange(of: fanSpeed) { _, _ in hasChanges = true }
-                    
-                    HStack {
-                        Text("0%")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                        Spacer()
-                        Text("100%")
-                            .font(.caption2)
-                            .foregroundStyle(.secondary)
-                    }
-                }
+                SettingInputRow(
+                    label: "Fan Speed",
+                    value: $fanSpeed,
+                    unit: "%",
+                    range: 0...100,
+                    step: 5,
+                    color: .cyan,
+                    onChange: { hasChanges = true }
+                )
             }
             
             Toggle(isOn: $invertFanPolarity) {
-                VStack(alignment: .leading, spacing: 2) {
-                    Text("Invert Fan Polarity")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                    Text("Reverse fan direction (for certain fan types)")
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
-                }
+                Text("Invert Fan Polarity")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
             }
             .onChange(of: invertFanPolarity) { _, _ in hasChanges = true }
         }
@@ -378,19 +311,21 @@ struct MinerSettingsView: View {
             Label("Display", systemImage: "display")
                 .font(.headline)
             
-            Toggle(isOn: $flipScreen) {
-                Text("Flip Screen")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
+            HStack(spacing: 24) {
+                Toggle(isOn: $flipScreen) {
+                    Text("Flip Screen")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .onChange(of: flipScreen) { _, _ in hasChanges = true }
+                
+                Toggle(isOn: $invertScreen) {
+                    Text("Invert Colors")
+                        .font(.subheadline)
+                        .fontWeight(.medium)
+                }
+                .onChange(of: invertScreen) { _, _ in hasChanges = true }
             }
-            .onChange(of: flipScreen) { _, _ in hasChanges = true }
-            
-            Toggle(isOn: $invertScreen) {
-                Text("Invert Colors")
-                    .font(.subheadline)
-                    .fontWeight(.medium)
-            }
-            .onChange(of: invertScreen) { _, _ in hasChanges = true }
         }
         .padding(16)
         .background(.ultraThinMaterial)
@@ -402,25 +337,21 @@ struct MinerSettingsView: View {
     private var warningCard: some View {
         HStack(alignment: .top, spacing: 12) {
             Image(systemName: "exclamationmark.triangle.fill")
-                .font(.title2)
+                .font(.title3)
                 .foregroundStyle(.orange)
             
             VStack(alignment: .leading, spacing: 4) {
                 Text("Overclock Warning")
                     .font(.subheadline)
                     .fontWeight(.semibold)
-                Text("Overclocking may cause instability, increased heat, and potential hardware damage. Use at your own risk. Start with small increments and monitor temperatures closely.")
+                Text("May cause instability or hardware damage. Start with small changes and monitor temps.")
                     .font(.caption)
                     .foregroundStyle(.secondary)
             }
         }
-        .padding(16)
+        .padding(12)
         .background(Color.orange.opacity(0.1))
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .stroke(Color.orange.opacity(0.3), lineWidth: 1)
-        )
+        .clipShape(RoundedRectangle(cornerRadius: 10))
     }
     
     // MARK: - Footer
@@ -464,7 +395,6 @@ struct MinerSettingsView: View {
         isLoading = true
         
         Task {
-            // Load from latest MinerUpdate
             let macAddress = miner.macAddress
             
             do {
@@ -480,15 +410,27 @@ struct MinerSettingsView: View {
                 
                 await MainActor.run {
                     if let latestUpdate = updates.first {
-                        currentFrequency = latestUpdate.frequency ?? 500
-                        currentVoltage = latestUpdate.voltage ?? 1200
-                        currentFanSpeed = latestUpdate.fanspeed ?? 100
-                        currentAutoFan = true // API doesn't return this, assume auto
+                        // Use target coreVoltage if available, otherwise estimate from measured voltage
+                        if let targetVoltage = latestUpdate.coreVoltage {
+                            currentVoltage = targetVoltage
+                        } else {
+                            // Fallback: measured voltage is in mV * 10
+                            let rawVoltage = latestUpdate.voltage ?? 12000
+                            currentVoltage = Int(rawVoltage / 10)
+                        }
                         
-                        // Set editable values to current
+                        currentFrequency = Int(latestUpdate.frequency ?? 500)
+                        currentFanSpeed = Int(latestUpdate.fanspeed ?? 100)
+                        currentAutoFan = latestUpdate.autofanspeed == 1 || latestUpdate.autofanspeed == nil
+                        
+                        // Set editable values to current target settings
                         frequency = currentFrequency
                         coreVoltage = currentVoltage
                         fanSpeed = currentFanSpeed
+                        autoFanSpeed = currentAutoFan
+                        flipScreen = latestUpdate.flipscreen == 1
+                        invertScreen = latestUpdate.invertscreen == 1
+                        invertFanPolarity = latestUpdate.invertfanpolarity == 1
                     }
                     
                     isLoading = false
@@ -511,6 +453,7 @@ struct MinerSettingsView: View {
         isSaving = true
         
         Task {
+            // Note: coreVoltage is sent as-is (the API expects mV directly)
             let settings = MinerSettings(
                 stratumURL: nil,
                 fallbackStratumURL: nil,
@@ -523,15 +466,15 @@ struct MinerSettingsView: View {
                 ssid: nil,
                 wifiPass: nil,
                 hostname: nil,
-                coreVoltage: Int(coreVoltage),
-                frequency: Int(frequency),
+                coreVoltage: coreVoltage,
+                frequency: frequency,
                 flipscreen: flipScreen ? 1 : 0,
                 overheatMode: nil,
                 overclockEnabled: overclockEnabled ? 1 : 0,
                 invertscreen: invertScreen ? 1 : 0,
                 invertfanpolarity: invertFanPolarity ? 1 : 0,
                 autofanspeed: autoFanSpeed ? 1 : 0,
-                fanspeed: autoFanSpeed ? nil : Int(fanSpeed)
+                fanspeed: autoFanSpeed ? nil : fanSpeed
             )
             
             let result = await client.updateSystemSettings(settings: settings)
@@ -547,6 +490,117 @@ struct MinerSettingsView: View {
                     showErrorAlert = true
                 }
             }
+        }
+    }
+}
+
+// MARK: - Setting Input Row (TextField + Stepper)
+
+private struct SettingInputRow: View {
+    let label: String
+    @Binding var value: Int
+    let unit: String
+    let range: ClosedRange<Int>
+    let step: Int
+    let color: Color
+    let onChange: () -> Void
+    
+    @FocusState private var isFocused: Bool
+    @State private var textValue: String = ""
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Text(label)
+                .font(.subheadline)
+                .fontWeight(.medium)
+                .frame(width: 100, alignment: .leading)
+            
+            Spacer()
+            
+            HStack(spacing: 8) {
+                // Decrement button
+                Button(action: decrement) {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(value > range.lowerBound ? color : .gray)
+                }
+                .buttonStyle(.plain)
+                .disabled(value <= range.lowerBound)
+                
+                // Text field
+                TextField("", text: $textValue)
+                    .textFieldStyle(.plain)
+                    .font(.system(.body, design: .monospaced))
+                    .fontWeight(.semibold)
+                    .multilineTextAlignment(.center)
+                    .frame(width: 70)
+                    .padding(.horizontal, 8)
+                    .padding(.vertical, 6)
+                    .background(Color(nsColor: .controlBackgroundColor))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                    .focused($isFocused)
+                    .onAppear {
+                        textValue = "\(value)"
+                    }
+                    .onChange(of: value) { _, newValue in
+                        if !isFocused {
+                            textValue = "\(newValue)"
+                        }
+                    }
+                    .onSubmit {
+                        commitTextValue()
+                    }
+                    .onChange(of: isFocused) { _, focused in
+                        if !focused {
+                            commitTextValue()
+                        }
+                    }
+                
+                // Increment button
+                Button(action: increment) {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.title2)
+                        .foregroundStyle(value < range.upperBound ? color : .gray)
+                }
+                .buttonStyle(.plain)
+                .disabled(value >= range.upperBound)
+                
+                Text(unit)
+                    .font(.subheadline)
+                    .foregroundStyle(.secondary)
+                    .frame(width: 35, alignment: .leading)
+            }
+        }
+    }
+    
+    private func increment() {
+        let newValue = min(value + step, range.upperBound)
+        if newValue != value {
+            value = newValue
+            textValue = "\(value)"
+            onChange()
+        }
+    }
+    
+    private func decrement() {
+        let newValue = max(value - step, range.lowerBound)
+        if newValue != value {
+            value = newValue
+            textValue = "\(value)"
+            onChange()
+        }
+    }
+    
+    private func commitTextValue() {
+        if let parsed = Int(textValue) {
+            let clamped = min(max(parsed, range.lowerBound), range.upperBound)
+            if clamped != value {
+                value = clamped
+                onChange()
+            }
+            textValue = "\(value)"
+        } else {
+            textValue = "\(value)"
         }
     }
 }
@@ -587,4 +641,3 @@ private struct StatusItem: View {
         macAddress: "AA:BB:CC:DD:EE:FF"
     ))
 }
-

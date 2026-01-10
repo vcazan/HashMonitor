@@ -11,8 +11,28 @@ import SwiftData
 
 @Observable
 class MinerWatchDog {
-    static let RESTART_COOLDOWN_INTERVAL: TimeInterval = 180 // 3 minutes
-    static let CHECK_THROTTLE_INTERVAL: TimeInterval = 30 // 30 seconds
+    // Default values (can be overridden by AppSettings)
+    static let DEFAULT_RESTART_COOLDOWN: TimeInterval = 180 // 3 minutes
+    static let DEFAULT_CHECK_INTERVAL: TimeInterval = 30 // 30 seconds
+    static let DEFAULT_LOW_POWER_THRESHOLD: Double = 0.1 // watts
+    static let DEFAULT_CONSECUTIVE_UPDATES: Int = 3
+    
+    // Get current settings
+    private var restartCooldownInterval: TimeInterval {
+        AppSettings.shared.watchdogRestartCooldown
+    }
+    private var checkThrottleInterval: TimeInterval {
+        AppSettings.shared.watchdogCheckInterval
+    }
+    private var lowPowerThreshold: Double {
+        AppSettings.shared.watchdogLowPowerThreshold
+    }
+    private var consecutiveUpdatesRequired: Int {
+        AppSettings.shared.watchdogConsecutiveUpdates
+    }
+    private var hashRateThreshold: Double {
+        AppSettings.shared.watchdogHashRateThreshold
+    }
     
     // Track restart attempts to prevent multiple restarts
     private var minerRestartTimestamps: [String: Int64] = [:]
@@ -50,7 +70,7 @@ class MinerWatchDog {
         let shouldSkipCheck = restartLock.perform {
             if let lastCheckTime = minerLastCheckTimestamps[minerIpAddress] {
                 let timeSinceLastCheck = currentTimestamp - lastCheckTime
-                return timeSinceLastCheck < Int64(Self.CHECK_THROTTLE_INTERVAL * 1000)
+                return timeSinceLastCheck < Int64(self.checkThrottleInterval * 1000)
             }
             return false
         }
@@ -106,7 +126,7 @@ class MinerWatchDog {
                 // Get recent successful updates for this miner
                 let recentUpdates = miner.getRecentUpdates(from: context, limit: 8)
 
-                guard recentUpdates.count >= 3 else {
+                guard recentUpdates.count >= self.consecutiveUpdatesRequired else {
                     return false
                 }
 
@@ -131,8 +151,8 @@ class MinerWatchDog {
                         return false
                     }
 
-                    if timeSinceRestart < Int64(Self.RESTART_COOLDOWN_INTERVAL * 1000) {
-                        let remainingTime = Int64(Self.RESTART_COOLDOWN_INTERVAL * 1000) - timeSinceRestart
+                    if timeSinceRestart < Int64(self.restartCooldownInterval * 1000) {
+                        let remainingTime = Int64(self.restartCooldownInterval * 1000) - timeSinceRestart
                         print("Miner \(miner.hostName) (\(minerIpAddress)) restart cooldown active. Remaining: \(remainingTime/1000) seconds")
                         return false
                     } else {
@@ -149,9 +169,10 @@ class MinerWatchDog {
                     }
                 }
 
-                // Check if all 3 recent updates have power less than or equal to 0.1
+                // Check if all recent updates have power less than or equal to threshold
+                let powerThreshold = self.lowPowerThreshold
                 let allHaveLowPower = updates.allSatisfy { update in
-                    return update.power <= 0.1
+                    return update.power <= powerThreshold
                 }
 
                 guard allHaveLowPower else {
@@ -202,12 +223,22 @@ class MinerWatchDog {
                 minerRestartTimestamps[minerIpAddress] = Date().millisecondsSince1970
             }
             
+            let reason = "Automatic restart due to low power (≤0.1W) and unchanged hashrate detected"
+            
             // Log the successful restart action
             await logWatchdogAction(
                 minerMacAddress: minerMacAddress,
                 action: .restartMiner,
-                reason: "Automatic restart due to low power (≤0.1W) and unchanged hashrate detected"
+                reason: reason
             )
+            
+            // Send system notification
+            await MainActor.run {
+                WatchDogNotificationService.shared.notifyMinerRestarted(
+                    minerName: minerName,
+                    reason: reason
+                )
+            }
 
         case .failure(let error):
             print("Failed to restart miner \(minerName) (\(minerIpAddress)): \(error)")
@@ -257,6 +288,7 @@ class MinerWatchDog {
     
     // Method to get current restart status for debugging/monitoring
     func getRestartStatus(for minerIpAddress: String) -> (isOnCooldown: Bool, remainingTime: TimeInterval?) {
+        let cooldownInterval = restartCooldownInterval
         return restartLock.perform {
             guard let lastRestartTime = minerRestartTimestamps[minerIpAddress] else {
                 return (false, nil)
@@ -264,7 +296,7 @@ class MinerWatchDog {
             
             let currentTimestamp = Date().millisecondsSince1970
             let timeSinceRestart = currentTimestamp - lastRestartTime
-            let cooldownRemaining = Int64(Self.RESTART_COOLDOWN_INTERVAL * 1000) - timeSinceRestart
+            let cooldownRemaining = Int64(cooldownInterval * 1000) - timeSinceRestart
             
             if cooldownRemaining > 0 {
                 return (true, TimeInterval(cooldownRemaining / 1000))
@@ -284,11 +316,12 @@ class MinerWatchDog {
     
     // Method to get all miners currently on cooldown
     func getMinersOnCooldown() -> [String] {
+        let cooldownInterval = restartCooldownInterval
         return restartLock.perform {
             let currentTimestamp = Date().millisecondsSince1970
             return minerRestartTimestamps.compactMap { (ipAddress, lastRestartTime) in
                 let timeSinceRestart = currentTimestamp - lastRestartTime
-                let cooldownRemaining = Int64(Self.RESTART_COOLDOWN_INTERVAL * 1000) - timeSinceRestart
+                let cooldownRemaining = Int64(cooldownInterval * 1000) - timeSinceRestart
                 return cooldownRemaining > 0 ? ipAddress : nil
             }
         }

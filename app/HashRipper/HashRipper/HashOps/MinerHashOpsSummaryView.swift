@@ -403,7 +403,7 @@ struct MetricCardView: View {
             }
             
             HStack(alignment: .lastTextBaseline, spacing: 2) {
-                if let numericValue = value {
+                if value != nil {
                     Text(displayedText)
                         .font(.title2)
                         .fontWeight(.semibold)
@@ -549,11 +549,11 @@ struct SharesMetricCardView: View {
                     Text("Accepted:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("\(displayedAccepted)")
+                    Text(verbatim: "\(displayedAccepted)")
                         .font(.callout)
                         .fontWeight(.semibold)
                         .fontDesign(.monospaced)
-                        .contentTransition(.numericText(value: Double(displayedAccepted)))
+                        .contentTransition(.numericText())
                 }
 
                 // Rejected row with rate in parenthesis
@@ -564,12 +564,12 @@ struct SharesMetricCardView: View {
                     Text("Rejected:")
                         .font(.caption)
                         .foregroundStyle(.secondary)
-                    Text("\(displayedRejected)")
+                    Text(verbatim: "\(displayedRejected)")
                         .font(.callout)
                         .fontWeight(.semibold)
                         .fontDesign(.monospaced)
                         .foregroundStyle(rejected > 0 ? .red : .primary)
-                        .contentTransition(.numericText(value: Double(displayedRejected)))
+                        .contentTransition(.numericText())
                     Text(String(format: "(%.2f%%)", rejectionRate))
                         .font(.caption)
                         .foregroundStyle(rejectionRate > 5 ? .orange : .secondary)
@@ -810,11 +810,11 @@ struct FanMetricCardView: View {
                     Image(systemName: "dial.medium")
                         .font(.caption)
                         .foregroundStyle(.cyan)
-                    Text("\(displayedRpm)")
+                    Text(verbatim: "\(displayedRpm)")
                         .font(.callout)
                         .fontWeight(.semibold)
                         .fontDesign(.monospaced)
-                        .contentTransition(.numericText(value: Double(displayedRpm)))
+                        .contentTransition(.numericText())
                     Text("RPM")
                         .font(.caption)
                         .foregroundStyle(.secondary)
@@ -825,11 +825,11 @@ struct FanMetricCardView: View {
                     Image(systemName: "percent")
                         .font(.caption)
                         .foregroundStyle(.cyan)
-                    Text(String(format: "%.1f", displayedSpeed))
+                    Text(verbatim: String(format: "%.1f", displayedSpeed))
                         .font(.callout)
                         .fontWeight(.semibold)
                         .fontDesign(.monospaced)
-                        .contentTransition(.numericText(value: Double(displayedSpeed)))
+                        .contentTransition(.numericText())
                     Text("%")
                         .font(.caption)
                         .foregroundStyle(.secondary)

@@ -111,9 +111,10 @@ final class FirmwareDeploymentStore {
             _activeDeployments.append(deployment)
         }
 
-        // Post notification
+        // Post notification (extract ID before async boundary)
+        let deploymentId = deployment.persistentModelID
         await MainActor.run {
-            DeploymentNotificationHelper.postDeploymentCreated(deployment)
+            DeploymentNotificationHelper.postDeploymentCreated(deploymentId)
         }
 
         // Start the deployment worker
@@ -144,9 +145,10 @@ final class FirmwareDeploymentStore {
         // Update local state
         await loadDeployments()
 
-        // Post notification
+        // Post notification (extract ID before async boundary)
+        let completedDeploymentId = deployment.persistentModelID
         await MainActor.run {
-            DeploymentNotificationHelper.postDeploymentCompleted(deployment)
+            DeploymentNotificationHelper.postDeploymentCompleted(completedDeploymentId)
         }
     }
 
@@ -178,7 +180,8 @@ final class FirmwareDeploymentStore {
         }
 
         // Tell worker to retry this miner
-        let worker = lock.perform { _deploymentWorkers[deployment.persistentModelID] }
+        let retryDeploymentId = deployment.persistentModelID
+        let worker = lock.perform { _deploymentWorkers[retryDeploymentId] }
         if let worker = worker {
             await worker.retryMiner(minerDeployment.persistentModelID)
         } else {
@@ -186,9 +189,9 @@ final class FirmwareDeploymentStore {
             await startDeploymentWorker(for: deployment)
         }
 
-        // Post notification
+        // Post notification (extract ID before async boundary)
         await MainActor.run {
-            DeploymentNotificationHelper.postDeploymentUpdated(deployment)
+            DeploymentNotificationHelper.postDeploymentUpdated(retryDeploymentId)
         }
     }
 

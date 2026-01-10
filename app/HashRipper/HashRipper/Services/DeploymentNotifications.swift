@@ -28,26 +28,38 @@ struct MinerDeploymentUpdatePayload {
 @MainActor
 class DeploymentNotificationHelper {
     static func postDeploymentCreated(_ deployment: FirmwareDeployment) {
+        postDeploymentCreated(deployment.persistentModelID)
+    }
+    
+    static func postDeploymentCreated(_ deploymentId: PersistentIdentifier) {
         NotificationCenter.default.post(
             name: .deploymentCreated,
             object: nil,
-            userInfo: ["deploymentId": deployment.persistentModelID]
+            userInfo: ["deploymentId": deploymentId]
         )
     }
 
     static func postDeploymentUpdated(_ deployment: FirmwareDeployment) {
+        postDeploymentUpdated(deployment.persistentModelID)
+    }
+    
+    static func postDeploymentUpdated(_ deploymentId: PersistentIdentifier) {
         NotificationCenter.default.post(
             name: .deploymentUpdated,
             object: nil,
-            userInfo: ["deploymentId": deployment.persistentModelID]
+            userInfo: ["deploymentId": deploymentId]
         )
     }
 
     static func postDeploymentCompleted(_ deployment: FirmwareDeployment) {
+        postDeploymentCompleted(deployment.persistentModelID)
+    }
+    
+    static func postDeploymentCompleted(_ deploymentId: PersistentIdentifier) {
         NotificationCenter.default.post(
             name: .deploymentCompleted,
             object: nil,
-            userInfo: ["deploymentId": deployment.persistentModelID]
+            userInfo: ["deploymentId": deploymentId]
         )
     }
 

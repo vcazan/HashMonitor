@@ -91,7 +91,7 @@ struct FirmwareReleaseNotesView: View {
         }
         .padding(.horizontal, 12)
         HStack {
-            if let downloadsManager = downloadsManager {
+            if downloadsManager != nil {
                 if isAllFilesDownloaded {
                     Button(action: {
                         showingDeploymentWizard = true

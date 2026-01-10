@@ -7,6 +7,7 @@
 
 import Foundation
 import Combine
+import AppKit
 import AxeOSClient
 
 @Observable
@@ -14,6 +15,56 @@ class AppSettings {
     static let shared = AppSettings()
     
     private let userDefaults = UserDefaults.standard
+    
+    // MARK: - Appearance
+    
+    enum AppearanceMode: Int, CaseIterable {
+        case system = 0
+        case light = 1
+        case dark = 2
+        
+        var displayName: String {
+            switch self {
+            case .system: return "System"
+            case .light: return "Light"
+            case .dark: return "Dark"
+            }
+        }
+        
+        var iconName: String {
+            switch self {
+            case .system: return "circle.lefthalf.filled"
+            case .light: return "sun.max"
+            case .dark: return "moon"
+            }
+        }
+    }
+    
+    @ObservationIgnored
+    private let appearanceModeKey = "appearanceMode"
+    var appearanceMode: AppearanceMode {
+        get {
+            let rawValue = userDefaults.integer(forKey: appearanceModeKey)
+            return AppearanceMode(rawValue: rawValue) ?? .system
+        }
+        set {
+            userDefaults.set(newValue.rawValue, forKey: appearanceModeKey)
+            applyAppearance(newValue)
+        }
+    }
+    
+    func applyAppearance(_ mode: AppearanceMode) {
+        DispatchQueue.main.async {
+            switch mode {
+            case .system:
+                NSApp.appearance = nil
+            case .light:
+                NSApp.appearance = NSAppearance(named: .aqua)
+            case .dark:
+                NSApp.appearance = NSAppearance(named: .darkAqua)
+            }
+        }
+    }
     
     // MARK: - General Settings
 
@@ -75,10 +126,23 @@ class AppSettings {
     var backgroundPollingInterval: TimeInterval {
         get {
             let interval = userDefaults.double(forKey: backgroundPollingIntervalKey)
-            return interval > 0 ? interval : 10.0 // Default to 10 seconds
+            return interval > 0 ? interval : 30.0 // Default to 30 seconds
         }
         set {
             userDefaults.set(newValue, forKey: backgroundPollingIntervalKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let focusedMinerRefreshIntervalKey = "focusedMinerRefreshInterval"
+    /// Refresh interval when actively viewing a specific miner's details
+    var focusedMinerRefreshInterval: TimeInterval {
+        get {
+            let interval = userDefaults.double(forKey: focusedMinerRefreshIntervalKey)
+            return interval > 0 ? interval : 5.0 // Default to 5 seconds for active viewing
+        }
+        set {
+            userDefaults.set(newValue, forKey: focusedMinerRefreshIntervalKey)
         }
     }
 
@@ -174,6 +238,126 @@ class AppSettings {
         }
         set {
             userDefaults.set(newValue, forKey: watchdogGloballyEnabledKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogNotificationsEnabledKey = "watchdogNotificationsEnabled"
+    var areWatchdogNotificationsEnabled: Bool {
+        get {
+            // Default to true if not set
+            if userDefaults.object(forKey: watchdogNotificationsEnabledKey) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: watchdogNotificationsEnabledKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogNotificationsEnabledKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let notifyOnMinerOfflineKey = "notifyOnMinerOffline"
+    var notifyOnMinerOffline: Bool {
+        get {
+            if userDefaults.object(forKey: notifyOnMinerOfflineKey) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: notifyOnMinerOfflineKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: notifyOnMinerOfflineKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let notifyOnMinerRestartKey = "notifyOnMinerRestart"
+    var notifyOnMinerRestart: Bool {
+        get {
+            if userDefaults.object(forKey: notifyOnMinerRestartKey) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: notifyOnMinerRestartKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: notifyOnMinerRestartKey)
+        }
+    }
+    
+    // MARK: - Advanced WatchDog Settings
+    
+    @ObservationIgnored
+    private let watchdogAdvancedModeKey = "watchdogAdvancedMode"
+    var isWatchdogAdvancedModeEnabled: Bool {
+        get {
+            return userDefaults.bool(forKey: watchdogAdvancedModeKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogAdvancedModeKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogRestartCooldownKey = "watchdogRestartCooldown"
+    /// Time in seconds between restart attempts (default: 180 = 3 minutes)
+    var watchdogRestartCooldown: Double {
+        get {
+            let value = userDefaults.double(forKey: watchdogRestartCooldownKey)
+            return value > 0 ? value : 180
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogRestartCooldownKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogCheckIntervalKey = "watchdogCheckInterval"
+    /// Time in seconds between health checks for each miner (default: 30)
+    var watchdogCheckInterval: Double {
+        get {
+            let value = userDefaults.double(forKey: watchdogCheckIntervalKey)
+            return value > 0 ? value : 30
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogCheckIntervalKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogLowPowerThresholdKey = "watchdogLowPowerThreshold"
+    /// Power threshold in watts - below this triggers concern (default: 0.1)
+    var watchdogLowPowerThreshold: Double {
+        get {
+            let value = userDefaults.double(forKey: watchdogLowPowerThresholdKey)
+            return value > 0 ? value : 0.1
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogLowPowerThresholdKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogConsecutiveUpdatesKey = "watchdogConsecutiveUpdates"
+    /// Number of consecutive low power readings needed before restart (default: 3)
+    var watchdogConsecutiveUpdates: Int {
+        get {
+            let value = userDefaults.integer(forKey: watchdogConsecutiveUpdatesKey)
+            return value > 0 ? value : 3
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogConsecutiveUpdatesKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogHashRateThresholdKey = "watchdogHashRateThreshold"
+    /// Hash rate threshold in GH/s - below this is considered stalled (default: 0)
+    var watchdogHashRateThreshold: Double {
+        get {
+            return userDefaults.double(forKey: watchdogHashRateThresholdKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogHashRateThresholdKey)
         }
     }
     

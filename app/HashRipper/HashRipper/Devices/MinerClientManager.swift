@@ -28,6 +28,7 @@ actor MinerRefreshScheduler {
     private var retryTask: Task<Void, Never>?
     private var isPaused: Bool = false
     private var isBackgroundMode: Bool = false
+    private var isFocusedMode: Bool = false  // Fast refresh when actively viewing this miner
     private var shouldStopAfterCurrentUpdate: Bool = false
     private var hasScheduledRetry: Bool = false
     private let logger = HashRipperLogger.shared.loggerForCategory("MinerRefreshScheduler")
@@ -83,6 +84,17 @@ actor MinerRefreshScheduler {
             print("🔄 Background mode changed for \(ipAddress): \(isBackground ? "background" : "foreground")")
             // Don't cancel immediately - just let the refresh loop adapt to new timing
             // The loop will check isBackgroundMode and adjust intervals accordingly
+        }
+    }
+    
+    /// Enable focused mode for faster refresh when actively viewing this miner
+    func setFocusedMode(_ isFocused: Bool) {
+        let wasFocused = isFocusedMode
+        isFocusedMode = isFocused
+        
+        if wasFocused != isFocused {
+            let interval = isFocused ? MinerClientManager.FOCUSED_REFRESH_INTERVAL : MinerClientManager.REFRESH_INTERVAL
+            print("🎯 Focused mode \(isFocused ? "enabled" : "disabled") for \(ipAddress) - refresh interval: \(interval)s")
         }
     }
     
@@ -224,8 +236,16 @@ actor MinerRefreshScheduler {
                 }
             }
             
-            // Wait for next refresh interval (longer when backgrounded to save CPU)
-            let interval = isBackgroundMode ? MinerClientManager.BACKGROUND_REFRESH_INTERVAL : MinerClientManager.REFRESH_INTERVAL
+            // Wait for next refresh interval
+            // Priority: focused (fastest) > normal > background (slowest)
+            let interval: TimeInterval
+            if isFocusedMode && !isBackgroundMode {
+                interval = MinerClientManager.FOCUSED_REFRESH_INTERVAL
+            } else if isBackgroundMode {
+                interval = MinerClientManager.BACKGROUND_REFRESH_INTERVAL
+            } else {
+                interval = MinerClientManager.REFRESH_INTERVAL
+            }
             try? await Task.sleep(nanoseconds: UInt64(interval * 1_000_000_000))
         }
 
@@ -236,7 +256,7 @@ actor MinerRefreshScheduler {
 }
 
 @Observable
-class MinerClientManager {
+class MinerClientManager: @unchecked Sendable {
     private let logger = HashRipperLogger.shared.loggerForCategory("MinerClientManager")
     private let cleanupService: MinerUpdateCleanupService
 
@@ -248,6 +268,9 @@ class MinerClientManager {
     }
     static var BACKGROUND_REFRESH_INTERVAL: TimeInterval {
         AppSettings.shared.backgroundPollingInterval
+    }
+    static var FOCUSED_REFRESH_INTERVAL: TimeInterval {
+        AppSettings.shared.focusedMinerRefreshInterval
     }
     // Fixed timeout for detecting offline miners (shorter than refresh interval)
     static let REQUEST_TIMEOUT: TimeInterval = 10.0
@@ -303,35 +326,10 @@ class MinerClientManager {
     @MainActor
     private func setupMinerSchedulers() {
         // Initialize schedulers for existing miners
+        // Note: We don't reset offline miners on app launch anymore.
+        // Miners stay offline until they successfully connect or user manually retries.
+        // This prevents the confusing "Online -> Offline" transition on app launch.
         refreshClientInfo()
-
-        // Reset offline miners on app launch to retry connection
-        resetOfflineMiners()
-    }
-
-    @MainActor
-    private func resetOfflineMiners() {
-        Task {
-            await database.withModelContext { context in
-                do {
-                    let allMiners: [Miner] = try context.fetch(FetchDescriptor())
-                    let offlineMiners = allMiners.filter { $0.isOffline }
-
-                    if !offlineMiners.isEmpty {
-                        self.logger.info("🔄 Found \(offlineMiners.count) offline miner(s) on app launch - resetting error counters to retry connection")
-
-                        for miner in offlineMiners {
-                            self.logger.debug("  - Resetting \(miner.hostName) (\(miner.ipAddress)) - had \(miner.consecutiveTimeoutErrors) timeout errors")
-                            miner.consecutiveTimeoutErrors = 0
-                        }
-
-                        try context.save()
-                    }
-                } catch {
-                    self.logger.error("Failed to reset offline miners: \(String(describing: error))")
-                }
-            }
-        }
     }
     
     @MainActor
@@ -340,20 +338,20 @@ class MinerClientManager {
         NotificationCenter.default.addObserver(
             forName: NSApplication.didResignActiveNotification,
             object: nil,
-            queue: nil
-        ) { [self] _ in
+            queue: .main
+        ) { [weak self] _ in
             print("App backgrounded - switching to background refresh mode (\(MinerClientManager.BACKGROUND_REFRESH_INTERVAL)s intervals)")
-            self.setBackgroundMode(true)
+            self?.setBackgroundMode(true)
         }
         
         // Monitor when app becomes active (foregrounds)
         NotificationCenter.default.addObserver(
             forName: NSApplication.didBecomeActiveNotification,
             object: nil,
-            queue: nil
-        ) { [self] _ in
+            queue: .main
+        ) { [weak self] _ in
             print("App foregrounded - switching to foreground refresh mode (\(MinerClientManager.REFRESH_INTERVAL)s intervals)")
-            self.setBackgroundMode(false)
+            self?.setBackgroundMode(false)
         }
     }
 
@@ -390,6 +388,45 @@ class MinerClientManager {
                 }
             }
         })
+    }
+    
+    /// Enable focused mode for a specific miner (faster refresh when viewing details)
+    func setFocusedMiner(_ ipAddress: String?) {
+        schedulerLock.perform(guardedTask: {
+            // Disable focused mode for all miners first
+            for (ip, scheduler) in minerSchedulers {
+                Task {
+                    await scheduler.setFocusedMode(ip == ipAddress)
+                }
+            }
+        })
+    }
+    
+    /// Enable focused mode by MAC address
+    func setFocusedMinerByMAC(_ macAddress: String?) {
+        guard let macAddress = macAddress else {
+            setFocusedMiner(nil)
+            return
+        }
+        
+        Task {
+            let ipAddress = await database.withModelContext { context in
+                do {
+                    var descriptor = FetchDescriptor<Miner>(
+                        predicate: #Predicate { $0.macAddress == macAddress }
+                    )
+                    descriptor.fetchLimit = 1
+                    let miners: [Miner] = try context.fetch(descriptor)
+                    return miners.first?.ipAddress
+                } catch {
+                    return nil
+                }
+            }
+            
+            await MainActor.run {
+                setFocusedMiner(ipAddress)
+            }
+        }
     }
 
     func setBackgroundMode(_ isBackground: Bool) {
@@ -451,43 +488,40 @@ class MinerClientManager {
             }
 
             // Create clients for new miners (if any)
-            var newClients: [AxeOSClient] = []
-            if !newMinerIps.isEmpty {
+            let newClients: [AxeOSClient] = {
+                guard !newMinerIps.isEmpty else { return [] }
                 let sessionConfig = URLSessionConfiguration.default
                 sessionConfig.timeoutIntervalForRequest = MinerClientManager.REQUEST_TIMEOUT
                 sessionConfig.timeoutIntervalForResource = MinerClientManager.REQUEST_TIMEOUT * 2
                 sessionConfig.waitsForConnectivity = false
-//                sessionConfig.allowsCellularAccess = false
-//                sessionConfig.allowsExpensiveNetworkAccess = false
-//                sessionConfig.allowsConstrainedNetworkAccess = false
                 let session = URLSession(configuration: sessionConfig)
-
-                for ipAddress in newMinerIps {
-                    let client = AxeOSClient(deviceIpAddress: ipAddress, urlSession: session)
-                    newClients.append(client)
-                }
-            }
+                return newMinerIps.map { AxeOSClient(deviceIpAddress: $0, urlSession: session) }
+            }()
             
             // Exit early if no miners found at all
             guard !allMinerIps.isEmpty else {
                 return
             }
             
+            // Capture immutable copies for MainActor
+            let clientsToAdd = newClients
+            let allIps = allMinerIps
+            
             // Now do MainActor operations
             await MainActor.run {
-                if newClients.count > 0 {
+                if !clientsToAdd.isEmpty {
                     self.firmwareReleaseViewModel.updateReleasesSources()
                 }
                 
                 // Add new clients
-                newClients.forEach { client in
+                for client in clientsToAdd {
                     self.schedulerLock.perform {
                         self.minerClients[client.deviceIpAddress] = client
                     }
                 }
                 
                 // Ensure schedulers exist for ALL miners (existing + new)
-                allMinerIps.forEach { ipAddress in
+                for ipAddress in allIps {
                     self.createSchedulerForMiner(ipAddress: ipAddress)
                 }
             }
@@ -587,15 +621,14 @@ class MinerClientManager {
         let timestamp = Date().millisecondsSince1970
         
         // Track if we need to check watchdog after database operations
-        var shouldCheckWatchdog = false
-        
-        await database.withModelContext { context in
+        let shouldCheckWatchdog = await database.withModelContext { context -> Bool in
+            var needsWatchdogCheck = false
             do {
                 let allMiners: [Miner] = try context.fetch(FetchDescriptor())
                 
                 guard let miner = allMiners.first(where: { $0.ipAddress == minerUpdate.ipAddress }) else {
                     print("WARNING: No miner in db for update")
-                    return
+                    return false
                 }
                 
                 switch (minerUpdate.response) {
@@ -618,10 +651,15 @@ class MinerClientManager {
                         bestSessionDiff: info.bestSessionDiff,
                         frequency: info.frequency,
                         voltage: info.voltage,
+                        coreVoltage: info.coreVoltage,
                         temp: info.temp,
                         vrTemp: info.vrTemp,
                         fanrpm: info.fanrpm,
                         fanspeed: info.fanspeed,
+                        autofanspeed: info.autofanspeed,
+                        flipscreen: info.flipscreen,
+                        invertscreen: info.invertscreen,
+                        invertfanpolarity: info.invertfanpolarity,
                         hashRate: info.hashRate ?? 0,
                         power: info.power ?? 0,
                         sharesAccepted: info.sharesAccepted,
@@ -639,7 +677,7 @@ class MinerClientManager {
                     postMinerUpdateNotification(minerMacAddress: miner.macAddress)
 
                     // Mark that we should check watchdog after database operations complete
-                    shouldCheckWatchdog = true
+                    needsWatchdogCheck = true
                 case .failure(let error):
                     let errorCode = (error as NSError).code
                     let logger = HashRipperLogger.shared.loggerForCategory("MinerClientManager")
@@ -653,24 +691,48 @@ class MinerClientManager {
                         logger.info("🚀 Miner \(miner.hostName) (\(miner.ipAddress)) has active deployment - resetting error counter from \(miner.consecutiveTimeoutErrors) to 0 (error \(errorCode))")
                         miner.consecutiveTimeoutErrors = 0
                     } else {
-                        // Check error type
+                        // Check error type - NSURLError codes:
                         // -1001 = NSURLErrorTimedOut (timeout - increment counter)
                         // -1004 = NSURLErrorCannotConnectToHost (connection refused - immediate offline)
-                        if errorCode == -1004 {
-                            // Connection refused/failed - mark as offline immediately
+                        // -1005 = NSURLErrorNetworkConnectionLost (connection lost - increment counter)
+                        // -1009 = NSURLErrorNotConnectedToInternet (no internet - increment counter)
+                        // -1003 = NSURLErrorCannotFindHost (host not found - immediate offline)
+                        
+                        let immediateOfflineErrors = [-1004, -1003] // Connection refused, host not found
+                        let connectionErrors = [-1001, -1005, -1009] // Timeout, connection lost, no internet
+                        
+                        let wasOnline = !miner.isOffline
+                        
+                        if immediateOfflineErrors.contains(errorCode) {
+                            // Connection refused/host not found - mark as offline immediately
                             let threshold = AppSettings.shared.offlineThreshold
                             miner.consecutiveTimeoutErrors = threshold
-                            logger.warning("🔴 Miner \(miner.hostName) (\(miner.ipAddress)) marked as OFFLINE immediately - connection refused (error -1004)")
-                        } else if errorCode == -1001 {
-                            // Timeout - increment counter
+                            logger.warning("🔴 Miner \(miner.hostName) (\(miner.ipAddress)) marked as OFFLINE immediately - error \(errorCode)")
+                        } else if connectionErrors.contains(errorCode) {
+                            // Connection-related error - increment counter
                             miner.consecutiveTimeoutErrors += 1
 
                             if miner.isOffline {
-                                logger.warning("⚠️ Miner \(miner.hostName) (\(miner.ipAddress)) marked as OFFLINE after \(miner.consecutiveTimeoutErrors) consecutive timeout errors")
+                                logger.warning("⚠️ Miner \(miner.hostName) (\(miner.ipAddress)) marked as OFFLINE after \(miner.consecutiveTimeoutErrors) consecutive errors (error \(errorCode))")
+                            } else {
+                                logger.info("⚠️ Miner \(miner.hostName) connection error \(errorCode), count: \(miner.consecutiveTimeoutErrors)/\(AppSettings.shared.offlineThreshold)")
                             }
                         } else {
-                            // Other error types, reset counter
-                            miner.consecutiveTimeoutErrors = 0
+                            // Other error types (server errors, etc.) - don't change offline status
+                            // but log it for debugging
+                            logger.debug("ℹ️ Miner \(miner.hostName) error \(errorCode) - not affecting offline status")
+                        }
+                        
+                        // Send notification if miner just went offline
+                        if wasOnline && miner.isOffline && AppSettings.shared.notifyOnMinerOffline {
+                            let minerName = miner.hostName
+                            let minerIP = miner.ipAddress
+                            Task { @MainActor in
+                                WatchDogNotificationService.shared.notifyMinerOffline(
+                                    minerName: minerName,
+                                    ipAddress: minerIP
+                                )
+                            }
                         }
                     }
 
@@ -766,6 +828,7 @@ class MinerClientManager {
             } catch let error {
                 print("Failed to add miner updates to db: \(String(describing: error))")
             }
+            return needsWatchdogCheck
         }
         
         // Check watchdog after database operations are complete

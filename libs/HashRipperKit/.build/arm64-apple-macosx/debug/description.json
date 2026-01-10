@@ -1,0 +1,999 @@
+{
+  "builtTestProducts" : [
+    {
+      "binaryPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.xctest/Contents/MacOS/HashRipperKitPackageTests",
+      "packagePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit",
+      "productName" : "HashRipperKitPackageTests"
+    }
+  ],
+  "copyCommands" : {
+
+  },
+  "explicitTargetDependencyImportCheckingMode" : {
+    "none" : {
+
+    }
+  },
+  "generatedSourceTargetSet" : [
+
+  ],
+  "pluginDescriptions" : [
+
+  ],
+  "swiftCommands" : {
+    "C.AxeOSClient-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/sources",
+      "importPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClient.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClientDiscovery.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSDevice.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSWebsocketClient.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/IPAddressCalculator.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "AxeOSClient",
+      "moduleOutputPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/AxeOSClient.swiftmodule",
+      "objects" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSClient.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSClientDiscovery.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSDevice.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSWebsocketClient.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/IPAddressCalculator.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/include/AxeOSClient-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "axeosclient"
+      ],
+      "outputFileMapPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSClientDiscovery.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSDevice.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSWebsocketClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/IPAddressCalculator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/AxeOSClient.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClient.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClientDiscovery.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSDevice.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSWebsocketClient.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/IPAddressCalculator.swift"
+      ],
+      "tempsPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.HashRipperKit-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/sources",
+      "importPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/HashRipperKit.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/Miner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerDeviceGenre.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerType.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerUpdate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Utils/HashRateFormatter.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/AxeOSClient.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "HashRipperKit",
+      "moduleOutputPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKit.swiftmodule",
+      "objects" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/HashRipperKit.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/Miner.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerDeviceGenre.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerType.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerUpdate.swift.o",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/HashRateFormatter.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/include/HashRipperKit-Swift.h",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "hashripperkit"
+      ],
+      "outputFileMapPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/HashRipperKit.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/Miner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerDeviceGenre.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerType.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerUpdate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/HashRateFormatter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKit.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/HashRipperKit.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/Miner.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerDeviceGenre.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerType.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerUpdate.swift",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Utils/HashRateFormatter.swift"
+      ],
+      "tempsPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.HashRipperKitPackageTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/sources",
+      "importPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKitTests.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "HashRipperKitPackageTests",
+      "moduleOutputPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKitPackageTests.swiftmodule",
+      "objects" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-emit-objc-header",
+        "-emit-objc-header-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/include/HashRipperKitPackageTests-Swift.h",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "hashripperkit"
+      ],
+      "outputFileMapPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKitPackageTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift"
+      ],
+      "tempsPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build",
+      "wholeModuleOptimization" : false
+    },
+    "C.HashRipperKitTests-arm64-apple-macosx26.0-debug.module" : {
+      "executable" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "fileList" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/sources",
+      "importPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "inputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Tests/HashRipperKitTests/HashRipperKitTests.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKit.swiftmodule"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/sources"
+        }
+      ],
+      "isLibrary" : true,
+      "moduleName" : "HashRipperKitTests",
+      "moduleOutputPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKitTests.swiftmodule",
+      "objects" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/HashRipperKitTests.swift.o"
+      ],
+      "otherArguments" : [
+        "-target",
+        "arm64-apple-macosx14.0",
+        "-incremental",
+        "-enable-batch-mode",
+        "-serialize-diagnostics",
+        "-index-store-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+        "-Onone",
+        "-enable-testing",
+        "-Xfrontend",
+        "-enable-cross-import-overlays",
+        "-j14",
+        "-DSWIFT_PACKAGE",
+        "-DDEBUG",
+        "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+        "-module-cache-path",
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+        "-parseable-output",
+        "-parse-as-library",
+        "-swift-version",
+        "6",
+        "-plugin-path",
+        "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+        "-sdk",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-F",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-I",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-L",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+        "-g",
+        "-Xcc",
+        "-isysroot",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+        "-Xcc",
+        "-F",
+        "-Xcc",
+        "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+        "-Xcc",
+        "-fPIC",
+        "-Xcc",
+        "-g",
+        "-package-name",
+        "hashripperkit"
+      ],
+      "outputFileMapPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/output-file-map.json",
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/HashRipperKitTests.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules/HashRipperKitTests.swiftmodule"
+        }
+      ],
+      "prepareForIndexing" : false,
+      "sources" : [
+        "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Tests/HashRipperKitTests/HashRipperKitTests.swift"
+      ],
+      "tempsPath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build",
+      "wholeModuleOptimization" : false
+    }
+  },
+  "swiftFrontendCommands" : {
+
+  },
+  "swiftTargetScanArgs" : {
+    "AxeOSClient" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "AxeOSClient",
+      "-package-name",
+      "axeosclient",
+      "-c",
+      "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClient.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClientDiscovery.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSDevice.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSWebsocketClient.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/IPAddressCalculator.swift",
+      "-I",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/include/AxeOSClient-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "axeosclient",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "HashRipperKit" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "HashRipperKit",
+      "-package-name",
+      "hashripperkit",
+      "-c",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/HashRipperKit.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/Miner.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerDeviceGenre.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerType.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerUpdate.swift",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Utils/HashRateFormatter.swift",
+      "-I",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/include/HashRipperKit-Swift.h",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "hashripperkit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "HashRipperKitPackageTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "HashRipperKitPackageTests",
+      "-package-name",
+      "hashripperkit",
+      "-c",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift",
+      "-I",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-emit-objc-header",
+      "-emit-objc-header-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/include/HashRipperKitPackageTests-Swift.h",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "hashripperkit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ],
+    "HashRipperKitTests" : [
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc",
+      "-module-name",
+      "HashRipperKitTests",
+      "-package-name",
+      "hashripperkit",
+      "-c",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Tests/HashRipperKitTests/HashRipperKitTests.swift",
+      "-I",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/Modules",
+      "-target",
+      "arm64-apple-macosx14.0",
+      "-incremental",
+      "-enable-batch-mode",
+      "-serialize-diagnostics",
+      "-index-store-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/index/store",
+      "-Onone",
+      "-enable-testing",
+      "-Xfrontend",
+      "-enable-cross-import-overlays",
+      "-j14",
+      "-DSWIFT_PACKAGE",
+      "-DDEBUG",
+      "-DSWIFT_MODULE_RESOURCE_BUNDLE_UNAVAILABLE",
+      "-module-cache-path",
+      "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/ModuleCache",
+      "-parseable-output",
+      "-parse-as-library",
+      "-swift-version",
+      "6",
+      "-plugin-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/lib/swift/host/plugins/testing",
+      "-sdk",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-F",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-I",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-L",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/usr/lib",
+      "-g",
+      "-Xcc",
+      "-isysroot",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/SDKs/MacOSX26.2.sdk",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/Frameworks",
+      "-Xcc",
+      "-F",
+      "-Xcc",
+      "/Applications/Xcode.app/Contents/Developer/Platforms/MacOSX.platform/Developer/Library/PrivateFrameworks",
+      "-Xcc",
+      "-fPIC",
+      "-Xcc",
+      "-g",
+      "-package-name",
+      "hashripperkit",
+      "-driver-use-frontend-path",
+      "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+    ]
+  },
+  "targetDependencyMap" : {
+    "AxeOSClient" : [
+
+    ],
+    "HashRipperKit" : [
+      "AxeOSClient"
+    ],
+    "HashRipperKitPackageTests" : [
+      "HashRipperKitTests",
+      "HashRipperKit",
+      "AxeOSClient"
+    ],
+    "HashRipperKitTests" : [
+      "HashRipperKit",
+      "AxeOSClient"
+    ]
+  },
+  "testDiscoveryCommands" : {
+
+  },
+  "testEntryPointCommands" : {
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift" : {
+      "inputs" : [
+
+      ],
+      "outputs" : [
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift"
+        }
+      ]
+    }
+  },
+  "traitConfiguration" : {
+    "default" : {
+
+    }
+  },
+  "writeCommands" : {
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClient.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSClientDiscovery.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSDevice.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/AxeOSWebsocketClient.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient/Sources/AxeOSClient/IPAddressCalculator.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/sources"
+    },
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/HashRipperKit.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/Miner.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerDeviceGenre.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerType.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Models/MinerUpdate.swift"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Sources/HashRipperKit/Utils/HashRateFormatter.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/sources"
+    },
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/sources"
+    },
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.product/Objects.LinkFileList" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<link-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSClientDiscovery.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSDevice.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/AxeOSWebsocketClient.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/IPAddressCalculator.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/HashRateFormatter.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/HashRipperKit.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/Miner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerDeviceGenre.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerType.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKit.build/MinerUpdate.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.swift.o"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/HashRipperKitTests.swift.o"
+        }
+      ],
+      "outputFilePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.product/Objects.LinkFileList"
+    },
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/sources" : {
+      "alwaysOutOfDate" : false,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<sources-file-list>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/Tests/HashRipperKitTests/HashRipperKitTests.swift"
+        }
+      ],
+      "outputFilePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitTests.build/sources"
+    },
+    "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt" : {
+      "alwaysOutOfDate" : true,
+      "inputs" : [
+        {
+          "kind" : "virtual",
+          "name" : "<swift-get-version>"
+        },
+        {
+          "kind" : "file",
+          "name" : "/Applications/Xcode.app/Contents/Developer/Toolchains/XcodeDefault.xctoolchain/usr/bin/swiftc"
+        }
+      ],
+      "outputFilePath" : "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/swift-version--58304C5D6DBC2206.txt"
+    }
+  }
+}

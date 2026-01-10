@@ -96,6 +96,11 @@ actor MinerStatsAggregator {
             let recentThreshold = Date().millisecondsSince1970 - (5 * 60 * 1000)
 
             for miner in allMiners {
+                // Skip offline miners - they shouldn't contribute to totals
+                if miner.isOffline {
+                    continue
+                }
+                
                 // Get the most recent update for this miner
                 let macAddress = miner.macAddress
                 var recentUpdateDescriptor = FetchDescriptor<MinerUpdate>(

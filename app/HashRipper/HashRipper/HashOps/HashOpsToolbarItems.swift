@@ -14,19 +14,16 @@ struct HashOpsToolbarItems: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.modelContext) private var modelContext
     
-    @Query(filter: #Predicate<WatchDogActionLog> { $0.isRead == false })
-    private var unreadActions: [WatchDogActionLog]
+    @State private var unreadActionsCount: Int = 0
 
     var addNewMiner: () -> Void
     var addMinerManually: () -> Void
     var rolloutProfile: () -> Void
-    var showMinerCharts: () -> Void
-    var openDiagnosticWindow: () -> Void
     
     var body: some View {
         HStack {
             Menu {
-                Button(action: addNewMiner) {
+            Button(action: addNewMiner) {
                     Label("Setup New Miner (AP Mode)", systemImage: "wifi.circle")
                 }
                 Button(action: addMinerManually) {
@@ -67,22 +64,12 @@ struct HashOpsToolbarItems: View {
                 Image(systemName: "iphone.and.arrow.forward.inward")
             }
             .help("Deploy a miner profile to your miners")
-
-            Button(action: showMinerCharts) {
-                Image(systemName: "chart.xyaxis.line")
-            }
-            .help("View miner performance charts")
-
-            Button(action: openDiagnosticWindow) {
-                Image(systemName: "stethoscope")
-            }
-            .help("Record websocket data from miners")
             
             Button(action: openWatchDogActionsWindow) {
                 ZStack(alignment: .topTrailing) {
                     Image(systemName: "shield.checkered")
                     
-                    if !unreadActions.isEmpty {
+                    if unreadActionsCount > 0 {
                         Circle()
                             .fill(.red)
                             .frame(width: 8, height: 8)
@@ -91,11 +78,23 @@ struct HashOpsToolbarItems: View {
                 }
             }
             .help("View WatchDog action history")
-            
-            Button(action: openSettingsWindow) {
-                Image(systemName: "gearshape")
+        }
+        .task {
+            await loadUnreadCount()
+        }
+    }
+    
+    private func loadUnreadCount() async {
+        let descriptor = FetchDescriptor<WatchDogActionLog>(
+            predicate: #Predicate<WatchDogActionLog> { $0.isRead == false }
+        )
+        do {
+            let count = try modelContext.fetchCount(descriptor)
+            await MainActor.run {
+                unreadActionsCount = count
             }
-            .help("Open Settings")
+        } catch {
+            // Ignore errors
         }
     }
 
@@ -118,10 +117,6 @@ struct HashOpsToolbarItems: View {
     }
     
     private func openWatchDogActionsWindow() {
-        openWindow(id: MinerWatchDogActionsView.windowGroupId)
-    }
-    
-    private func openSettingsWindow() {
-        openWindow(id: SettingsWindow.windowGroupId)
+        NotificationCenter.default.post(name: .showAlertsTab, object: nil)
     }
 }

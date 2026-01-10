@@ -134,6 +134,10 @@ struct MinerSegmentedUpdateChartsView: View {
 
     @ViewBuilder
     func chartView(for segment: ChartSegments) -> some View {
+        let data = viewModel.chartDataBySegment[segment] ?? []
+        let startTime = data.first?.time ?? Date()
+        let endTime = data.last?.time ?? Date()
+        
         VStack(alignment: .leading, spacing: 16) {
             // Title section
             VStack(alignment: .leading) {
@@ -156,7 +160,7 @@ struct MinerSegmentedUpdateChartsView: View {
             
             // Chart
             Chart {
-                ForEach(viewModel.chartDataBySegment[segment] ?? [], id: \.time) { entry in
+                ForEach(data, id: \.time) { entry in
                     if segment == .asicTemperature {
                         // ASIC Temp line (orange)
                         LineMark(
@@ -186,9 +190,14 @@ struct MinerSegmentedUpdateChartsView: View {
                     }
                 }
             }
+            .chartXScale(domain: startTime...endTime)
             .chartYAxisLabel { Text(segment.symbol).font(.caption) }
             .chartXAxis {
-                AxisMarks(values: .automatic(desiredCount: 10, roundLowerBound: true))
+                AxisMarks(values: .stride(by: .minute, count: strideMinutes(from: startTime, to: endTime))) { value in
+                    AxisGridLine()
+                    AxisValueLabel(format: .dateTime.hour().minute())
+                        .font(.caption2)
+                }
             }
             .chartYAxis {
                 AxisMarks(values: .automatic(roundLowerBound: true))
@@ -199,8 +208,50 @@ struct MinerSegmentedUpdateChartsView: View {
         .padding(.horizontal)
     }
     
+    /// Calculate appropriate stride interval based on time range
+    private func strideMinutes(from start: Date, to end: Date) -> Int {
+        let minutes = Int(end.timeIntervalSince(start) / 60)
+        
+        // Target 4-6 axis labels
+        switch minutes {
+        case 0..<30:
+            return 5          // Every 5 minutes for < 30 min range
+        case 30..<60:
+            return 10         // Every 10 minutes for 30-60 min range
+        case 60..<180:
+            return 30         // Every 30 minutes for 1-3 hour range
+        case 180..<360:
+            return 60         // Every hour for 3-6 hour range
+        case 360..<720:
+            return 120        // Every 2 hours for 6-12 hour range
+        default:
+            return 180        // Every 3 hours for > 12 hours
+        }
+    }
+    
     var chartsToShow: [ChartSegments] {
         ChartSegments.allCases.filter({ $0 != ChartSegments.voltageRegulatorTemperature })
+    }
+    
+    var timeRangeText: String {
+        guard let hashRateData = viewModel.chartDataBySegment[.hashRate],
+              let firstEntry = hashRateData.first,
+              let lastEntry = hashRateData.last else {
+            return "No data"
+        }
+        
+        let formatter = DateFormatter()
+        let calendar = Calendar.current
+        
+        if calendar.isDate(firstEntry.time, inSameDayAs: lastEntry.time) {
+            formatter.dateFormat = "MMM d, h:mm a"
+            let endFormatter = DateFormatter()
+            endFormatter.dateFormat = "h:mm a"
+            return "\(formatter.string(from: firstEntry.time)) – \(endFormatter.string(from: lastEntry.time))"
+        } else {
+            formatter.dateFormat = "MMM d, h:mm a"
+            return "\(formatter.string(from: firstEntry.time)) – \(formatter.string(from: lastEntry.time))"
+        }
     }
 
     var body: some View {
@@ -253,7 +304,7 @@ struct MinerSegmentedUpdateChartsView: View {
                         // Data pagination controls
                         VStack(spacing: 8) {
                             HStack {
-                                Text(viewModel.currentPageInfo)
+                                Text(timeRangeText)
                                     .font(.caption)
                                     .foregroundColor(.secondary)
 

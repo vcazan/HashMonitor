@@ -38,7 +38,6 @@ struct FirmwareReleaseInfo: Identifiable, Codable {
     var assets: [ReleaseAsset]
 
     init(from decoder: any Decoder) throws {
-        let jsonDateDecoder = JSONDecoder()
         let container = try decoder.container(keyedBy: CodingKeys.self)
         let dateContainer = try decoder.container(keyedBy: DateCodingKeys.self)
 

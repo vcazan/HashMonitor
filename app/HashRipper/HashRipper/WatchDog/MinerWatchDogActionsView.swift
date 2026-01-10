@@ -31,16 +31,17 @@ struct MinerWatchDogActionsView: View {
         NavigationStack {
             VStack(spacing: 0) {
                 // Tab Picker
-                Picker("View", selection: $selectedTab) {
-                    Label("Activity", systemImage: "list.bullet")
+                Picker("", selection: $selectedTab) {
+                    Text("Activity")
                         .tag(WatchDogTab.activity)
 
-                    Label("Pool Alerts", systemImage: "exclamationmark.shield")
+                    Text("Pool Alerts")
                         .tag(WatchDogTab.poolAlerts)
-                        .badge(poolCoordinator.activeAlerts.count)
                 }
                 .pickerStyle(.segmented)
-                .padding()
+                .labelsHidden()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
 
                 Divider()
 
@@ -77,57 +78,49 @@ struct MinerWatchDogActionsView: View {
     @ViewBuilder
     private var activityTabContent: some View {
         VStack(spacing: 0) {
-                if actionLogs.isEmpty {
-                    ContentUnavailableView(
-                        "No WatchDog Actions",
-                        systemImage: "shield.checkered",
-                        description: Text("The WatchDog hasn't performed any automatic miner restarts yet.")
-                    )
-                } else {
-                    // Chart at top showing restarts over time
-                    WatchDogRestartChart(actionLogs: actionLogs, allMiners: allMiners)
-                        .frame(height: 180)
-                        .padding(.horizontal, 16)
-                        .padding(.vertical, 8)
-                        .background(Color(NSColor.controlBackgroundColor))
-                        .overlay(
-                            Rectangle()
-                                .frame(height: 0.5)
-                                .foregroundColor(Color(NSColor.separatorColor)),
-                            alignment: .bottom
-                        )
+            if actionLogs.isEmpty {
+                ContentUnavailableView(
+                    "No Activity",
+                    systemImage: "checkmark.shield",
+                    description: Text("WatchDog is monitoring your miners. Actions will appear here.")
+                )
+            } else {
+                // Summary header
+                HStack(spacing: 16) {
+                    Label("\(actionLogs.count) restarts", systemImage: "arrow.clockwise")
+                        .font(.callout)
+                        .foregroundStyle(.secondary)
                     
-                    ScrollViewReader { proxy in
-                        List {
-                            ForEach(actionLogs) { actionLog in
-                                WatchDogActionItemView(actionLog: actionLog, miners: allMiners)
-                                    .opacity(actionLog.isRead ? 0.8 : 1.0)
-                            }
-                        }
-                        .listStyle(.inset)
-                        .onAppear {
-                            // Scroll to top without animation when window opens
-                            if let firstActionLog = actionLogs.first {
-                                proxy.scrollTo(firstActionLog.id, anchor: .top)
-                            }
-                        }
+                    if let recent = actionLogs.first {
+                        let date = Date(timeIntervalSince1970: Double(recent.timestamp) / 1000.0)
+                        Label("Last: \(date, format: .relative(presentation: .named))", systemImage: "clock")
+                            .font(.callout)
+                            .foregroundStyle(.secondary)
                     }
                     
-                    HStack {
-                        Button("Clear All History") {
-                            clearAllActions()
-                        }
-                        .buttonStyle(.bordered)
-                        .foregroundColor(.red)
-                        
-                        Spacer()
-                        
-                        Text("\(actionLogs.count) total actions")
-                            .foregroundColor(.secondary)
-                            .font(.caption)
+                    Spacer()
+                    
+                    Button("Clear") {
+                        clearAllActions()
                     }
-                    .padding()
+                    .buttonStyle(.borderless)
+                    .foregroundStyle(.secondary)
+                    .controlSize(.small)
                 }
+                .padding(.horizontal, 16)
+                .padding(.vertical, 10)
+                .background(Color(NSColor.controlBackgroundColor))
+                
+                Divider()
+                
+                List {
+                    ForEach(actionLogs) { actionLog in
+                        WatchDogActionRowView(actionLog: actionLog, miners: allMiners)
+                            .listRowInsets(EdgeInsets(top: 4, leading: 12, bottom: 4, trailing: 12))
+                    }
+                }
+                .listStyle(.plain)
+            }
         }
     }
 
@@ -178,6 +171,56 @@ struct MinerWatchDogActionsView: View {
     }
 }
 
+// Compact action row for the list
+struct WatchDogActionRowView: View {
+    let actionLog: WatchDogActionLog
+    let miners: [Miner]
+    
+    private var miner: Miner? {
+        miners.first { $0.macAddress == actionLog.minerMacAddress }
+    }
+    
+    private var actionDate: Date {
+        Date(timeIntervalSince1970: Double(actionLog.timestamp) / 1000.0)
+    }
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            // Icon
+            Image(systemName: "arrow.clockwise.circle.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(.orange)
+            
+            // Content
+            VStack(alignment: .leading, spacing: 2) {
+                HStack(spacing: 6) {
+                    Text(miner?.hostName ?? "Unknown Miner")
+                        .font(.system(size: 13, weight: .medium))
+                    
+                    if !actionLog.isRead {
+                        Circle()
+                            .fill(.blue)
+                            .frame(width: 6, height: 6)
+                    }
+                }
+                
+                Text("Restarted due to low power")
+                    .font(.system(size: 11))
+                    .foregroundStyle(.secondary)
+            }
+            
+            Spacer()
+            
+            // Time
+            Text(actionDate, format: .relative(presentation: .named))
+                .font(.system(size: 11))
+                .foregroundStyle(.tertiary)
+        }
+        .padding(.vertical, 6)
+    }
+}
+
+// Keep the old verbose view for detail sheets if needed
 struct WatchDogActionItemView: View {
     let actionLog: WatchDogActionLog
     let miners: [Miner]
@@ -194,169 +237,33 @@ struct WatchDogActionItemView: View {
         return formatter.string(from: date)
     }
     
-    private var relativeTime: String {
-        let date = Date(timeIntervalSince1970: Double(actionLog.timestamp) / 1000.0)
-        let formatter = RelativeDateTimeFormatter()
-        formatter.unitsStyle = .abbreviated
-        return formatter.localizedString(for: date, relativeTo: Date())
-    }
-    
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            HStack(alignment: .top) {
-                // Action icon and status
-                HStack(spacing: 8) {
-                    ZStack {
-                        Circle()
-                            .fill(actionColor.opacity(0.2))
-                            .frame(width: 32, height: 32)
-                        Image(systemName: actionIcon)
-                            .font(.system(size: 14, weight: .medium))
-                            .foregroundColor(actionColor)
-                    }
-                    
-                    VStack(alignment: .leading, spacing: 2) {
-                        Text(actionTitle)
-                            .font(.headline)
-                            .foregroundColor(.primary)
-                        
-                        Text(relativeTime)
-                            .font(.caption)
-                            .foregroundColor(.secondary)
-                    }
-                }
-                
-                Spacer()
-                
-                // Unread indicator
-                if !actionLog.isRead {
-                    Circle()
-                        .fill(.blue)
-                        .frame(width: 8, height: 8)
-                }
-                
-                // Miner info pill
-                if let miner = miner {
-                    HStack(spacing: 6) {
-                        Image(systemName: "cpu")
-                            .font(.caption)
-                            .foregroundColor(.blue)
-                        Text(miner.hostName)
-                            .font(.caption)
-                            .fontWeight(.medium)
-                    }
-                    .padding(.horizontal, 8)
-                    .padding(.vertical, 4)
-                    .background(.blue.opacity(0.1))
-                    .foregroundColor(.blue)
-                    .clipShape(.capsule)
-                }
-            }
-            
-            // Reason and details
-            VStack(alignment: .leading, spacing: 6) {
-                Text("Reason:")
-                    .font(.caption)
-                    .fontWeight(.semibold)
-                    .foregroundColor(.secondary)
-                
-                Text(actionLog.reason)
-                    .font(.callout)
-                    .foregroundColor(.primary)
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 8)
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-            
-            // Version information if available
-            if actionLog.minerFirmwareVersion != nil || actionLog.axeOSVersion != nil {
-                VStack(alignment: .leading, spacing: 6) {
-                    Text("Firmware Version:")
-                        .font(.caption)
-                        .fontWeight(.semibold)
-                        .foregroundColor(.secondary)
-                    
-                    HStack(spacing: 12) {
-                        if let firmwareVersion = actionLog.minerFirmwareVersion {
-                            HStack(spacing: 4) {
-                                Image(systemName: "f.circle")
-                                    .font(.caption2)
-                                    .foregroundColor(.purple)
-                                Text("Firmware: \(firmwareVersion)")
-                                    .font(.caption)
-                                    .fontDesign(.monospaced)
-                            }
-                        }
-                        
-                        if let axeOSVersion = actionLog.axeOSVersion {
-                            HStack(spacing: 4) {
-                                Image(systemName: "v.circle")
-                                    .font(.caption2)
-                                    .foregroundColor(.green)
-                                Text("AxeOS: \(axeOSVersion)")
-                                    .font(.caption)
-                                    .fontDesign(.monospaced)
-                            }
-                        }
-                    }
-                    .padding(.horizontal, 12)
-                    .padding(.vertical, 6)
-                    .background(.ultraThinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 6))
-                }
-            }
-            
-            // Footer with exact timestamp and MAC address
+        VStack(alignment: .leading, spacing: 8) {
             HStack {
-                HStack(spacing: 4) {
-                    Image(systemName: "clock")
-                        .font(.caption2)
-                    Text(formattedTime)
-                        .font(.caption2)
-                }
-                .foregroundColor(.secondary)
+                Image(systemName: "arrow.clockwise.circle.fill")
+                    .foregroundStyle(.orange)
+                
+                Text(miner?.hostName ?? "Unknown")
+                    .font(.headline)
                 
                 Spacer()
                 
-                HStack(spacing: 4) {
-                    Image(systemName: "network")
-                        .font(.caption2)
-                    Text(actionLog.minerMacAddress)
-                        .font(.caption2)
-                        .fontDesign(.monospaced)
-                }
-.foregroundColor(.secondary)
+                Text(formattedTime)
+                    .font(.caption)
+                    .foregroundStyle(.secondary)
+            }
+            
+            Text(actionLog.reason)
+                .font(.callout)
+                .foregroundStyle(.secondary)
+            
+            if let firmware = actionLog.minerFirmwareVersion {
+                Text("Firmware: \(firmware)")
+                    .font(.caption)
+                    .foregroundStyle(.tertiary)
             }
         }
         .padding()
-        .background(.regularMaterial)
-        .clipShape(RoundedRectangle(cornerRadius: 12))
-        .overlay(
-            RoundedRectangle(cornerRadius: 12)
-                .strokeBorder(actionColor.opacity(0.3), lineWidth: 1)
-        )
-    }
-    
-    private var actionColor: Color {
-        switch actionLog.action {
-        case .restartMiner:
-            return .orange
-        }
-    }
-    
-    private var actionIcon: String {
-        switch actionLog.action {
-        case .restartMiner:
-            return "power.circle.fill"
-        }
-    }
-    
-    private var actionTitle: String {
-        switch actionLog.action {
-        case .restartMiner:
-            return "Miner Restarted"
-        }
     }
 }
 

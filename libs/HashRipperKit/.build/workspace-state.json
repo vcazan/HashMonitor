@@ -1,0 +1,27 @@
+{
+  "object" : {
+    "artifacts" : [
+
+    ],
+    "dependencies" : [
+      {
+        "basedOn" : null,
+        "packageRef" : {
+          "identity" : "axeosclient",
+          "kind" : "fileSystem",
+          "location" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient",
+          "name" : "AxeOSClient"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient"
+        },
+        "subpath" : "axeosclient"
+      }
+    ],
+    "prebuilts" : [
+
+    ]
+  },
+  "version" : 7
+}

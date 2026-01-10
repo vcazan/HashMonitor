@@ -24,10 +24,10 @@ struct TotalMinersView: View {
             }.background(Color.gray.opacity(0.1))
 
             HStack(alignment: .lastTextBaseline, spacing: 2) {
-                Text("\(minerCount)")
+                Text(verbatim: "\(minerCount)")
                     .font(.system(size: 36, weight: .light))
                     .fontDesign(.monospaced)
-                    .contentTransition(.numericText(value: Double(minerCount)))
+                    .contentTransition(.numericText())
                     .minimumScaleFactor(0.6)
             }
         }

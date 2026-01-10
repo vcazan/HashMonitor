@@ -73,7 +73,7 @@ class NewMinerScanner {
 
     func scanForNewMiner() async -> Result<NewDevice, Error>  {
         // new miner should only be at 192.168.4.1
-        var sessionConfig = URLSessionConfiguration.default
+        let sessionConfig = URLSessionConfiguration.default
         sessionConfig.timeoutIntervalForRequest = 10
         sessionConfig.waitsForConnectivity = false
         sessionConfig.allowsCellularAccess = false
@@ -97,33 +97,37 @@ class NewMinerScanner {
         Task.detached {
             print("Swarm scanning initiated")
             do {
-                let knownMiners: [Miner] = try await database.withModelContext({ modelContext in
-                    return try modelContext.fetch(FetchDescriptor())
+                // Only extract IP addresses (Sendable) from the context
+                let knownMinerIps: [String] = try await database.withModelContext({ modelContext in
+                    let miners: [Miner] = try modelContext.fetch(FetchDescriptor())
+                    return miners.map(\.ipAddress)
                 })
                 let customSubnetIPs = AppSettings.shared.getSubnetsToScan()
                 print("🔍 Scanning subnets: \(customSubnetIPs)")
                 let devices = try await AxeOSDevicesScanner.shared.executeSwarmScan(
-                    knownMinerIps: knownMiners.map((\.ipAddress)),
+                    knownMinerIps: knownMinerIps,
                     customSubnetIPs: customSubnetIPs
                 )
 
-                guard devices.count > 0 else {
+                guard !devices.isEmpty else {
                     print("Swarm scan found no new devices")
                     return
                 }
 
                 print("Swarm scanning - model context created")
 
-                // Pre-fetch all miners once for efficient lookups
-                let minersByIP = Dictionary(uniqueKeysWithValues: knownMiners.map { ($0.ipAddress, $0) })
-                let minersByMAC = Dictionary(uniqueKeysWithValues: knownMiners.map { ($0.macAddress, $0) })
-
+                // Process all devices in a single context - query miners fresh inside
                 await database.withModelContext({ modelContext in
-                    devices.forEach { device in
+                    // Fetch miners fresh in this context
+                    let allMiners: [Miner] = (try? modelContext.fetch(FetchDescriptor())) ?? []
+                    let minersByIP = Dictionary(uniqueKeysWithValues: allMiners.map { ($0.ipAddress, $0) })
+                    let minersByMAC = Dictionary(uniqueKeysWithValues: allMiners.map { ($0.macAddress, $0) })
+                    
+                    for device in devices {
                         let ipAddress = device.client.deviceIpAddress
                         let info = device.info
 
-                        // Use pre-fetched miners for efficient lookups
+                        // Use freshly fetched miners for lookups
                         let existingIPMiner = minersByIP[ipAddress]
                         let existingMACMiner = minersByMAC[info.macAddr]
 
@@ -179,10 +183,15 @@ class NewMinerScanner {
                             bestSessionDiff: info.bestSessionDiff,
                             frequency: info.frequency,
                             voltage: info.voltage,
+                            coreVoltage: info.coreVoltage,
                             temp: info.temp,
                             vrTemp: info.vrTemp,
                             fanrpm: info.fanrpm,
                             fanspeed: info.fanspeed,
+                            autofanspeed: info.autofanspeed,
+                            flipscreen: info.flipscreen,
+                            invertscreen: info.invertscreen,
+                            invertfanpolarity: info.invertfanpolarity,
                             hashRate: info.hashRate ?? 0,
                             power: info.power ?? 0,
                             sharesAccepted: info.sharesAccepted,
@@ -216,8 +225,7 @@ class NewMinerScanner {
         }
     }
     
-    /// Scans for new devices using streaming results - devices are processed immediately as they're found
-    /// instead of waiting for all scans to complete
+    /// Scans for new devices using streaming results - devices are collected and processed in batch
     func rescanDevicesStreaming() async {
         let database = self.database
         let lastUpdateLock = self.lastUpdateLock
@@ -236,36 +244,52 @@ class NewMinerScanner {
             }
             print("Streaming swarm scanning initiated")
             do {
-                let knownMiners: [Miner] = try await database.withModelContext({ modelContext in
-                    return try modelContext.fetch(FetchDescriptor())
+                // Only extract IP addresses (Sendable) from the context
+                let knownMinerIps: [String] = try await database.withModelContext({ modelContext in
+                    let miners: [Miner] = try modelContext.fetch(FetchDescriptor())
+                    return miners.map(\.ipAddress)
                 })
                 
-                var foundDeviceCount = 0
-                var newMinerIpAddresses: [IPAddress] = []
-                
-                // Pre-fetch all miners once for efficient lookups
-                let allMiners = knownMiners
-                let minersByIP = Dictionary(uniqueKeysWithValues: allMiners.map { ($0.ipAddress, $0) })
-                let minersByMAC = Dictionary(uniqueKeysWithValues: allMiners.map { ($0.macAddress, $0) })
+                // Use actor to safely accumulate devices from concurrent callbacks
+                actor DeviceCollector {
+                    private var devices: [DiscoveredDevice] = []
+                    func append(_ device: DiscoveredDevice) -> Int {
+                        devices.append(device)
+                        return devices.count
+                    }
+                    func getDevices() -> [DiscoveredDevice] { devices }
+                }
+                let collector = DeviceCollector()
 
                 let customSubnetIPs = AppSettings.shared.getSubnetsToScan()
                 print("🔍 Streaming scan using subnets: \(customSubnetIPs)")
                 try await AxeOSDevicesScanner.shared.executeSwarmScanV2(
-                    knownMinerIps: knownMiners.map((\.ipAddress)),
+                    knownMinerIps: knownMinerIps,
                     customSubnetIPs: customSubnetIPs
                 ) { device in
-                    foundDeviceCount += 1
-                    let ipAddress = device.client.deviceIpAddress
-                    print("Found device \(foundDeviceCount): \(device.info.hostname) at \(ipAddress)")
-
-                    // Process each device immediately as it's found
-                    // Use Task.detached to prevent cancellation during app lifecycle transitions
-                    Task.detached {
-                        await database.withModelContext({ modelContext in
+                    Task {
+                        let count = await collector.append(device)
+                        print("Found device \(count): \(device.info.hostname) at \(device.client.deviceIpAddress)")
+                    }
+                }
+                
+                // Get collected devices
+                let devicesToProcess = await collector.getDevices()
+                
+                // Process all devices in a single batch with fresh miner lookups
+                let newMinerIpAddresses: [IPAddress] = await database.withModelContext({ modelContext -> [IPAddress] in
+                    // Fetch miners fresh in this context
+                    let allMiners: [Miner] = (try? modelContext.fetch(FetchDescriptor())) ?? []
+                    let minersByIP = Dictionary(uniqueKeysWithValues: allMiners.map { ($0.ipAddress, $0) })
+                    let minersByMAC = Dictionary(uniqueKeysWithValues: allMiners.map { ($0.macAddress, $0) })
+                    
+                    var newIpAddresses: [IPAddress] = []
+                    
+                    for device in devicesToProcess {
                             let ipAddress = device.client.deviceIpAddress
                             let info = device.info
 
-                            // Use pre-fetched miners for efficient lookups
+                        // Use freshly fetched miners for lookups
                             let existingIPMiner = minersByIP[ipAddress]
                             let existingMACMiner = minersByMAC[info.macAddr]
 
@@ -306,7 +330,7 @@ class NewMinerScanner {
                                 modelContext.insert(miner)
 
                                 // Track this new IP address for callback
-                                newMinerIpAddresses.append(ipAddress)
+                            newIpAddresses.append(ipAddress)
                                 print("Created new miner: \(miner.hostName)")
                             }
 
@@ -338,18 +362,19 @@ class NewMinerScanner {
                             )
 
                             modelContext.insert(minerUpdate)
+                    }
 
                             do {
                                 try modelContext.save()
-                                print("Successfully saved miner data: \(miner.hostName)")
+                        print("Successfully saved \(devicesToProcess.count) miner updates")
                             } catch(let error) {
-                                print("Failed to save miner data for \(miner.hostName): \(String(describing: error))")
-                            }
-                        })
+                        print("Failed to save miner data: \(String(describing: error))")
                     }
-                }
+                    
+                    return newIpAddresses
+                })
                 
-                print("Streaming swarm scan completed - found \(foundDeviceCount) new devices")
+                print("Streaming swarm scan completed - found \(devicesToProcess.count) devices")
                 
                 // Notify about newly discovered miners
                 if !newMinerIpAddresses.isEmpty {

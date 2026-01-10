@@ -589,7 +589,7 @@ private struct DeploymentScreen: View {
     
     var body: some View {
         @Bindable var deploymentManager = deploymentManager
-        var deployments = deploymentManager.deployments.filter { deployment in
+        let deployments = deploymentManager.deployments.filter { deployment in
             model.selectedMinerIPs.contains(deployment.miner.ipAddress) &&
             deployment.firmwareRelease.versionTag == model.firmwareRelease.versionTag
         }

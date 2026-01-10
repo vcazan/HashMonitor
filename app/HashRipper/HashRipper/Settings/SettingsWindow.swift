@@ -22,14 +22,9 @@ struct SettingsWindow: View {
                     .tabItem {
                         Label("Network", systemImage: "network")
                     }
-
-                WatchDogSettingsView()
-                    .tabItem {
-                        Label("WatchDog", systemImage: "shield.checkered")
-                    }
             }
         }
-        .frame(width: 800, height: 550)
+        .frame(width: 600, height: 400)
         .navigationTitle("Settings")
     }
 }

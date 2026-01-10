@@ -13,6 +13,10 @@ struct StatusBarPopoverView: View {
     @Environment(\.openWindow) private var openWindow
     @Environment(\.modelContext) private var modelContext
     @Query private var allMiners: [Miner]
+    @Query(
+        filter: #Predicate<WatchDogActionLog> { !$0.isRead },
+        sort: [SortDescriptor<WatchDogActionLog>(\.timestamp, order: .reverse)]
+    ) private var unreadActions: [WatchDogActionLog]
 
     @State private var topMiners: [TopMinerData] = []
 
@@ -25,139 +29,137 @@ struct StatusBarPopoverView: View {
         let bestDiffValue: Double
     }
 
+    @Environment(\.colorScheme) private var colorScheme
+    
+    private var hasOfflineMiners: Bool {
+        manager.activeMiners < manager.minerCount
+    }
+    
+    private var offlineCount: Int {
+        manager.minerCount - manager.activeMiners
+    }
+    
     var body: some View {
-        VStack(alignment: .leading, spacing: 12) {
-            // Header
-            HStack {
-                Image(systemName: "server.rack")
-                    .font(.title2)
-                    .foregroundColor(.accentColor)
-                Text("HashRipper Status")
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                Spacer()
-            }
-
-            Divider()
-
-            // Stats grid
-            VStack(spacing: 8) {
-                StatusStatRow(
-                    icon: "bolt.fill",
-                    label: "Hash Rate",
-                    value: formatHashRate(manager.totalHashRate),
-                    color: .green
-                )
-
-                StatusStatRow(
-                    icon: "power",
-                    label: "Power",
-                    value: formatPower(manager.totalPower),
-                    color: .orange
-                )
-
-                StatusStatRow(
-                    icon: "server.rack",
-                    label: "Miners",
-                    value: "\(manager.activeMiners) active / \(manager.minerCount) total",
-                    color: .blue
-                )
-            }
-
-            Divider()
-
-            // Top miners section
-            VStack(alignment: .leading, spacing: 8) {
-                HStack {
-                    Image(systemName: "medal")
-                        .font(.title3)
-                        .foregroundColor(.orange)
-                    Text("Top Miners")
-                        .font(.headline)
-                        .fontWeight(.medium)
+        VStack(spacing: 0) {
+            // Alert banner if miners are offline
+            if hasOfflineMiners && manager.minerCount > 0 {
+                HStack(spacing: 8) {
+                    Image(systemName: "exclamationmark.triangle.fill")
+                        .font(.system(size: 12))
+                    Text("\(offlineCount) miner\(offlineCount == 1 ? "" : "s") offline")
+                        .font(.system(size: 12, weight: .semibold))
                     Spacer()
                 }
-
-                ForEach(0..<min(3, topMiners.count), id: \.self) { index in
-                    let minerData = topMiners[index]
-
-                    HStack(spacing: 6) {
-                        // Rank badge (smaller for popover)
-                        ZStack {
-                            Circle()
-                                .fill(rankColor(for: index))
-                                .frame(width: 18, height: 18)
-                            Text("\(index + 1)")
-                                .font(.caption2)
-                                .fontDesign(.monospaced)
-                                .fontWeight(.bold)
-                                .foregroundColor(.black)
-                        }
-
-                        // Miner info (compact)
-                        VStack(alignment: .leading, spacing: 1) {
-                            Text(minerData.miner.hostName)
-                                .font(.caption)
-                                .fontWeight(.medium)
-                                .lineLimit(1)
-                                .truncationMode(.middle)
-
-                            HStack(spacing: 2) {
-                                Image(systemName: "medal.star.fill")
-                                    .font(.caption2)
-                                    .foregroundStyle(.orange)
-                                Text(minerData.bestDiff)
-                                    .font(.caption)
-                                    .fontWeight(.semibold)
-                                    .fontDesign(.monospaced)
-                                    .foregroundStyle(.orange)
-                            }
-                        }
-
-                        Spacer()
-                    }
-                    .padding(.vertical, 4)
-                    .padding(.horizontal, 6)
-                    .background(.thinMaterial)
-                    .clipShape(RoundedRectangle(cornerRadius: 4))
-                }
-
-                if topMiners.isEmpty {
-                    Text("No active miners")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                        .padding(.vertical, 4)
-                }
+                .foregroundStyle(.white)
+                .padding(.horizontal, 14)
+                .padding(.vertical, 10)
+                .background(Color.red)
             }
-
-            Divider()
-
-            // Quick actions
-            HStack {
-                Button("Open HashRipper") {
-                    openMainWindow()
+            
+            // Main content
+            VStack(spacing: 16) {
+                // Hash Rate - primary metric
+                VStack(spacing: 4) {
+                    Text(formatHashRate(manager.totalHashRate))
+                        .font(.system(size: 36, weight: .semibold, design: .rounded))
+                    Text("total hash rate")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
                 }
-                .buttonStyle(.borderedProminent)
-
-                Spacer()
-
-                Button("Refresh") {
-                    // Trigger an immediate refresh of stats
-                    NotificationCenter.default.post(name: .refreshMinerStats, object: nil)
+                .frame(maxWidth: .infinity)
+                .padding(.top, 4)
+                
+                // Secondary stats row
+                HStack(spacing: 0) {
+                    VStack(spacing: 2) {
+                        Text(formatPower(manager.totalPower))
+                            .font(.system(size: 15, weight: .medium, design: .rounded))
+                        Text("power")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    
+                    Rectangle()
+                        .fill(Color.secondary.opacity(0.2))
+                        .frame(width: 1, height: 28)
+                    
+                    VStack(spacing: 2) {
+                        HStack(spacing: 4) {
+                            Text("\(manager.activeMiners)")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(hasOfflineMiners ? .primary : .primary)
+                            Text("/")
+                                .font(.system(size: 13))
+                                .foregroundStyle(.tertiary)
+                            Text("\(manager.minerCount)")
+                                .font(.system(size: 15, weight: .medium, design: .rounded))
+                                .foregroundStyle(hasOfflineMiners ? .red : .primary)
+                        }
+                        Text("miners")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .padding(.vertical, 12)
+                .background(colorScheme == .dark ? Color(white: 0.08) : Color(white: 0.95))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+            }
+            .padding(16)
+            
+            // WatchDog activity banner (if any unread actions)
+            if !unreadActions.isEmpty {
+                Button {
+                    openMainWindow()
+                    NotificationCenter.default.post(name: .showAlertsTab, object: nil)
+                    manager.popover?.performClose(nil)
+                } label: {
+                    HStack(spacing: 6) {
+                        Image(systemName: "shield.checkered")
+                            .font(.system(size: 10))
+                        Text("\(unreadActions.count) WatchDog action\(unreadActions.count == 1 ? "" : "s")")
+                            .font(.system(size: 11, weight: .medium))
+                        Spacer()
+                        Image(systemName: "chevron.right")
+                            .font(.system(size: 9, weight: .medium))
+                    }
+                    .foregroundStyle(.orange)
+                    .padding(.horizontal, 12)
+                    .padding(.vertical, 8)
+                    .background(Color.orange.opacity(0.1))
+                    .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .padding(.horizontal, 16)
+                .padding(.bottom, 8)
+            }
+            
+            // Footer
+            HStack(spacing: 8) {
+                Button {
+                    openMainWindow()
+                } label: {
+                    Text("Open")
+                        .font(.system(size: 11, weight: .medium))
+                        .frame(maxWidth: .infinity)
                 }
                 .buttonStyle(.bordered)
+                .controlSize(.small)
+                
+                Button {
+                    NotificationCenter.default.post(name: .refreshMinerStats, object: nil)
+                } label: {
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
             }
+            .padding(.horizontal, 16)
+            .padding(.bottom, 14)
         }
-        .padding(16)
-        .frame(width: 280)
-        .onAppear {
-            loadTopMiners()
-        }
-        .onReceive(NotificationCenter.default.publisher(for: .minerUpdateInserted)) { notification in
-            if let macAddress = notification.userInfo?["macAddress"] as? String {
-                checkAndUpdateIfNeeded(for: macAddress)
-            }
-        }
+        .frame(width: 220)
     }
 
     private func openMainWindow() {
@@ -191,11 +193,11 @@ struct StatusBarPopoverView: View {
                 continue
             }
 
-            // Look for visible main app window - must have HashRipper title specifically
+            // Look for visible main app window - must have HashWatcher title specifically
             if window.canBecomeKey &&
                window.isVisible &&
                !window.isMiniaturized &&
-               window.title == "HashRipper" {
+               (window.title == "HashWatcher" || window.title == "HashRipper") {
                 print("🪟 Found existing visible main window: \(className), title: '\(window.title)'")
                 print("🪟 Window frame: \(window.frame)")
                 print("🪟 Window level: \(window.level)")
@@ -336,33 +338,8 @@ struct StatusBarPopoverView: View {
 
 }
 
-struct StatusStatRow: View {
-    let icon: String
-    let label: String
-    let value: String
-    let color: Color
-
-    var body: some View {
-        HStack {
-            Image(systemName: icon)
-                .foregroundColor(color)
-                .frame(width: 20)
-
-            Text(label)
-                .font(.body)
-                .foregroundColor(.primary)
-
-            Spacer()
-
-            Text(value)
-                .font(.body)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
-        }
-    }
-}
-
 // Notification name for refresh action
 extension Notification.Name {
     static let refreshMinerStats = Notification.Name("refreshMinerStats")
+    static let showAlertsTab = Notification.Name("showAlertsTab")
 }

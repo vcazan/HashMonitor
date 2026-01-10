@@ -85,7 +85,7 @@ struct WebsocketFileOrStartRecordingView: View {
                     Spacer()
                 }.background(Color.black)
                     .padding(12)
-            case .recording(let file):
+            case .recording:
                 VStack(spacing: 8) {
                     HStack {
                         Text("Viewing websocket logs")
@@ -466,7 +466,7 @@ struct WebsocketMessagesView: View {
                 }
                 .frame(maxWidth: .infinity, maxHeight: .infinity)
                 .background(Color.black)
-                .onChange(of: viewModel.filteredLogEntries.count) { _ in
+                .onChange(of: viewModel.filteredLogEntries.count) {
                     if let lastEntry = viewModel.filteredLogEntries.last {
                         withAnimation(.easeInOut(duration: 0.3)) {
                             proxy.scrollTo(lastEntry.id, anchor: .bottom)

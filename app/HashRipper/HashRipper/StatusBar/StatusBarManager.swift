@@ -20,6 +20,21 @@ class StatusBarManager: ObservableObject {
     @Published var totalPower: Double = 0.0
     @Published var minerCount: Int = 0
     @Published var activeMiners: Int = 0
+    
+    // Dock badge setting - defaults to true
+    @Published var showDockBadge: Bool = {
+        // Default to true if never set
+        if UserDefaults.standard.object(forKey: "showDockBadge") == nil {
+            UserDefaults.standard.set(true, forKey: "showDockBadge")
+            return true
+        }
+        return UserDefaults.standard.bool(forKey: "showDockBadge")
+    }() {
+        didSet {
+            UserDefaults.standard.set(showDockBadge, forKey: "showDockBadge")
+            updateDockBadge()
+        }
+    }
 
     private let settings = AppSettings.shared
 
@@ -137,7 +152,7 @@ class StatusBarManager: ObservableObject {
 
     private func updateStatusBarWithHashRate(button: NSButton, hashRate: Double) {
         // Create Bitcoin symbol
-        var bitcoinSymbol = "₿"
+        let bitcoinSymbol = "₿"
 
         // Try to get system Bitcoin symbol, fallback to unicode
         if let bitcoinImage = NSImage(systemSymbolName: "bitcoinsign", accessibilityDescription: "Bitcoin") {
@@ -219,6 +234,43 @@ class StatusBarManager: ObservableObject {
 
                 self.updateStatusBarAppearance()
             }
+            
+            // Always update dock badge (it respects its own setting)
+            self.updateDockBadge()
+        }
+    }
+    
+    // MARK: - Dock Badge
+    
+    func updateDockBadge() {
+        DispatchQueue.main.async {
+            guard self.showDockBadge else {
+                // Clear the badge if disabled
+                print("🏷️ Dock badge disabled, clearing")
+                NSApp.dockTile.badgeLabel = nil
+                return
+            }
+            
+            // Format hash rate for dock badge (compact)
+            let formatted = formatMinerHashRate(rawRateValue: self.totalHashRate)
+            
+            if self.totalHashRate > 0 {
+                // Show hash rate with unit (e.g., "9.2TH")
+                let badgeText = "\(formatted.rateString)\(formatted.rateSuffix)"
+                print("🏷️ Setting dock badge: \(badgeText) (raw: \(self.totalHashRate))")
+                NSApp.dockTile.badgeLabel = badgeText
+                NSApp.dockTile.display()
+            } else {
+                // Clear badge if no hash rate
+                print("🏷️ No hash rate, clearing badge")
+                NSApp.dockTile.badgeLabel = nil
+            }
+        }
+    }
+    
+    func clearDockBadge() {
+        DispatchQueue.main.async {
+            NSApp.dockTile.badgeLabel = nil
         }
     }
 
@@ -281,6 +333,9 @@ class StatusBarManager: ObservableObject {
         }
 
         print("🔧 Final statusItem?.isVisible: \(statusItem?.isVisible ?? false)")
+        
+        // Update dock badge on startup
+        updateDockBadge()
     }
 
 

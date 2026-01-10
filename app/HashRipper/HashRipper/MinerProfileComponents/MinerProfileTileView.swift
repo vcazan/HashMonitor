@@ -10,184 +10,28 @@ struct MinerProfileTileView: View {
     @Environment(\.colorScheme) var colorScheme
     @Environment(\.modelContext) var modelContext
 
-    @State var showDeleteConfirmation: Bool = false
-    @State var showDuplicateProfileForm: Bool = false
-    @State var showNewProfileSavedAlert: Bool = false
+    @State private var showDeleteConfirmation: Bool = false
+    @State private var showDuplicateProfileForm: Bool = false
+    @State private var showNewProfileSavedAlert: Bool = false
     @State private var showEditProfileSheet: Bool = false
     @State private var showShareSheet: Bool = false
     @State private var exportedProfileData: Data?
     @State private var shareAlertMessage = ""
     @State private var showShareAlert = false
+    @State private var verificationStatus: PoolVerificationStatus?
+    @State private var showVerificationWizard = false
 
     var minerProfile: MinerProfileTemplate
     var showOptionalActions: Bool
     var minerName: String?
     var handleDeployProfile: (() -> Void)?
 
-    @State private var verificationStatus: PoolVerificationStatus?
-    @State private var showVerificationWizard = false
-
     var body: some View {
-        let headerView = HStack {
-            VStack(alignment: .leading, spacing: 2) {
-                Text(minerProfile.name)
-                    .font(.headline)
-                    .fontWeight(.semibold)
-                if !minerProfile.templateNotes.isEmpty {
-                    Text(minerProfile.templateNotes)
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                }
-            }
-            Spacer()
-
-            // Pool verification badge
-            if let status = verificationStatus {
-                PoolVerificationBadge(status: status)
-                    .onTapGesture {
-                        showVerificationWizard = true
-                    }
-            } else {
-                Button(action: { showVerificationWizard = true }) {
-                    Label("Verify Pool", systemImage: "shield")
-                        .font(.caption)
-                }
-                .buttonStyle(.bordered)
-            }
-
-            Image(systemName: "server.rack")
-                .font(.title2)
-                .foregroundColor(.accentColor)
-        }
-        .task {
-            verificationStatus = await minerProfile.verificationStatus(context: modelContext)
-        }
-
-        let primaryPoolView = VStack(alignment: .leading, spacing: 8) {
-            Label("Primary Pool", systemImage: "globe")
-                .font(.subheadline)
-                .fontWeight(.medium)
-                .foregroundColor(.primary)
-
-            VStack(alignment: .leading, spacing: 4) {
-                HStack {
-                    Text("URL:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(minerProfile.stratumURL)
-                        .font(.body.monospaced())
-                }
-                HStack {
-                    Text("Port:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    Text(String(minerProfile.stratumPort))
-                        .font(.body.monospaced())
-                }
-                HStack {
-                    Text("User:")
-                        .font(.caption)
-                        .foregroundColor(.secondary)
-                    if minerProfile.isPrimaryPoolParasite {
-                        Text("\(minerProfile.poolAccount).\(self.minerName ?? "<miner-name-here>").\(self.minerProfile.parasiteLightningAddress ?? "no xverse lightning address configured!")@parasite.sati.pro")
-                            .font(.body.monospaced())
-                    } else {
-                        Text("\(minerProfile.poolAccount).\(self.minerName ?? "<miner-name-here>")")
-                            .font(.body.monospaced())
-                    }
-                }
-            }
-            .padding(.leading, 16)
-        }
-
-        let fallbackPoolSection = Group {
-            if let url = minerProfile.fallbackStratumURL,
-               let port = minerProfile.fallbackStratumPort,
-               let account = minerProfile.fallbackStratumAccount {
-                VStack(alignment: .leading, spacing: 8) {
-                    Label("Fallback Pool", systemImage: "arrow.triangle.2.circlepath")
-                        .font(.subheadline)
-                        .fontWeight(.medium)
-                        .foregroundColor(.primary)
-
-                    VStack(alignment: .leading, spacing: 4) {
-                        HStack {
-                            Text("URL:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(url)
-                                .font(.body.monospaced())
-                        }
-                        HStack {
-                            Text("Port:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            Text(String(port))
-                                .font(.body.monospaced())
-                        }
-                        HStack {
-                            Text("User:")
-                                .font(.caption)
-                                .foregroundColor(.secondary)
-                            if minerProfile.isFallbackPoolParasite {
-                                Text("\(account).\(self.minerName ?? "<miner-name-here>").\(self.minerProfile.fallbackParasiteLightningAddress ?? "no xverse lightning address configured!")@parasite.sati.pro")
-                                    .font(.body.monospaced())
-                            } else {
-                                Text("\(account).\(self.minerName ?? "<miner-name-here>")")
-                                    .font(.body.monospaced())
-                            }
-                        }
-                    }
-                    .padding(.leading, 16)
-                }
-            }
-        }
-
-        let actionsSection = Group {
-            Divider()
-
-            HStack(spacing: 12) {
-                if let deploy = handleDeployProfile {
-                    Button(action: deploy) {
-                        Label("Deploy", systemImage: "iphone.and.arrow.forward.inward")
-                    }
-                    .buttonStyle(.borderedProminent)
-                    .help(Text("Deploy this profile to miners"))
-                }
-
-                Spacer()
-
-                HStack(spacing: 8) {
-                    Button(action: shareProfile) {
-                        Image(systemName: "square.and.arrow.up")
-                    }
-                    .help(Text("Share this profile"))
-
-                    Button(action: showEditProfileFormSheet) {
-                        Image(systemName: "pencil")
-                    }
-                    .help(Text("Edit this profile"))
-
-                    Button(action: showDuplicateProfileFormSheet) {
-                        Image(systemName: "square.on.square")
-                    }
-                    .help(Text("Duplicate this profile"))
-
-                    Button(action: showDeleteConfirmPrompt) {
-                        Image(systemName: "trash")
-                    }
-                    .foregroundColor(.red)
-                    .help(Text("Delete this profile"))
-                }
-                .buttonStyle(.bordered)
-            }
-        }
-
-        return VStack(alignment: .leading, spacing: 16) {
-            headerView
-            primaryPoolView
+        VStack(alignment: .leading, spacing: 16) {
+            headerSection
+            primaryPoolSection
             fallbackPoolSection
-
+            
             if showOptionalActions {
                 actionsSection
             }
@@ -200,17 +44,17 @@ struct MinerProfileTileView: View {
                 .stroke(Color.primary.opacity(0.1), lineWidth: 1)
         )
         .shadow(color: Color.black.opacity(0.05), radius: 2, x: 0, y: 1)
-        .alert("Are you sure you want to delete this profile?", isPresented: $showDeleteConfirmation) {
-
-                Button("Delete", role: .destructive) {
-                    self.modelContext.delete(self.minerProfile)
-                    try? self.modelContext.save()
-                }
-                Button("Cancel", role: .cancel) {
-                    showDeleteConfirmation = false
-                }
+        .task {
+            verificationStatus = await minerProfile.verificationStatus(context: modelContext)
         }
-        .alert("New profile saved", isPresented: $showNewProfileSavedAlert) {
+        .alert("Delete Profile?", isPresented: $showDeleteConfirmation) {
+            Button("Delete", role: .destructive) {
+                modelContext.delete(minerProfile)
+                try? modelContext.save()
+            }
+            Button("Cancel", role: .cancel) {}
+        }
+        .alert("Profile saved", isPresented: $showNewProfileSavedAlert) {
             Button("OK") {}
         }
         .alert("Profile Export", isPresented: $showShareAlert) {
@@ -224,93 +68,191 @@ struct MinerProfileTileView: View {
             contentType: .json,
             defaultFilename: "profile-\(minerProfile.name.replacingOccurrences(of: " ", with: "-").lowercased())"
         ) { result in
-            switch result {
-            case .success(let url):
-                print("✅ Profile exported to: \(url)")
-                shareAlertMessage = "Profile '\(minerProfile.name)' exported successfully!"
-                showShareAlert = true
-            case .failure(let error):
-                print("❌ Export failed: \(error)")
-                shareAlertMessage = "Export failed: \(error.localizedDescription)"
-                showShareAlert = true
-            }
-        }
-        .sheet(isPresented: $showDuplicateProfileForm) {
-            MinerProfileTemplateFormView(
-                name: "\(minerProfile.name) Copy",
-                templateNotes: minerProfile.templateNotes,
-                stratumURL: minerProfile.stratumURL,
-                stratumPort: minerProfile.stratumPort,
-                poolAccount: minerProfile.poolAccount,
-                parasiteLightningAddress: minerProfile.parasiteLightningAddress,
-                stratumPassword: minerProfile.stratumPassword,
-                fallbackURL: minerProfile.fallbackStratumURL,
-                fallbackPort: minerProfile.fallbackStratumPort,
-                fallbackAccount: minerProfile.fallbackStratumAccount,
-                fallbackParasiteLightningAddress: minerProfile.fallbackParasiteLightningAddress,
-                fallbackStratumPassword: minerProfile.fallbackStratumPassword,
-                onSave: { _ in
-                    showDuplicateProfileForm = false
-                    showNewProfileSavedAlert = true
-                },
-                onCancel: {
-                    showDuplicateProfileForm = false
-                })
-            .id("duoplicateProfileForm\(minerProfile.name)")
-            .presentationSizing(.fitted)
-
+            handleExportResult(result)
         }
         .sheet(isPresented: $showEditProfileSheet) {
             MinerProfileTemplateFormView(
-                name: minerProfile.name,
-                templateNotes: minerProfile.templateNotes,
-                stratumURL: minerProfile.stratumURL,
-                stratumPort: minerProfile.stratumPort,
-                poolAccount: minerProfile.poolAccount,
-                parasiteLightningAddress: minerProfile.parasiteLightningAddress,
-                stratumPassword: minerProfile.stratumPassword,
-                fallbackURL: minerProfile.fallbackStratumURL,
-                fallbackPort: minerProfile.fallbackStratumPort,
-                fallbackAccount: minerProfile.fallbackStratumAccount,
-                fallbackParasiteLightningAddress: minerProfile.fallbackParasiteLightningAddress,
-                fallbackStratumPassword: minerProfile.fallbackStratumPassword,
-                onSave: { _ in
-                    showEditProfileSheet = false
-                },
-                onCancel: {
-                    showEditProfileSheet = false
-                })
-            .id("editProfileForm\(minerProfile.name)")
-            .presentationSizing(.fitted)
-
+                existingProfile: minerProfile,
+                onSave: { _ in showEditProfileSheet = false },
+                onCancel: { showEditProfileSheet = false }
+            )
         }
         .sheet(isPresented: $showVerificationWizard) {
             PoolVerificationWizard(profile: minerProfile)
         }
     }
+    
+    // MARK: - Header
+    
+    private var headerSection: some View {
+        HStack {
+            VStack(alignment: .leading, spacing: 2) {
+                Text(minerProfile.name)
+                    .font(.headline)
+                    .fontWeight(.semibold)
+                
+                if !minerProfile.templateNotes.isEmpty {
+                    Text(minerProfile.templateNotes)
+                        .font(.caption)
+                        .foregroundColor(.secondary)
+                }
+            }
+            
+            Spacer()
 
-    func showDeleteConfirmPrompt() {
-        self.showDeleteConfirmation = true
+            if let status = verificationStatus {
+                PoolVerificationBadge(status: status)
+                    .onTapGesture { showVerificationWizard = true }
+            } else {
+                Button(action: { showVerificationWizard = true }) {
+                    Label("Verify Pool", systemImage: "shield")
+                        .font(.caption)
+                }
+                .buttonStyle(.bordered)
+            }
+
+            Image(systemName: "server.rack")
+                .font(.title2)
+                .foregroundColor(.accentColor)
+        }
     }
+    
+    // MARK: - Primary Pool
+    
+    private var primaryPoolSection: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Label("Primary Pool", systemImage: "globe")
+                .font(.subheadline)
+                .fontWeight(.medium)
 
-    func showDuplicateProfileFormSheet() {
-        showDuplicateProfileForm = true
+            VStack(alignment: .leading, spacing: 4) {
+                PoolDetailRow(label: "URL", value: minerProfile.stratumURL)
+                PoolDetailRow(label: "Port", value: String(minerProfile.stratumPort))
+                PoolDetailRow(label: "User", value: primaryPoolUser)
+            }
+            .padding(.leading, 16)
+        }
     }
-
-    func showEditProfileFormSheet() {
-        showEditProfileSheet = true
+    
+    private var primaryPoolUser: String {
+        let name = minerName ?? "<miner-name>"
+        if minerProfile.isPrimaryPoolParasite {
+            let lightning = minerProfile.parasiteLightningAddress ?? "no-lightning-address"
+            return "\(minerProfile.poolAccount).\(name).\(lightning)@parasite.sati.pro"
+        } else {
+            return "\(minerProfile.poolAccount).\(name)"
+        }
     }
+    
+    // MARK: - Fallback Pool
+    
+    @ViewBuilder
+    private var fallbackPoolSection: some View {
+        if let url = minerProfile.fallbackStratumURL,
+           let port = minerProfile.fallbackStratumPort,
+           let account = minerProfile.fallbackStratumAccount {
+            VStack(alignment: .leading, spacing: 8) {
+                Label("Fallback Pool", systemImage: "arrow.triangle.2.circlepath")
+                    .font(.subheadline)
+                    .fontWeight(.medium)
 
-    func shareProfile() {
+                VStack(alignment: .leading, spacing: 4) {
+                    PoolDetailRow(label: "URL", value: url)
+                    PoolDetailRow(label: "Port", value: String(port))
+                    PoolDetailRow(label: "User", value: fallbackPoolUser(account: account))
+                }
+                .padding(.leading, 16)
+            }
+        }
+    }
+    
+    private func fallbackPoolUser(account: String) -> String {
+        let name = minerName ?? "<miner-name>"
+        if minerProfile.isFallbackPoolParasite {
+            let lightning = minerProfile.fallbackParasiteLightningAddress ?? "no-lightning-address"
+            return "\(account).\(name).\(lightning)@parasite.sati.pro"
+        } else {
+            return "\(account).\(name)"
+        }
+    }
+    
+    // MARK: - Actions
+    
+    private var actionsSection: some View {
+        Group {
+            Divider()
+
+            HStack(spacing: 12) {
+                if let deploy = handleDeployProfile {
+                    Button(action: deploy) {
+                        Label("Deploy", systemImage: "iphone.and.arrow.forward.inward")
+                    }
+                    .buttonStyle(.borderedProminent)
+                    .help("Deploy this profile to miners")
+                }
+
+                Spacer()
+
+                HStack(spacing: 8) {
+                    Button(action: shareProfile) {
+                        Image(systemName: "square.and.arrow.up")
+                    }
+                    .help("Share this profile")
+
+                    Button(action: { showEditProfileSheet = true }) {
+                        Image(systemName: "pencil")
+                    }
+                    .help("Edit this profile")
+
+                    Button(action: { showDeleteConfirmation = true }) {
+                        Image(systemName: "trash")
+                    }
+                    .foregroundColor(.red)
+                    .help("Delete this profile")
+                }
+                .buttonStyle(.bordered)
+            }
+        }
+    }
+    
+    // MARK: - Actions
+    
+    private func shareProfile() {
         do {
             let data = try ProfileJSONExporter.exportSingleProfile(minerProfile)
             exportedProfileData = data
             showShareSheet = true
-            print("✅ Prepared profile '\(minerProfile.name)' for export")
         } catch {
-            print("❌ Failed to export profile: \(error)")
             shareAlertMessage = "Failed to export profile: \(error.localizedDescription)"
             showShareAlert = true
+        }
+    }
+    
+    private func handleExportResult(_ result: Result<URL, Error>) {
+        switch result {
+        case .success:
+            shareAlertMessage = "Profile '\(minerProfile.name)' exported successfully!"
+            showShareAlert = true
+        case .failure(let error):
+            shareAlertMessage = "Export failed: \(error.localizedDescription)"
+            showShareAlert = true
+        }
+    }
+}
+
+// MARK: - Helper Views
+
+private struct PoolDetailRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text("\(label):")
+                .font(.caption)
+                .foregroundColor(.secondary)
+            Text(value)
+                .font(.body.monospaced())
         }
     }
 }

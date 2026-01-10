@@ -22,11 +22,16 @@ final class MinerUpdate {
     public var bestDiff: String?
     public var bestSessionDiff: String?
     public var frequency: Double?
-    public var voltage: Double?
+    public var voltage: Double?          // Measured voltage
+    public var coreVoltage: Int?         // Target voltage setting (mV)
     public var temp: Double?
     public var vrTemp: Double?
     public var fanrpm: Int?
     public var fanspeed: Double?
+    public var autofanspeed: Int?        // 1 = auto, 0 = manual
+    public var flipscreen: Int?
+    public var invertscreen: Int?
+    public var invertfanpolarity: Int?
     public var hashRate: Double
     public var power: Double
     public var sharesAccepted: Int?
@@ -53,10 +58,15 @@ final class MinerUpdate {
         bestSessionDiff: String? = nil,
         frequency: Double? = nil,
         voltage: Double? = nil,
+        coreVoltage: Int? = nil,
         temp: Double? = nil,
         vrTemp: Double? = nil,
         fanrpm: Int? = nil,
         fanspeed: Double? = nil,
+        autofanspeed: Int? = nil,
+        flipscreen: Int? = nil,
+        invertscreen: Int? = nil,
+        invertfanpolarity: Int? = nil,
         hashRate: Double,
         power: Double,
         sharesAccepted: Int? = nil,
@@ -81,10 +91,15 @@ final class MinerUpdate {
         self.bestSessionDiff = bestSessionDiff?.replacingOccurrences(of: " ", with: "")
         self.frequency = frequency
         self.voltage = voltage
+        self.coreVoltage = coreVoltage
         self.temp = temp
         self.vrTemp = vrTemp
         self.fanrpm = fanrpm
         self.fanspeed = fanspeed
+        self.autofanspeed = autofanspeed
+        self.flipscreen = flipscreen
+        self.invertscreen = invertscreen
+        self.invertfanpolarity = invertfanpolarity
         self.hashRate = hashRate
         self.power = power
         self.sharesAccepted = sharesAccepted

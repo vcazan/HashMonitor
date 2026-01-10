@@ -228,7 +228,7 @@ class FirmwareDeploymentManager: NSObject {
         let timeout = configuration.restartTimeout
         
         // Set initial waiting status
-        let initialSeconds = Int(timeout)
+        _ = Int(timeout)
 
         var restartObserved = false
         var lastSystemInfo: AxeOSDeviceInfo? = nil

@@ -19,7 +19,7 @@ struct AboutView: View {
 
             // App name and version
             VStack(spacing: 4) {
-                Text("HashRipper")
+                Text("HashWatcher")
                     .font(.title)
                     .fontWeight(.bold)
 

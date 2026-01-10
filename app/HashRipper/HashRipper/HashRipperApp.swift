@@ -24,6 +24,10 @@ struct HashRipperApp: App {
 
     init() {
         nw_tls_create_options()
+        
+        // Apply saved appearance preference
+        AppSettings.shared.applyAppearance(AppSettings.shared.appearanceMode)
+        
         firmwareDeploymentManager = FirmwareDeploymentManager(
             clientManager: minerClientManager,
             downloadsManager: firmwareDownloadsManager
@@ -66,7 +70,7 @@ struct HashRipperApp: App {
     }
 
     var body: some Scene {
-        Window("HashRipper", id: "main", content: {
+        Window("", id: "main", content: {
             MainContentView()
                 .onAppear {
                     // Turn off this terrible design choice https://stackoverflow.com/questions/65460457/how-do-i-disable-the-show-tab-bar-menu-option-in-swiftui
@@ -155,6 +159,7 @@ struct HashRipperApp: App {
         .firmwareDownloadsManager(firmwareDownloadsManager)
         .firmwareDeploymentManager(firmwareDeploymentManager)
         .newMinerScanner(newMinerScanner)
+        .environmentObject(statusBarManager)
 
 //        .windowStyle(HiddenTitleBarWindowStyle())
 
@@ -168,19 +173,6 @@ struct HashRipperApp: App {
 //        .environment(\.deviceRefresher, deviceRefresher)
 //                .windowResizability(.contentSize)
 
-        WindowGroup("Miner Websocket Data", id: MinerWebsocketRecordingScreen.windowGroupId) {
-            NavigationStack {
-                MinerWebsocketRecordingScreen()
-                    .frame(minWidth: 900, minHeight: 700)
-            }
-        }
-        .modelContainer(SharedDatabase.shared.modelContainer)
-        .database(SharedDatabase.shared.database)
-        .minerClientManager(minerClientManager)
-        .firmwareReleaseViewModel(FirmwareReleasesViewModel(database: SharedDatabase.shared.database))
-        .firmwareDownloadsManager(firmwareDownloadsManager)
-        .firmwareDeploymentManager(firmwareDeploymentManager)
-        .newMinerScanner(newMinerScanner)
 
 
 
@@ -200,22 +192,7 @@ struct HashRipperApp: App {
         .database(SharedDatabase.shared.database)
         .defaultSize(width: 900, height: 700)
 
-        Window("WatchDog Actions", id: MinerWatchDogActionsView.windowGroupId) {
-            MinerWatchDogActionsView()
-        }
-        .modelContainer(SharedDatabase.shared.modelContainer)
-        .database(SharedDatabase.shared.database)
-        .defaultSize(width: 700, height: 600)
-        
-        Window("Settings", id: SettingsWindow.windowGroupId) {
-            SettingsWindow()
-        }
-        .modelContainer(SharedDatabase.shared.modelContainer)
-        .database(SharedDatabase.shared.database)
-        .defaultSize(width: 500, height: 400)
-        .windowResizability(.contentSize)
-
-        Window("About HashRipper", id: AboutView.windowGroupId) {
+        Window("About HashMonitor", id: AboutView.windowGroupId) {
             AboutView()
         }
         .windowResizability(.contentSize)

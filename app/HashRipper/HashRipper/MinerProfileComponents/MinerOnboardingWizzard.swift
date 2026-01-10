@@ -3,10 +3,8 @@
 //  HashRipper
 //
 //  Created by Matt Sellars
+//  Modern iOS 26 / macOS Tahoe style
 //
-
-import SwiftUI
-import SwiftData
 
 import SwiftUI
 import SwiftData
@@ -22,9 +20,7 @@ enum WifiSelection: Hashable {
     case new
 }
 
-/// Cross‑platform (iOS + macOS) wizard for onboarding a new miner.
-/// Now includes an initial scan step that requires detecting the miner before
-/// advancing to the rest of the setup.
+/// Modern wizard for onboarding a new miner - iOS 26 / macOS Tahoe style
 struct NewMinerSetupWizardView: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var context
@@ -33,445 +29,529 @@ struct NewMinerSetupWizardView: View {
 
     @Query private var connectedClients: [MinerUpdate]
     @Query private var miners: [Miner]
-
-    @State private var connectedDevice: DiscoveredDevice? = nil
-    @State private var showAlert = false
-    @State private var showDeviceNotFound: Bool = false
-    @State private var showFlashFailedAlert: Bool = false
-
-    // MARK: – Data
     @Query private var profiles: [MinerProfileTemplate]
-    @Query(sort: \MinerWifiConnection.ssid)
-    private var wifiConnections: [MinerWifiConnection]
+    @Query(sort: \MinerWifiConnection.ssid) private var wifiConnections: [MinerWifiConnection]
 
-    // MARK: – Wizard State
-    private let pageCount = 5
-
-    @State private var currentPage = 0
+    // Wizard State
+    private let steps = ["Scan", "Name", "Profile", "Wi-Fi", "Review"]
+    @State private var currentStep = 0
 
     // Scan step
+    @State private var connectedDevice: DiscoveredDevice? = nil
     @State private var scanInProgress = false
+    @State private var showDeviceNotFound = false
 
     // Name step
     @State private var minerName = ""
+    
     // Profile step
     @State private var selectedProfile: MinerProfileTemplate?
-    // Wi‑Fi step
-    @State private var selectedWifi: MinerWifiConnection?
-
-    // Sheet toggles
     @State private var showingAddProfileSheet = false
+    
+    // Wi-Fi step
+    @State private var selectedWifi: MinerWifiConnection?
     @State private var showingAddWifiSheet = false
 
+    // Finish
     @State private var minerSettings: MinerSettings? = nil
-//    @State private var showFlashMinerProgressSheet = false
+    @State private var showFlashFailedAlert = false
 
-
-
-    // 2️⃣ The choice the caller cares about.
-    //     Pass this in from a parent if you need the value elsewhere.
     @State private var wifiSelection: WifiSelection? = nil
     @State private var profileSelection: ProfileSelection? = nil
 
-
     var onCancel: () -> Void
+    
+    private var glassBackground: some View {
+        RoundedRectangle(cornerRadius: 20)
+            .fill(.ultraThinMaterial)
+            .shadow(color: .black.opacity(0.1), radius: 20, x: 0, y: 10)
+    }
 
     var body: some View {
+        ZStack {
+            // Background gradient
+            LinearGradient(
+                colors: colorScheme == .dark 
+                    ? [Color(white: 0.08), Color(white: 0.12)]
+                    : [Color(white: 0.94), Color(white: 0.98)],
+                startPoint: .topLeading,
+                endPoint: .bottomTrailing
+            )
+            .ignoresSafeArea()
+            
         VStack(spacing: 0) {
-            TabView(selection: $currentPage) {
-                connectScreen
-                    .tabViewWithIconFrame(imageName: "plus.magnifyingglass")
-                    .tag(0)
-                nameScreen
-                    .tabViewWithIconFrame(imageName: "widget.small.badge.plus")
-                    .tag(1)
-                profileScreen
-                    .tabViewWithIconFrame(imageName: "network")
-                    .tag(2)
-                wifiScreen
-                    .tabViewWithIconFrame(imageName: "wifi")
-                    .tag(3)
-                reviewScreen
-                    .tabViewWithIconFrame(imageName: "gear")
-                    .tag(4)
-            }
-            .toolbar(.hidden)
-//            .tabViewStyle(PageTabViewStyle(indexDisplayMode: .never))
-            .animation(.easeInOut, value: currentPage)
-
-            pageIndicator
-                .padding(.top, 8)
-
-            navigationBar
-                .padding()
-        }
-        .sheet(isPresented: $showingAddProfileSheet) { MinerProfileTemplateFormView(onSave: { profile in
-            self.selectedProfile = profile
-            self.profileSelection = .existing(profile)
-            self.showingAddProfileSheet = false
-        }, onCancel: {
-            self.selectedProfile = nil
-            self.showingAddProfileSheet = false
-        }) }
-        .sheet(isPresented: $showingAddWifiSheet) { WiFiCredentialsFormView(onSave: { selectedWifi in
-            self.selectedWifi = selectedWifi
-            self.wifiSelection = .existing(selectedWifi)
-            self.showingAddWifiSheet = false
-        }, onCancel: {
-            self.selectedWifi = nil
-            self.showingAddWifiSheet = false
-        } ) }
-//        .sheet(isPresented: $showFlashMinerProgressSheet) {
-//            FlashMinerSettings(client: self.connectedDevice!.client, settings: self.minerSettings!)
-//        }
-        .padding()
-        .frame(minWidth: 480, minHeight: 360)
-    }
-
-    // MARK: – Screens
-    private var connectScreen: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Connect your computer's Wi‑Fi to miner's network then scan")
-                .font(.title2)
-                .bold()
-            VStack {
-                Text("Ensure you are connected to the miner's hotspot (e.g., Bitaxe_XXXX) and press **Scan**. We will scan for the device.")
-                    .font(.body)
-                    Spacer()
-                    VStack {
-                        VStack {
-                            if connectedDevice != nil, let minerInfo = connectedDevice?.info {
-                                Image.icon(forMinerType: minerInfo.minerType)
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 100, height: 100)
-
-                                Text(minerInfo.minerDeviceDisplayName)
-                                    .font(.title3)
-                            } else {
-                                Image.icon(forMinerType: .Unknown)
-
-                                if scanInProgress {
-                                    ProgressView()
-                                } else {
-                                    Text("Start scan...")
-                                        .font(.caption)
-                                }
-                            }
-                        }
+                // Modern step indicator
+                modernStepIndicator
+                    .padding(.horizontal, 40)
+                    .padding(.top, 28)
+                    .padding(.bottom, 24)
+                
+                // Content area
+                ZStack {
+                    switch currentStep {
+                    case 0: scanStepView
+                    case 1: nameStepView
+                    case 2: profileStepView
+                    case 3: wifiStepView
+                    case 4: reviewStepView
+                    default: EmptyView()
                     }
-                    .padding(12)
-                    .overlay(
-                        RoundedRectangle(cornerRadius: 16)
-                            .stroke(self.colorScheme == .dark ? Color.gray : Color.black.opacity(0.8), lineWidth: 1)
-                    )
+            }
+                .frame(maxWidth: .infinity, maxHeight: .infinity)
+                .animation(.spring(response: 0.4, dampingFraction: 0.8), value: currentStep)
 
-                if connectedDevice != nil {
-                    Spacer().frame(height: 16)
-                    Label("Miner detected!", systemImage: "checkmark.seal.fill")
-                        .foregroundStyle(.green)
-                        .font(.caption)
-                        .animation(.easeIn, value: connectedDevice != nil)
+                // Bottom navigation
+                Divider()
+                    .padding(.horizontal, 32)
+
+                bottomNavigation
+                    .padding(.horizontal, 32)
+                    .padding(.vertical, 16)
+        }
+        }
+        .frame(width: 560, height: 600)
+        .clipShape(RoundedRectangle(cornerRadius: 16))
+        .sheet(isPresented: $showingAddProfileSheet) {
+            MinerProfileTemplateFormView(
+                onSave: { profile in
+                    selectedProfile = profile
+                    profileSelection = .existing(profile)
+                    showingAddProfileSheet = false
+                },
+                onCancel: {
+                    selectedProfile = nil
+                    showingAddProfileSheet = false
                 }
-                Spacer()
-                HStack {
-                    if connectedDevice == nil {
-                        Button(action: startScan) {
-                            Text("Scan")
-                        }
-                    }
-
-
-                }.frame(alignment: .center)
-            }.padding(.horizontal, 24)
-            .buttonStyle(.borderedProminent)
-            .disabled(scanInProgress)
-
-
-
-            Spacer()
-        }
-        .frame(maxWidth: .infinity, alignment: .center)
-        .alert(isPresented: $showAlert) {
-            if (self.showDeviceNotFound) {
-                return Alert(title: Text("No device found"),
-                             message: Text("No device found. Double check your connected to the device's broadcast ssid with your computer's wifi.")
-                )
-            } else if (self.showFlashFailedAlert) {
-                return Alert(title: Text("Oops something when wrong"),
-                             message: Text("Failed to create miner settings")
-                )
-            }
-            return Alert(title: Text("Oops something when wrong"),
-                         message: Text("Oops something went wrong settings up the miner. Please try again.")
             )
         }
-    }
-
-    private func startScan() {
-        connectedDevice = nil
-        scanInProgress = true
-        if (connectedDevice == nil) {
-            Task.detached {
-                try? await Task.sleep(for: .seconds(1))
-                let result = await deviceRefresher?.scanForNewMiner()
-
-                switch result {
-                case .some(.success(let newDevice)):
-                    Task.detached { @MainActor in
-                        self.scanInProgress = false
-                        self.showDeviceNotFound = false
-                        self.connectedDevice = DiscoveredDevice(client: newDevice.client, info: newDevice.clientInfo)
-                    }
-                case .failure(let error):
-                    print("Failed to find new miner at 192.168.4.1: \(String(describing: error))")
-                    Task.detached { @MainActor in
-                        self.scanInProgress = false
-                        self.showDeviceNotFound = true
-                        self.showAlert = true
-                    }
-                case .none:
-                    Task.detached { @MainActor in
-                        self.scanInProgress = false
-                        self.showDeviceNotFound = true
-                        self.showAlert = true
-                    }
-                }
-            }
-
-            return
-        }
-
-    }
-
-    private var nameScreen: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Miner Name")
-                .font(.title2)
-            TextField("Enter a unique name", text: $minerName)
-                .textFieldStyle(.roundedBorder)
-            Text("This is set as the host name and appended as the worker name in the final stratum user value.")
-            Spacer()
-        }
-    }
-
-    private var profileScreen: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Select a Profile")
-                .font(.title2)
-                .bold()
-            Text("Profile configures the miner with mining pool account info.")
-                .font(.body)
-            Picker("Profile", selection: $profileSelection) {
-                Text("Choose…").tag("Optional<MinerProfileTemplate>.none")
-                ForEach(profiles) { profile in
-                    Text(profile.name).tag(ProfileSelection.existing(profile))
-                }
-                Text("Add Profile")
-//                        .foregroundStyle(.accent)
-                    .tag(ProfileSelection.new)
-            }
-            .pickerStyle(.automatic)
-            .onChange(of: profileSelection) { newValue in
-                switch newValue {
-                case .some(.new):
-                    showingAddProfileSheet = true
-                case let .some(.existing(profile)):
-                    self.showingAddProfileSheet = false
-                    self.selectedProfile = profile
-                case .none:
-                    self.showingAddProfileSheet = false
-                    self.selectedProfile = nil
-                }
-            }
-            .onAppear {
-                // Pre‑select first item if nothing chosen yet
-                if profileSelection == nil, let first = profiles.first {
-                    profileSelection = .existing(first)
-                }
-            }
-//            #if os(iOS)
-//            .pickerStyle(.inline)
-//            #else
-//            .pickerStyle(.menu)
-//            #endif
-
-//            Button("Create New Profile") { showingAddProfile = true }
-            Spacer()
-        }
-//        .frame(maxWidth: .infinity, alignment: .topLeading)
-    }
-
-    private var wifiScreen: some View {
-//        Form {
-//            Section("Wi‑Fi network") {
-//                Picker("SSID", selection: $wifiSelection) {
-//                    ForEach(wifiConnections) { connection in
-//                        Text(connection.ssid)
-//                            .tag(WifiSelection.existing(connection))
-//                    }
-//                    // Add‑new row --------------------------
-//                    Text("Add New Wi‑Fi…")
-////                        .foregroundStyle(.accent)
-//                        .tag(WifiSelection.new)
-//                }
-//                .pickerStyle(.automatic)
-//                .onChange(of: wifiSelection) { newValue in
-//                    if newValue == .new {
-//                        showNewWifiSheet = true
-//                    }
-//                }
-//            }
-//        }
-
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Connect to Wi‑Fi")
-                .font(.title2)
-                .bold()
-            Picker("SSID", selection: $wifiSelection) {
-                ForEach(wifiConnections) { connection in
-                    Text(connection.ssid)
-                        .tag(WifiSelection.existing(connection))
-                }
-                // Add‑new row --------------------------
-                Text("Add Wi‑Fi")
-//                        .foregroundStyle(.accent)
-                    .tag(WifiSelection.new)
-            }
-            .pickerStyle(.automatic)
-            .onChange(of: wifiSelection) { newValue in
-                switch newValue {
-                case .some(.new):
-                    showingAddWifiSheet = true
-                case let .some(.existing(wifi)):
+        .sheet(isPresented: $showingAddWifiSheet) {
+            WiFiCredentialsFormView(
+                onSave: { wifi in
+                    selectedWifi = wifi
+                    wifiSelection = .existing(wifi)
                     showingAddWifiSheet = false
-                    self.selectedWifi = wifi
-                case .none:
+                },
+                onCancel: {
+                    selectedWifi = nil
                     showingAddWifiSheet = false
-                    self.selectedWifi = nil
                 }
-            }
-//            Button("Add New Network") { showingAddWifi = true }
-            Spacer()
+            )
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
-        .onAppear {
-            // Pre‑select first item if nothing chosen yet
-            if wifiSelection == nil, let first = wifiConnections.first {
-                wifiSelection = .existing(first)
-            }
+        .alert("Device Not Found", isPresented: $showDeviceNotFound) {
+            Button("OK") { showDeviceNotFound = false }
+        } message: {
+            Text("No miner detected. Make sure your Mac is connected to the miner's Wi-Fi hotspot (e.g., Bitaxe_XXXX).")
+        }
+        .alert("Setup Failed", isPresented: $showFlashFailedAlert) {
+            Button("OK") { showFlashFailedAlert = false }
+        } message: {
+            Text("Failed to configure miner settings. Please try again.")
         }
     }
 
-    private var reviewScreen: some View {
-        VStack(alignment: .leading, spacing: 24) {
-            Text("Review")
-                .font(.title2)
-                .bold()
-            Form {
-                HStack {
-                    Text("Miner name:")
-                        .font(.body)
-                    Text(minerName)
-                        .font(.headline)
-                }
-                if let profile = selectedProfile {
-                    MinerProfileTileView(minerProfile: profile, showOptionalActions: false, minerName: minerName)
-                }
-//                HStack { Text("Profile"); Spacer(); Text(selectedProfile?.name ?? "") }
-                HStack {
-                    Text("Wi‑Fi:")
-                        .font(.body)
-                    Text(selectedWifi?.ssid ?? "")
-                        .font(.headline)
-                }
-            }
-            .disabled(true)
-
-            if let settings = self.minerSettings, let client = self.connectedDevice?.client {
-                FlashMinerSettings(isNewMinerSetup: true, client: client, settings: settings)
-            } else {
-                Spacer()
+    // MARK: - Modern Step Indicator
+    
+    private var modernStepIndicator: some View {
+        HStack(spacing: 4) {
+            ForEach(0..<steps.count, id: \.self) { index in
+                Capsule()
+                    .fill(index <= currentStep ? Color.blue : Color(nsColor: .separatorColor).opacity(0.5))
+                    .frame(height: 4)
+                    .animation(.spring(response: 0.3), value: currentStep)
             }
         }
-        .frame(maxWidth: .infinity, alignment: .topLeading)
     }
-
-    // MARK: – Navigation & Helpers
-    private var pageIndicator: some View {
-        HStack(spacing: 8) {
-            ForEach(0..<pageCount, id: \ .self) { index in
+    
+    // MARK: - Scan Step
+    
+    private var scanStepView: some View {
+        VStack(spacing: 24) {
+            Spacer(minLength: 20)
+            
+            // Icon with gradient
+            ZStack {
                 Circle()
-                    .fill(index == currentPage ? Color.accentColor : Color.gray.opacity(0.3))
-                    .frame(width: 8, height: 8)
+                    .fill(
+                        LinearGradient(
+                            colors: [.blue, .cyan],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 72, height: 72)
+
+                Image(systemName: "antenna.radiowaves.left.and.right")
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            
+            VStack(spacing: 8) {
+                Text("Connect to Miner")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                
+                Text("Join your miner's Wi-Fi hotspot, then scan")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+                    .multilineTextAlignment(.center)
+            }
+            
+            // Device card
+            deviceStatusCard
+            
+            // Scan button
+                    if connectedDevice == nil {
+                        Button(action: startScan) {
+                    HStack(spacing: 10) {
+                        if scanInProgress {
+                            ProgressView()
+                                .scaleEffect(0.8)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "magnifyingglass")
+                                .font(.system(size: 14, weight: .semibold))
+                        }
+                        Text(scanInProgress ? "Scanning..." : "Scan for Miner")
+                            .font(.system(size: 14, weight: .semibold))
+                    }
+                    .foregroundStyle(.white)
+                    .frame(width: 180, height: 40)
+                    .background(
+                        Capsule()
+                            .fill(scanInProgress ? Color.gray : Color.blue)
+                    )
+                }
+                .buttonStyle(.plain)
+            .disabled(scanInProgress)
+            }
+            
+            Spacer(minLength: 20)
+        }
+        .padding(.horizontal, 40)
+    }
+    
+    private var deviceStatusCard: some View {
+        VStack(spacing: 10) {
+            if let device = connectedDevice {
+                Image.icon(forMinerType: device.info.minerType)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 48, height: 48)
+                
+                Text(device.info.minerDeviceDisplayName)
+                    .font(.system(size: 14, weight: .semibold))
+                
+                HStack(spacing: 5) {
+                    Image(systemName: "checkmark.circle.fill")
+                        .foregroundStyle(.green)
+                    Text("Connected")
+                        .foregroundStyle(.green)
+                }
+                .font(.system(size: 12, weight: .medium))
+            } else {
+                Image.icon(forMinerType: .Unknown)
+                    .resizable()
+                    .aspectRatio(contentMode: .fit)
+                    .frame(width: 48, height: 48)
+                    .opacity(0.4)
+                
+                Text("Waiting for device...")
+                    .font(.system(size: 13))
+                    .foregroundStyle(.tertiary)
+            }
+        }
+        .padding(.vertical, 16)
+        .padding(.horizontal, 24)
+        .background(
+            RoundedRectangle(cornerRadius: 14)
+                .fill(colorScheme == .dark ? Color(white: 0.15) : .white)
+                .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 3)
+        )
+    }
+    
+    // MARK: - Name Step
+    
+    private var nameStepView: some View {
+        VStack(spacing: 28) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.orange, .pink],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: "tag.fill")
+                    .font(.system(size: 36, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            
+            VStack(spacing: 10) {
+                Text("Name Your Miner")
+                    .font(.system(size: 24, weight: .bold, design: .rounded))
+                
+                Text("Give it a unique name for easy identification")
+                    .font(.system(size: 15))
+                    .foregroundStyle(.secondary)
+            }
+            
+            // Modern text field
+            TextField("", text: $minerName, prompt: Text("e.g., Office Miner").foregroundStyle(.tertiary))
+                .font(.system(size: 17))
+                .textFieldStyle(.plain)
+                .padding(.horizontal, 20)
+                .padding(.vertical, 14)
+                .background(
+                    RoundedRectangle(cornerRadius: 12)
+                        .fill(colorScheme == .dark ? Color(white: 0.15) : .white)
+                        .shadow(color: .black.opacity(0.06), radius: 8, x: 0, y: 2)
+                )
+                .frame(maxWidth: 320)
+            
+            Spacer()
+            Spacer()
+        }
+        .padding(.horizontal, 40)
+    }
+    
+    // MARK: - Profile Step
+    
+    private var profileStepView: some View {
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.purple, .indigo],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                
+                Image(systemName: "server.rack")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, 20)
+            
+            VStack(spacing: 8) {
+                Text("Select Pool Profile")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                
+                Text("Choose your mining configuration")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            
+            // Profile list
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(profiles) { profile in
+                        ModernSelectableRow(
+                            title: profile.name,
+                            subtitle: profile.stratumURL,
+                            icon: "server.rack",
+                            isSelected: selectedProfile?.id == profile.id
+                        ) {
+                            withAnimation(.spring(response: 0.3)) {
+                                selectedProfile = profile
+                                profileSelection = .existing(profile)
+                }
+            }
+                    }
+                    
+                    // Add new button
+                    Button(action: { showingAddProfileSheet = true }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 18))
+                            Text("Create New Profile")
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundStyle(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 40)
+            }
+        }
+    }
+    
+    // MARK: - Wi-Fi Step
+
+    private var wifiStepView: some View {
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.teal, .green],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                
+                Image(systemName: "wifi")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, 20)
+            
+            VStack(spacing: 8) {
+                Text("Select Wi-Fi Network")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                
+                Text("Your miner will connect to this network")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            
+            ScrollView {
+                VStack(spacing: 10) {
+                    ForEach(wifiConnections) { wifi in
+                        ModernSelectableRow(
+                            title: wifi.ssid,
+                            subtitle: "Saved network",
+                            icon: "wifi",
+                            isSelected: selectedWifi?.id == wifi.id
+                        ) {
+                            withAnimation(.spring(response: 0.3)) {
+                                selectedWifi = wifi
+                                wifiSelection = .existing(wifi)
+                }
+            }
+                    }
+                    
+                    Button(action: { showingAddWifiSheet = true }) {
+                        HStack(spacing: 10) {
+                            Image(systemName: "plus.circle.fill")
+                                .font(.system(size: 18))
+                            Text("Add Wi-Fi Network")
+                                .font(.system(size: 14, weight: .medium))
+                        }
+                        .foregroundStyle(.blue)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, 14)
+                    }
+                    .buttonStyle(.plain)
+                }
+                .padding(.horizontal, 40)
             }
         }
     }
 
-    private var navigationBar: some View {
+    // MARK: - Review Step
+    
+    private var reviewStepView: some View {
+        VStack(spacing: 24) {
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [.green, .mint],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 64, height: 64)
+                
+                Image(systemName: "checkmark.seal.fill")
+                    .font(.system(size: 28, weight: .medium))
+                    .foregroundStyle(.white)
+            }
+            .padding(.top, 20)
+            
+            VStack(spacing: 8) {
+                Text("Ready to Setup")
+                    .font(.system(size: 22, weight: .bold, design: .rounded))
+                
+                Text("Review your configuration")
+                    .font(.system(size: 14))
+                    .foregroundStyle(.secondary)
+            }
+            
+            // Summary card
+            VStack(spacing: 0) {
+                ReviewSummaryRow(icon: "cpu", label: "Device", value: connectedDevice?.info.minerDeviceDisplayName ?? "—")
+                Divider().padding(.leading, 44)
+                ReviewSummaryRow(icon: "tag", label: "Name", value: minerName.isEmpty ? "—" : minerName)
+                Divider().padding(.leading, 44)
+                ReviewSummaryRow(icon: "server.rack", label: "Profile", value: selectedProfile?.name ?? "—")
+                Divider().padding(.leading, 44)
+                ReviewSummaryRow(icon: "wifi", label: "Wi-Fi", value: selectedWifi?.ssid ?? "—")
+            }
+            .background(
+                RoundedRectangle(cornerRadius: 14)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : .white)
+                    .shadow(color: .black.opacity(0.06), radius: 10, x: 0, y: 4)
+            )
+            .padding(.horizontal, 40)
+            
+            Spacer()
+        }
+    }
+    
+    // MARK: - Bottom Navigation
+
+    private var bottomNavigation: some View {
         HStack {
-            if currentPage < pageCount {
-                Button("Cancel") {
-                    onCancel()
-                }
-            }
-            if currentPage > 0 {
-                Button("Back") { withAnimation { currentPage -= 1 } }
-                    #if os(macOS)
-                    .keyboardShortcut(.cancelAction)
-                    #endif
-            }
+            Button("Cancel") { onCancel() }
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .buttonStyle(.plain)
 
             Spacer()
 
-            if currentPage < pageCount {
-                Button(currentPage < pageCount - 1 ? "Next" : "Setup Miner") { withAnimation {
-                    if (currentPage < pageCount - 1) {
-                        currentPage += 1
-                    } else  if
-                        let selectedProfile = selectedProfile,
-                        let ssid = selectedWifi?.ssid,
-                        let wifiPassword = try? KeychainHelper.load(account: ssid)
-                    {
-                        minerSettings = MinerSettings(
-                            stratumURL: selectedProfile.stratumURL,
-                            fallbackStratumURL: selectedProfile.fallbackStratumURL,
-                            stratumUser: "\(selectedProfile.poolAccount).\(minerName)",
-                            stratumPassword: selectedProfile.stratumPassword,
-                            fallbackStratumUser: selectedProfile.fallbackStratumAccount != nil ? "\(selectedProfile.fallbackStratumAccount!).\(minerName)" : nil,
-                            fallbackStratumPassword: selectedProfile.fallbackStratumPassword,
-                            stratumPort: selectedProfile.stratumPort,
-                            fallbackStratumPort: selectedProfile.fallbackStratumPort,
-                            ssid: ssid,
-                            wifiPass:  wifiPassword,
-                            hostname: minerName,
-                            coreVoltage:  nil,
-                            frequency:  nil,
-                            flipscreen:  nil,
-                            overheatMode:  nil,
-                            overclockEnabled:  nil,
-                            invertscreen:  nil,
-                            invertfanpolarity:  nil,
-                            autofanspeed:  nil,
-                            fanspeed: nil)
-                        print("Flashing Miner...")
-                    } else {
-                        showFlashFailedAlert = true
-                        showAlert = true
+            HStack(spacing: 12) {
+                if currentStep > 0 {
+                    Button(action: { withAnimation(.spring(response: 0.35)) { currentStep -= 1 } }) {
+                        Image(systemName: "chevron.left")
+                            .font(.system(size: 14, weight: .semibold))
+                            .foregroundStyle(.primary)
+                            .frame(width: 40, height: 40)
+                            .background(
+                                Circle()
+                                    .fill(colorScheme == .dark ? Color(white: 0.2) : Color(white: 0.92))
+                            )
                     }
-
-                } }
-                    .buttonStyle(.borderedProminent)
+                    .buttonStyle(.plain)
+                }
+                
+                Button(action: nextAction) {
+                    HStack(spacing: 6) {
+                        Text(currentStep < steps.count - 1 ? "Next" : "Setup Miner")
+                            .font(.system(size: 15, weight: .semibold))
+                        if currentStep < steps.count - 1 {
+                            Image(systemName: "chevron.right")
+                                .font(.system(size: 12, weight: .bold))
+                        }
+                    }
+                    .foregroundStyle(.white)
+                    .padding(.horizontal, 24)
+                    .frame(height: 40)
+                    .background(
+                        Capsule()
+                            .fill(isNextDisabled ? Color.gray : Color.blue)
+                    )
+                }
+                .buttonStyle(.plain)
                     .disabled(isNextDisabled)
-                    #if os(macOS)
-                    .keyboardShortcut(.defaultAction)
-                    #endif
             }
         }
     }
+    
+    // MARK: - Actions
 
     private var isNextDisabled: Bool {
-        switch currentPage {
+        switch currentStep {
         case 0: return connectedDevice == nil
         case 1: return minerName.trimmingCharacters(in: .whitespacesAndNewlines).isEmpty
         case 2: return selectedProfile == nil
@@ -479,54 +559,157 @@ struct NewMinerSetupWizardView: View {
         default: return false
         }
     }
-}
-
-// MARK: – Placeholder sheets
-private struct AddProfilePlaceholderView: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            Text("New Profile form goes here")
-                .navigationTitle("Add Profile")
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+    
+    private func nextAction() {
+        withAnimation(.spring(response: 0.35, dampingFraction: 0.85)) {
+            if currentStep < steps.count - 1 {
+                currentStep += 1
+            } else {
+                finishSetup()
+            }
         }
-        .frame(minWidth: 400, minHeight: 240)
     }
-}
-
-private struct AddWifiPlaceholderView: View {
-    @Environment(\.dismiss) private var dismiss
-    var body: some View {
-        NavigationStack {
-            Text("New Wi‑Fi form goes here")
-                .navigationTitle("Add Wi‑Fi")
-                .toolbar { ToolbarItem(placement: .cancellationAction) { Button("Close") { dismiss() } } }
+    
+    private func finishSetup() {
+        guard let selectedProfile = selectedProfile,
+              let ssid = selectedWifi?.ssid,
+              let wifiPassword = try? KeychainHelper.load(account: ssid) else {
+            showFlashFailedAlert = true
+            return
         }
-        .frame(minWidth: 400, minHeight: 240)
+        
+        minerSettings = MinerSettings(
+            stratumURL: selectedProfile.stratumURL,
+            fallbackStratumURL: selectedProfile.fallbackStratumURL,
+            stratumUser: "\(selectedProfile.poolAccount).\(minerName)",
+            stratumPassword: selectedProfile.stratumPassword,
+            fallbackStratumUser: selectedProfile.fallbackStratumAccount.map { "\($0).\(minerName)" },
+            fallbackStratumPassword: selectedProfile.fallbackStratumPassword,
+            stratumPort: selectedProfile.stratumPort,
+            fallbackStratumPort: selectedProfile.fallbackStratumPort,
+            ssid: ssid,
+            wifiPass: wifiPassword,
+            hostname: minerName,
+            coreVoltage: nil,
+            frequency: nil,
+            flipscreen: nil,
+            overheatMode: nil,
+            overclockEnabled: nil,
+            invertscreen: nil,
+            invertfanpolarity: nil,
+            autofanspeed: nil,
+            fanspeed: nil
+        )
+        print("Configuring miner...")
+    }
+    
+    private func startScan() {
+        connectedDevice = nil
+        scanInProgress = true
+        
+        Task.detached {
+            try? await Task.sleep(for: .seconds(1))
+            let result = await deviceRefresher?.scanForNewMiner()
+            
+            switch result {
+            case .some(.success(let newDevice)):
+                await MainActor.run {
+                    withAnimation(.spring(response: 0.4)) {
+                        scanInProgress = false
+                        showDeviceNotFound = false
+                        connectedDevice = DiscoveredDevice(client: newDevice.client, info: newDevice.clientInfo)
+                    }
+        }
+            case .failure, .none:
+                await MainActor.run {
+                    scanInProgress = false
+                    showDeviceNotFound = true
+    }
+}
+        }
     }
 }
 
-struct TabViewIconFrame: ViewModifier {
-    let imageName: String
+// MARK: - Supporting Views
 
-    func body(content: Content) -> some View {
-        VStack(spacing: 48) {
-            Image(systemName: imageName)
-                .resizable()
-                .aspectRatio(contentMode: .fit)
-                .frame(width: 120, height: 120)
-            content
-                .frame(maxWidth: 500)
-        }.padding(16)
+private struct ModernSelectableRow: View {
+    let title: String
+    let subtitle: String
+    let icon: String
+    let isSelected: Bool
+    let action: () -> Void
+    
+    @Environment(\.colorScheme) var colorScheme
+    
+    var body: some View {
+        Button(action: action) {
+            HStack(spacing: 14) {
+                Image(systemName: icon)
+                    .font(.system(size: 16))
+                    .foregroundStyle(isSelected ? .white : .secondary)
+                    .frame(width: 32, height: 32)
+                    .background(
+                        RoundedRectangle(cornerRadius: 8)
+                            .fill(isSelected ? Color.blue : Color(nsColor: .controlBackgroundColor))
+                    )
+                
+                VStack(alignment: .leading, spacing: 2) {
+                    Text(title)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(.primary)
+                    Text(subtitle)
+                        .font(.system(size: 12))
+                        .foregroundStyle(.secondary)
+                        .lineLimit(1)
+                }
+                
+                Spacer()
+                
+                if isSelected {
+                    Image(systemName: "checkmark.circle.fill")
+                        .font(.system(size: 20))
+                        .foregroundStyle(.blue)
+                }
+            }
+            .padding(.horizontal, 14)
+            .padding(.vertical, 12)
+            .background(
+                RoundedRectangle(cornerRadius: 12)
+                    .fill(colorScheme == .dark ? Color(white: 0.12) : .white)
+                    .shadow(color: .black.opacity(isSelected ? 0.1 : 0.04), radius: isSelected ? 8 : 4, x: 0, y: 2)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: 12)
+                    .stroke(isSelected ? Color.blue : .clear, lineWidth: 2)
+            )
+        }
+        .buttonStyle(.plain)
     }
 }
 
-extension View {
-    func tabViewWithIconFrame(imageName: String) -> some View {
-        modifier(TabViewIconFrame(imageName: imageName))
+private struct ReviewSummaryRow: View {
+    let icon: String
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack(spacing: 12) {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(.secondary)
+                .frame(width: 24)
+            
+            Text(label)
+                .font(.system(size: 13))
+                .foregroundStyle(.secondary)
+            
+            Spacer()
+            
+            Text(value)
+                .font(.system(size: 13, weight: .medium))
+                .lineLimit(1)
+        }
+        .padding(.horizontal, 16)
+        .padding(.vertical, 14)
     }
 }
-
-//#Preview("Wizard – Multiplatform") {
-//    NewMinerSetupWizardView()
-//}

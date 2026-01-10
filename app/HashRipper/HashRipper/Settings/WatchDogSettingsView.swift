@@ -34,6 +34,41 @@ struct WatchDogSettingsView: View {
                     
                     Divider()
                     
+                    // Notification Settings
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Notifications")
+                            .font(.headline)
+                        
+                        Toggle("Send system notifications", isOn: Binding(
+                            get: { settings.areWatchdogNotificationsEnabled },
+                            set: { settings.areWatchdogNotificationsEnabled = $0 }
+                        ))
+                        
+                        if settings.areWatchdogNotificationsEnabled {
+                            VStack(alignment: .leading, spacing: 4) {
+                                Toggle("When miner goes offline", isOn: Binding(
+                                    get: { settings.notifyOnMinerOffline },
+                                    set: { settings.notifyOnMinerOffline = $0 }
+                                ))
+                                .controlSize(.small)
+                                .padding(.leading, 20)
+                                
+                                Toggle("When WatchDog restarts a miner", isOn: Binding(
+                                    get: { settings.notifyOnMinerRestart },
+                                    set: { settings.notifyOnMinerRestart = $0 }
+                                ))
+                                .controlSize(.small)
+                                .padding(.leading, 20)
+                            }
+                        }
+                        
+                        Text("Get notified when WatchDog takes action or miners go offline.")
+                            .font(.caption)
+                            .foregroundColor(.secondary)
+                    }
+                    
+                    Divider()
+                    
                     // How WatchDog Works - Expandable Section
                     VStack(alignment: .leading, spacing: 8) {
                         Button(action: { 

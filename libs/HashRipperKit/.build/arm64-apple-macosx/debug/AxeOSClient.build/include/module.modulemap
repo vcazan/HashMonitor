@@ -1,0 +1,3 @@
+module AxeOSClient {
+    header "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/AxeOSClient.build/include/AxeOSClient-Swift.h"
+}

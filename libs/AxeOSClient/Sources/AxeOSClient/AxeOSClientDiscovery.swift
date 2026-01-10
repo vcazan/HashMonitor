@@ -144,7 +144,7 @@ public enum AxeOSScanError: Error {
     case localIPAddressNotFound
 }
 
-public struct DiscoveredDevice {
+public struct DiscoveredDevice: Sendable {
     public let client: AxeOSClient
     public let info: AxeOSDeviceInfo
 

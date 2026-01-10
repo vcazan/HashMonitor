@@ -1,0 +1,12 @@
+{
+  "": {
+    "swift-dependencies": "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/master.swiftdeps"
+  },
+  "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.derived/runner.swift": {
+    "dependencies": "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.d",
+    "object": "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.swift.o",
+    "swiftmodule": "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner~partial.swiftmodule",
+    "swift-dependencies": "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.swiftdeps",
+    "diagnostics": "/Users/vcazan/Projects/HashRipper/libs/HashRipperKit/.build/arm64-apple-macosx/debug/HashRipperKitPackageTests.build/runner.dia"
+  }
+}

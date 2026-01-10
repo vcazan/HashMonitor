@@ -10,6 +10,25 @@ import SwiftUI
 
 class HashRipperAppDelegate: NSObject, NSApplicationDelegate {
 
+    func applicationDidFinishLaunching(_ notification: Notification) {
+        // Remove the app name from the menu bar after SwiftUI sets up menus
+        DispatchQueue.main.asyncAfter(deadline: .now() + 0.1) {
+            self.hideAppNameInMenuBar()
+        }
+    }
+    
+    private func hideAppNameInMenuBar() {
+        guard let mainMenu = NSApp.mainMenu,
+              let appMenuItem = mainMenu.items.first else { return }
+        
+        // Clear the app menu title
+        appMenuItem.title = ""
+        
+        // Also clear the submenu title if present
+        if let submenu = appMenuItem.submenu {
+            submenu.title = ""
+        }
+    }
 
     func applicationShouldHandleReopen(_ sender: NSApplication, hasVisibleWindows flag: Bool) -> Bool {
         // If no visible windows, allow reopening
@@ -37,11 +56,11 @@ class HashRipperAppDelegate: NSObject, NSApplicationDelegate {
                 continue
             }
 
-            // Look for visible main app window
+            // Look for visible main app window (main window has empty title)
             if window.canBecomeKey &&
                window.isVisible &&
                !window.isMiniaturized &&
-               (window.title.isEmpty || window.title.contains("HashRipper")) {
+               window.title.isEmpty {
                 window.makeKeyAndOrderFront(nil)
                 NSApp.activate(ignoringOtherApps: true)
                 break

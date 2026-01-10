@@ -114,7 +114,7 @@ private extension FlashMinerSettings {
         updateStatus = .idle
         restartStatus = .idle
 
-        let deviceIP = self.client.deviceIpAddress
+        _ = self.client.deviceIpAddress
 
         Task.detached {
             try? await Task.sleep(for: .seconds(0.15))

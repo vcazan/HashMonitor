@@ -61,10 +61,17 @@ public struct AxeOSDeviceInfo: Codable, Sendable {
         case ASICModel
         case frequency
         case voltage
+        case coreVoltage
+        case coreVoltageActual
         case temp
         case vrTemp
         case fanrpm
         case fanspeed
+        case autofanspeed
+        case flipscreen
+        case invertscreen
+        case invertfanpolarity
+        case overheat_mode
         case macAddr
         case boardVersion
         case deviceModel
@@ -95,17 +102,24 @@ public struct AxeOSDeviceInfo: Codable, Sendable {
     // Hardware info
     public let ASICModel: String
     public let frequency: Double?
-    public let voltage: Double?
+    public let voltage: Double?           // Measured/actual voltage
+    public let coreVoltage: Int?          // Target voltage setting (mV)
+    public let coreVoltageActual: Int?    // Actual core voltage (mV)
     public let temp: Double?
     public let vrTemp: Double?
     public let fanrpm: Int?
     public let fanspeed: Double?
+    public let autofanspeed: Int?         // 1 = auto, 0 = manual
+    public let flipscreen: Int?           // 1 = flipped, 0 = normal
+    public let invertscreen: Int?         // 1 = inverted, 0 = normal
+    public let invertfanpolarity: Int?    // 1 = inverted, 0 = normal
+    public let overheatMode: Int?         // Overheat protection mode
     public let macAddr: String
 
     // Bitaxe
     public let boardVersion: String?
 
-    // nerdQAxe devinces
+    // nerdQAxe devices
     public let deviceModel: String?
 
     // Shared but type different
@@ -179,10 +193,17 @@ public struct AxeOSDeviceInfo: Codable, Sendable {
             ASICModel = try commonContainer.decode(String.self, forKey: CommonCodingKeys.ASICModel)
             frequency = try? commonContainer.decode(Double.self, forKey: CommonCodingKeys.frequency)
             voltage = try? commonContainer.decode(Double.self, forKey: CommonCodingKeys.voltage)
+            coreVoltage = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.coreVoltage)
+            coreVoltageActual = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.coreVoltageActual)
             temp = try? commonContainer.decode(Double.self, forKey: CommonCodingKeys.temp)
             vrTemp = try? commonContainer.decode(Double.self, forKey: CommonCodingKeys.vrTemp)
             fanrpm = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.fanrpm)
             fanspeed = try? commonContainer.decode(Double.self, forKey: CommonCodingKeys.fanspeed)
+            autofanspeed = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.autofanspeed)
+            flipscreen = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.flipscreen)
+            invertscreen = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.invertscreen)
+            invertfanpolarity = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.invertfanpolarity)
+            overheatMode = try? commonContainer.decode(Int.self, forKey: CommonCodingKeys.overheat_mode)
             macAddr = try commonContainer.decode(String.self, forKey: CommonCodingKeys.macAddr)
 
             // Bitaxe

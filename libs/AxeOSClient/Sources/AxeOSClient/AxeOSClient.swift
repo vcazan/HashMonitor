@@ -10,7 +10,7 @@ public enum AxeOSClientError: Error {
 }
 
 
-final public class AxeOSClient: Identifiable {
+final public class AxeOSClient: Identifiable, @unchecked Sendable {
     private let urlSession: URLSession
 
     public var id: String { deviceIpAddress }

@@ -11,7 +11,7 @@ import SwiftUI
 typealias DeviceModel = String
 
 @Observable
-final class FirmwareReleasesViewModel: Sendable {
+final class FirmwareReleasesViewModel {
     let database: any Database
     private let appSettings = AppSettings.shared
 

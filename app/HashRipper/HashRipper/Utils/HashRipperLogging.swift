@@ -28,7 +28,7 @@ class HashRipperLogger {
 
     func loggerForCategory(_ category: String) -> Logger {
         return registeredLoggersLock.perform {
-            if var existingLogger = self.loggersByCategory[category] {
+            if let existingLogger = self.loggersByCategory[category] {
                 return existingLogger
             } else {
                 let newLogger = Logger(subsystem: "HashRipper", category: category)
