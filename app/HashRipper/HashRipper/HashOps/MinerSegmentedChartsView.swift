@@ -286,11 +286,14 @@ struct MinerSegmentedUpdateChartsView: View {
                                 VStack(alignment: .leading, spacing: 2) {
                                     Text(viewModel.timeRangeInfo)
                                         .font(.caption)
-                                        .foregroundColor(.secondary)
+                                        .foregroundStyle(.secondary)
+                                        .contentTransition(.numericText())
                                     Text(viewModel.dataPointsInfo)
                                         .font(.caption2)
                                         .foregroundStyle(.secondary.opacity(0.7))
+                                        .contentTransition(.numericText())
                                 }
+                                .animation(.easeInOut(duration: 0.2), value: viewModel.totalDataPoints)
 
                                 if viewModel.isPaginating {
                                     ProgressView()
@@ -301,22 +304,14 @@ struct MinerSegmentedUpdateChartsView: View {
                                 Spacer()
                             }
 
-                            // Time range picker
-                            HStack(spacing: 4) {
-                                ForEach(ChartTimeRange.allCases) { range in
-                                    Button(action: {
-                                        Task { await viewModel.setTimeRange(range) }
-                                    }) {
-                                        Text(range.shortName)
-                                            .font(.caption2.weight(.semibold))
-                                    }
-                                    .buttonStyle(.bordered)
-                                    .tint(viewModel.selectedTimeRange == range ? .blue : .secondary)
-                                    .controlSize(.small)
-                                    .disabled(viewModel.isPaginating)
-                                    .help(range.displayName)
+                            // Time range picker - stable buttons
+                            SegmentedTimeRangeButtonsView(
+                                selectedRange: viewModel.selectedTimeRange,
+                                isPaginating: viewModel.isPaginating,
+                                onSelect: { range in
+                                    Task { await viewModel.setTimeRange(range) }
                                 }
-                            }
+                            )
                         }
                         .padding(.horizontal, 16)
                         .padding(.bottom, 16)
@@ -378,5 +373,32 @@ struct TitleValueView: View {
             Text("\(segment.title) · \(value)")
                 .font(.headline)
         }
+    }
+}
+
+// MARK: - Stable Time Range Buttons
+
+/// Separate view for time range buttons to prevent unnecessary re-renders
+private struct SegmentedTimeRangeButtonsView: View {
+    let selectedRange: ChartTimeRange
+    let isPaginating: Bool
+    let onSelect: (ChartTimeRange) -> Void
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(ChartTimeRange.allCases) { range in
+                Button(action: { onSelect(range) }) {
+                    Text(range.shortName)
+                        .font(.caption2.weight(.semibold))
+                }
+                .buttonStyle(.bordered)
+                .tint(selectedRange == range ? .blue : .secondary)
+                .controlSize(.small)
+                .disabled(isPaginating)
+                .help(range.displayName)
+                .id(range)
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: selectedRange)
     }
 }

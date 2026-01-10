@@ -124,39 +124,28 @@ struct MinerChartsInspector: View {
     
     private var timeRangeControls: some View {
         VStack(spacing: 8) {
-            // Time range info
+            // Time range info - only this part updates with new data
             VStack(spacing: 2) {
                 Text(viewModel.timeRangeInfo)
                     .font(.system(size: 11, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
                 Text(viewModel.dataPointsInfo)
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
+                    .contentTransition(.numericText())
             }
+            .animation(.easeInOut(duration: 0.2), value: viewModel.totalDataPoints)
             
-            // Time range picker - intuitive buttons
-            HStack(spacing: 4) {
-                ForEach(ChartTimeRange.allCases) { range in
-                    Button(action: {
-                        Task { await viewModel.setTimeRange(range) }
-                    }) {
-                        Text(range.shortName)
-                            .font(.system(size: 10, weight: .semibold))
-                            .padding(.horizontal, 8)
-                            .padding(.vertical, 5)
-                            .background(
-                                viewModel.selectedTimeRange == range
-                                    ? Color.blue
-                                    : (colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.94))
-                            )
-                            .foregroundStyle(viewModel.selectedTimeRange == range ? .white : .primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 5))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isPaginating)
-                    .help(range.displayName)
+            // Time range picker - stable buttons that don't flash
+            TimeRangeButtonsView(
+                selectedRange: viewModel.selectedTimeRange,
+                isPaginating: viewModel.isPaginating,
+                colorScheme: colorScheme,
+                onSelect: { range in
+                    Task { await viewModel.setTimeRange(range) }
                 }
-            }
+            )
         }
     }
     
@@ -396,3 +385,39 @@ private struct InteractiveChartView: View {
     }
 }
 
+
+// MARK: - Stable Time Range Buttons
+
+/// Separate view for time range buttons to prevent unnecessary re-renders
+/// when chart data updates (which would cause button flashing)
+private struct TimeRangeButtonsView: View {
+    let selectedRange: ChartTimeRange
+    let isPaginating: Bool
+    let colorScheme: ColorScheme
+    let onSelect: (ChartTimeRange) -> Void
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(ChartTimeRange.allCases) { range in
+                Button(action: { onSelect(range) }) {
+                    Text(range.shortName)
+                        .font(.system(size: 10, weight: .semibold))
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 5)
+                        .background(
+                            selectedRange == range
+                                ? Color.blue
+                                : (colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.94))
+                        )
+                        .foregroundStyle(selectedRange == range ? .white : .primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 5))
+                }
+                .buttonStyle(.plain)
+                .disabled(isPaginating)
+                .help(range.displayName)
+                .id(range) // Stable identity prevents re-creation
+            }
+        }
+        .animation(.easeInOut(duration: 0.15), value: selectedRange) // Only animate selection changes
+    }
+}

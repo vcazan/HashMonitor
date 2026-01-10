@@ -113,51 +113,30 @@ struct MinerChartsSheet: View {
     
     private var paginationControls: some View {
         HStack(spacing: 16) {
-            // Time range info
+            // Time range info - updates smoothly without flashing
             VStack(alignment: .leading, spacing: 2) {
                 Text(viewModel.timeRangeInfo)
                     .font(.system(size: 12, weight: .medium))
                     .foregroundStyle(.secondary)
+                    .contentTransition(.numericText())
                 Text(viewModel.dataPointsInfo)
                     .font(.system(size: 10))
                     .foregroundStyle(.tertiary)
+                    .contentTransition(.numericText())
             }
+            .animation(.easeInOut(duration: 0.2), value: viewModel.totalDataPoints)
             
             Spacer()
             
-            // Time range picker
-            HStack(spacing: 4) {
-                ForEach(ChartTimeRange.allCases) { range in
-                    Button(action: {
-                        Task { await viewModel.setTimeRange(range) }
-                    }) {
-                        Text(range.shortName)
-                            .font(.system(size: 11, weight: .semibold))
-                            .padding(.horizontal, 10)
-                            .padding(.vertical, 6)
-                            .background(
-                                viewModel.selectedTimeRange == range
-                                    ? Color.blue
-                                    : (colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.94))
-                            )
-                            .foregroundStyle(viewModel.selectedTimeRange == range ? .white : .primary)
-                            .clipShape(RoundedRectangle(cornerRadius: 6))
-                    }
-                    .buttonStyle(.plain)
-                    .disabled(viewModel.isPaginating)
-                    .help(range.displayName)
+            // Time range picker - stable buttons
+            SheetTimeRangeButtonsView(
+                selectedRange: viewModel.selectedTimeRange,
+                isPaginating: viewModel.isPaginating,
+                colorScheme: colorScheme,
+                onSelect: { range in
+                    Task { await viewModel.setTimeRange(range) }
                 }
-                
-                if viewModel.isPaginating {
-                    ProgressView()
-                        .scaleEffect(0.6)
-                        .padding(.leading, 8)
-                }
-            }
-            .padding(4)
-            .background(colorScheme == .dark ? Color(white: 0.12) : Color.white)
-            .clipShape(RoundedRectangle(cornerRadius: 8))
-            .shadow(color: colorScheme == .dark ? .black.opacity(0.3) : .black.opacity(0.06), radius: 2, x: 0, y: 1)
+            )
         }
     }
     
@@ -249,3 +228,47 @@ struct MinerChartsSheet: View {
     }
 }
 
+// MARK: - Stable Time Range Buttons
+
+/// Separate view for time range buttons to prevent unnecessary re-renders
+private struct SheetTimeRangeButtonsView: View {
+    let selectedRange: ChartTimeRange
+    let isPaginating: Bool
+    let colorScheme: ColorScheme
+    let onSelect: (ChartTimeRange) -> Void
+    
+    var body: some View {
+        HStack(spacing: 4) {
+            ForEach(ChartTimeRange.allCases) { range in
+                Button(action: { onSelect(range) }) {
+                    Text(range.shortName)
+                        .font(.system(size: 11, weight: .semibold))
+                        .padding(.horizontal, 10)
+                        .padding(.vertical, 6)
+                        .background(
+                            selectedRange == range
+                                ? Color.blue
+                                : (colorScheme == .dark ? Color(white: 0.15) : Color(white: 0.94))
+                        )
+                        .foregroundStyle(selectedRange == range ? .white : .primary)
+                        .clipShape(RoundedRectangle(cornerRadius: 6))
+                }
+                .buttonStyle(.plain)
+                .disabled(isPaginating)
+                .help(range.displayName)
+                .id(range)
+            }
+            
+            if isPaginating {
+                ProgressView()
+                    .scaleEffect(0.6)
+                    .padding(.leading, 8)
+            }
+        }
+        .padding(4)
+        .background(colorScheme == .dark ? Color(white: 0.12) : Color.white)
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+        .shadow(color: colorScheme == .dark ? .black.opacity(0.3) : .black.opacity(0.06), radius: 2, x: 0, y: 1)
+        .animation(.easeInOut(duration: 0.15), value: selectedRange)
+    }
+}
