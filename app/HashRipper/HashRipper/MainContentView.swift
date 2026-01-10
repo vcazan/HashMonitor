@@ -499,7 +499,7 @@ struct MainContentView: View {
     // MARK: - Detail Content
     
     private var detailContent: some View {
-        Group {
+        ZStack {
             // Content based on selection
             switch selectedTab {
             case .miners:
@@ -512,31 +512,38 @@ struct MainContentView: View {
                         addMinerManually: addMinerManually,
                         rolloutProfile: rolloutProfile
                     )
-                    .id(miner.macAddress)
+                    .id("miner-\(miner.macAddress)")
+                    .transition(.opacity)
                 } else {
                     // Show dashboard overview when no miner selected
                     MiningDashboardView(selectedMiner: $selectedMiner)
                         .id("dashboard")
+                        .transition(.opacity)
                 }
             case .alerts:
                 AlertsView()
                     .id("alerts")
+                    .transition(.opacity)
             case .profiles:
                 MinerProfilesView()
                     .navigationTitle("")
                     .toolbar(.hidden, for: .windowToolbar)
+                    .id("profiles")
+                    .transition(.opacity)
             case .firmware:
                 FirmwareReleasesView()
                     .navigationTitle("")
                     .toolbar(.hidden, for: .windowToolbar)
+                    .id("firmware")
+                    .transition(.opacity)
             case .settings:
                 AppSettingsView()
                     .id("settings")
+                    .transition(.opacity)
             }
         }
-        .transition(.opacity)
-        .animation(.easeOut(duration: 0.12), value: selectedMiner?.macAddress)
-        .animation(.easeOut(duration: 0.12), value: selectedTab)
+        .animation(.easeInOut(duration: 0.2), value: selectedTab)
+        .animation(.easeInOut(duration: 0.15), value: selectedMiner?.macAddress)
     }
     
     // MARK: - Actions
