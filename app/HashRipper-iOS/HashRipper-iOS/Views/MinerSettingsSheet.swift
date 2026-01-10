@@ -79,6 +79,16 @@ struct MinerSettingsSheet: View {
                     }
                 }
                 
+                ToolbarItem(placement: .principal) {
+                    if hasChanges {
+                        Button("Revert") {
+                            Task { await loadCurrentSettings() }
+                            hasChanges = false
+                        }
+                        .foregroundStyle(.secondary)
+                    }
+                }
+                
                 ToolbarItem(placement: .confirmationAction) {
                     if isSaving {
                         ProgressView()

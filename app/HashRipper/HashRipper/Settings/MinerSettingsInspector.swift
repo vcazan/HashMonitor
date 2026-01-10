@@ -422,21 +422,36 @@ struct MinerSettingsInspector: View {
     
     private var actionsGroup: some View {
         VStack(spacing: 8) {
-            // Save button - native macOS style
-            Button(action: saveSettings) {
-                HStack(spacing: 4) {
-                    if isSaving {
-                        ProgressView()
-                            .scaleEffect(0.5)
-                            .frame(width: 12, height: 12)
-                    }
-                    Text(isSaving ? "Saving…" : "Apply Changes")
+            // Save and Revert buttons
+            HStack(spacing: 8) {
+                // Revert button
+                Button(action: {
+                    loadCurrentSettings()
+                    hasChanges = false
+                }) {
+                    Text("Revert")
+                        .frame(maxWidth: .infinity)
                 }
-                .frame(maxWidth: .infinity)
+                .buttonStyle(.bordered)
+                .controlSize(.regular)
+                .disabled(!hasChanges || isSaving)
+                
+                // Save button
+                Button(action: saveSettings) {
+                    HStack(spacing: 4) {
+                        if isSaving {
+                            ProgressView()
+                                .scaleEffect(0.5)
+                                .frame(width: 12, height: 12)
+                        }
+                        Text(isSaving ? "Saving…" : "Apply")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.borderedProminent)
+                .controlSize(.regular)
+                .disabled(!hasChanges || isSaving)
             }
-            .buttonStyle(.borderedProminent)
-            .controlSize(.regular)
-            .disabled(!hasChanges || isSaving)
             
             Divider()
                 .padding(.vertical, 4)
