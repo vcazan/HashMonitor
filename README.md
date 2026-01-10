@@ -41,19 +41,32 @@ Both apps share the same core libraries and communicate directly with your miner
 
 ### macOS
 
-| Hash Operations | Profiles | Firmware |
-|-----------------|----------|----------|
-| ![Hash Operations](screenshots/macos-hash-operations.png) | ![Profiles](screenshots/macos-profiles.png) | ![Firmware](screenshots/macos-firmware.png) |
+<p align="center">
+  <img src="screenshots/macos-hash-operations.png" width="800" alt="Hash Operations" />
+</p>
 
-| Status Bar |
-|------------|
-| ![Status Bar](screenshots/macos-statusbar.png) |
+<p align="center">
+  <img src="screenshots/macos-profiles.png" width="400" alt="Profiles" />
+  <img src="screenshots/macos-firmware.png" width="400" alt="Firmware" />
+</p>
+
+<p align="center">
+  <img src="screenshots/macos-statusbar.png" width="300" alt="Status Bar" />
+</p>
 
 ### iOS
 
-| Miner List | Miner Detail | Logs | Settings |
-|------------|--------------|------|----------|
-| ![Miner List](screenshots/ios-miner-list.png) | ![Miner Detail](screenshots/ios-miner-detail.png) | ![Logs](screenshots/ios-miner-logs.png) | ![Settings](screenshots/ios-miner-settings.png) |
+<p align="center">
+  <img src="screenshots/ios-miner-list.png" width="200" alt="Miner List" />
+  <img src="screenshots/ios-miner-detail.png" width="200" alt="Miner Detail" />
+  <img src="screenshots/ios-miner-settings.png" width="200" alt="Settings" />
+</p>
+
+<p align="center">
+  <img src="screenshots/ios-scan-1.png" width="200" alt="Network Scan" />
+  <img src="screenshots/ios-scan-2.png" width="200" alt="Scan Results" />
+  <img src="screenshots/ios-miner-logs.png" width="200" alt="Logs" />
+</p>
 
 ---
 
