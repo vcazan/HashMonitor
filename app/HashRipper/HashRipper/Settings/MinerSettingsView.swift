@@ -257,7 +257,7 @@ struct MinerSettingsView: View {
                 value: $frequency,
                 unit: "MHz",
                 range: frequencyRange,
-                step: 25,
+                step: 5,
                 color: .blue,
                 onChange: { hasChanges = true }
             )

@@ -262,7 +262,7 @@ struct MinerSettingsSheet: View {
                     HStack {
                         Button {
                             if frequency > frequencyRange.lowerBound {
-                                frequency -= 25
+                                frequency -= 5
                                 hasChanges = true
                             }
                         } label: {
@@ -277,12 +277,12 @@ struct MinerSettingsSheet: View {
                                 set: { frequency = Int($0); hasChanges = true }
                             ),
                             in: Double(frequencyRange.lowerBound)...Double(frequencyRange.upperBound),
-                            step: 25
+                            step: 5
                         )
                         
                         Button {
                             if frequency < frequencyRange.upperBound {
-                                frequency += 25
+                                frequency += 5
                                 hasChanges = true
                             }
                         } label: {

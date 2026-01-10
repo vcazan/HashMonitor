@@ -278,7 +278,7 @@ struct MinerSettingsInspector: View {
                         }
                         
                         HStack(spacing: 4) {
-                            Stepper("", value: $frequency, in: frequencyRange, step: 25) { _ in
+                            Stepper("", value: $frequency, in: frequencyRange, step: 5) { _ in
                                 hasChanges = true
                             }
                             .labelsHidden()
@@ -286,7 +286,7 @@ struct MinerSettingsInspector: View {
                             Slider(value: Binding(
                                 get: { Double(frequency) },
                                 set: { frequency = Int($0); hasChanges = true }
-                            ), in: Double(frequencyRange.lowerBound)...Double(frequencyRange.upperBound), step: 25)
+                            ), in: Double(frequencyRange.lowerBound)...Double(frequencyRange.upperBound), step: 5)
                             .controlSize(.small)
                         }
                     }
