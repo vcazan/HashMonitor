@@ -80,6 +80,29 @@ struct MinerDetailView: View {
         return Array(filtered.reversed())
     }
     
+    // Check if we have enough data for meaningful charts
+    private var hasEnoughChartData: Bool {
+        chartUpdates.count >= 2
+    }
+    
+    // Get the best time range based on available data
+    private var bestAvailableTimeRange: ChartTimeRange {
+        for range in ChartTimeRange.allCases {
+            let cutoffTime = Date().addingTimeInterval(-Double(range.hours) * 3600)
+            let cutoffTimestamp = Int64(cutoffTime.timeIntervalSince1970 * 1000)
+            let count = updates.filter { $0.timestamp >= cutoffTimestamp }.count
+            if count >= 2 {
+                return range
+            }
+        }
+        return .oneHour
+    }
+    
+    // Total data points collected
+    private var totalDataPoints: Int {
+        updates.count
+    }
+    
     var body: some View {
         ScrollView {
             VStack(spacing: 16) {
@@ -139,6 +162,10 @@ struct MinerDetailView: View {
         }
         .onAppear {
             startAutoRefresh()
+            // Auto-select best time range based on available data
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.5) {
+                selectedTimeRange = bestAvailableTimeRange
+            }
         }
         .onDisappear {
             stopAutoRefresh()
@@ -388,10 +415,15 @@ struct MinerDetailView: View {
     
     private var chartsSection: some View {
         VStack(alignment: .leading, spacing: 12) {
-            // Header with time range
+            // Header with time range and data count
             HStack {
-                Text("Performance")
-                    .font(.headline)
+                VStack(alignment: .leading, spacing: 2) {
+                    Text("Performance")
+                        .font(.headline)
+                    Text("\(totalDataPoints) data points")
+                        .font(.caption2)
+                        .foregroundStyle(.tertiary)
+                }
                 
                 Spacer()
                 
@@ -419,29 +451,59 @@ struct MinerDetailView: View {
                 selectedChartTime = nil
             }
             
-            // Chart with value badge overlay
-            ZStack(alignment: .topTrailing) {
-                Group {
-                    switch selectedChartTab {
-                    case 0:
-                        hashRateChart
-                    case 1:
-                        powerChart
-                    case 2:
-                        temperatureChart
-                    default:
-                        hashRateChart
+            // Chart content or placeholder
+            if hasEnoughChartData {
+                // Chart with value badge overlay
+                ZStack(alignment: .topTrailing) {
+                    Group {
+                        switch selectedChartTab {
+                        case 0:
+                            hashRateChart
+                        case 1:
+                            powerChart
+                        case 2:
+                            temperatureChart
+                        default:
+                            hashRateChart
+                        }
+                    }
+                    .frame(height: 180)
+                    
+                    // Value badge in corner
+                    selectedValueBadge
+                        .padding(8)
+                }
+                .padding()
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
+            } else {
+                // Not enough data placeholder
+                VStack(spacing: 12) {
+                    Image(systemName: "chart.line.uptrend.xyaxis")
+                        .font(.system(size: 32))
+                        .foregroundStyle(.tertiary)
+                    
+                    Text("Collecting Data")
+                        .font(.subheadline.weight(.medium))
+                        .foregroundStyle(.secondary)
+                    
+                    Text("Charts will appear after a few data points are collected.\nData refreshes every \(Int(refreshInterval)) seconds.")
+                        .font(.caption)
+                        .foregroundStyle(.tertiary)
+                        .multilineTextAlignment(.center)
+                    
+                    if totalDataPoints > 0 {
+                        Text("\(totalDataPoints) of 2 minimum points")
+                            .font(.caption2.monospacedDigit())
+                            .foregroundStyle(.tertiary)
                     }
                 }
+                .frame(maxWidth: .infinity)
                 .frame(height: 180)
-                
-                // Value badge in corner
-                selectedValueBadge
-                    .padding(8)
+                .padding()
+                .background(Color(.systemGray6))
+                .clipShape(RoundedRectangle(cornerRadius: 12))
             }
-            .padding()
-            .background(Color(.systemGray6))
-            .clipShape(RoundedRectangle(cornerRadius: 12))
         }
     }
     
