@@ -60,6 +60,20 @@ enum ChartTimeRange: String, CaseIterable, Identifiable {
     var startTimestamp: Int64 {
         Int64(startDate.timeIntervalSince1970 * 1000)
     }
+    
+    /// Maximum data points to display for each time range
+    /// Longer ranges need more aggressive downsampling to keep UI responsive
+    var maxDataPoints: Int {
+        switch self {
+        case .oneHour: return 500       // ~7 seconds per point
+        case .threeHours: return 600    // ~18 seconds per point
+        case .eightHours: return 800    // ~36 seconds per point
+        case .twentyFourHours: return 1000  // ~86 seconds per point
+        case .threeDays: return 1000    // ~4 minutes per point
+        case .sevenDays: return 1000    // ~10 minutes per point
+        case .thirtyDays: return 1000   // ~43 minutes per point
+        }
+    }
 }
 
 @MainActor
@@ -163,6 +177,7 @@ class MinerChartsViewModel: ObservableObject {
         // Capture values on main actor
         let macAddress = miner.macAddress
         let startTimestamp = selectedTimeRange.startTimestamp
+        let maxPoints = selectedTimeRange.maxDataPoints
 
         // Perform database operations on background thread
         let result = await Task.detached {
@@ -180,8 +195,16 @@ class MinerChartsViewModel: ObservableObject {
 
                 let updates = try backgroundContext.fetch(descriptor)
                 let totalCount = updates.count
+                
+                // Downsample if we have too many points for smooth rendering
+                let sampled: [MinerUpdate]
+                if updates.count > maxPoints {
+                    sampled = Self.downsample(updates, to: maxPoints)
+                } else {
+                    sampled = updates
+                }
 
-                let nextChartData = updates.map { update in
+                let nextChartData = sampled.map { update in
                     ChartSegmentedDataEntry(
                         time: Date(milliseconds: update.timestamp),
                         values: [
@@ -195,7 +218,7 @@ class MinerChartsViewModel: ObservableObject {
                     )
                 }
                 
-                // Get actual time range of data
+                // Get actual time range of data (from full dataset, not sampled)
                 let firstTime = updates.first.map { Date(milliseconds: $0.timestamp) }
                 let lastTime = updates.last.map { Date(milliseconds: $0.timestamp) }
 
@@ -305,6 +328,10 @@ class MinerChartsViewModel: ObservableObject {
         if totalDataPoints == 0 {
             return "No data"
         }
+        let displayedPoints = min(totalDataPoints, selectedTimeRange.maxDataPoints)
+        if totalDataPoints > selectedTimeRange.maxDataPoints {
+            return "\(displayedPoints) of \(totalDataPoints) points (sampled)"
+        }
         return "\(totalDataPoints) data points"
     }
     
@@ -345,5 +372,77 @@ class MinerChartsViewModel: ObservableObject {
             let fanSpeedPct = Int(value?.secondary ?? 0)
             return "\(fanRPM) · \(fanSpeedPct)%"
         }
+    }
+    
+    // MARK: - Downsampling
+    
+    /// Downsamples an array of MinerUpdate to a target count using LTTB (Largest Triangle Three Buckets) algorithm
+    /// This preserves visual fidelity while dramatically reducing point count
+    private nonisolated static func downsample(_ data: [MinerUpdate], to targetCount: Int) -> [MinerUpdate] {
+        guard data.count > targetCount, targetCount >= 2 else { return data }
+        
+        var result = [MinerUpdate]()
+        result.reserveCapacity(targetCount)
+        
+        // Always keep first point
+        result.append(data[0])
+        
+        // Bucket size (minus first and last points)
+        let bucketSize = Double(data.count - 2) / Double(targetCount - 2)
+        
+        var previousIndex = 0
+        
+        for i in 0..<(targetCount - 2) {
+            // Calculate bucket range
+            let bucketStart = Int(Double(i) * bucketSize) + 1
+            let bucketEnd = min(Int(Double(i + 1) * bucketSize) + 1, data.count - 1)
+            
+            // Calculate average point for next bucket (for triangle calculation)
+            let nextBucketStart = bucketEnd
+            let nextBucketEnd = min(Int(Double(i + 2) * bucketSize) + 1, data.count - 1)
+            
+            var avgX: Double = 0
+            var avgY: Double = 0
+            var avgCount = 0
+            
+            for j in nextBucketStart..<nextBucketEnd {
+                avgX += Double(data[j].timestamp)
+                avgY += data[j].hashRate // Use hashRate as primary metric for downsampling
+                avgCount += 1
+            }
+            
+            if avgCount > 0 {
+                avgX /= Double(avgCount)
+                avgY /= Double(avgCount)
+            }
+            
+            // Find point in current bucket with largest triangle area
+            let prevX = Double(data[previousIndex].timestamp)
+            let prevY = data[previousIndex].hashRate
+            
+            var maxArea: Double = -1
+            var maxIndex = bucketStart
+            
+            for j in bucketStart..<bucketEnd {
+                let currX = Double(data[j].timestamp)
+                let currY = data[j].hashRate
+                
+                // Calculate triangle area using cross product
+                let area = abs((prevX - avgX) * (currY - prevY) - (prevX - currX) * (avgY - prevY))
+                
+                if area > maxArea {
+                    maxArea = area
+                    maxIndex = j
+                }
+            }
+            
+            result.append(data[maxIndex])
+            previousIndex = maxIndex
+        }
+        
+        // Always keep last point
+        result.append(data[data.count - 1])
+        
+        return result
     }
 }
