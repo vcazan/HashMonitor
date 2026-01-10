@@ -99,6 +99,10 @@ struct MainContentView: View {
             // The MinerClientManager handles pinging existing miners to update their status.
             loadMiners()
             updateStats()
+            
+            // Start periodic firmware update checking (on launch + every 30 minutes)
+            firmwareReleaseViewModel.startPeriodicUpdateCheck()
+            
             while !Task.isCancelled {
                 updateOfflineCount()
                 updateStats()
@@ -339,10 +343,13 @@ struct MainContentView: View {
                     SidebarTabButton(
                         icon: "arrow.down.circle",
                         title: "Firmware",
-                        isSelected: selectedTab == .firmware
+                        isSelected: selectedTab == .firmware,
+                        badgeCount: firmwareReleaseViewModel.minersWithUpdatesAvailable
                     ) {
                         selectedTab = .firmware
                         selectedMiner = nil
+                        // Clear badge when user views firmware page
+                        firmwareReleaseViewModel.minersWithUpdatesAvailable = 0
                     }
                     
                     SidebarTabButton(

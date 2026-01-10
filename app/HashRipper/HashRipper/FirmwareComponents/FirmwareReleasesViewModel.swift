@@ -17,6 +17,15 @@ final class FirmwareReleasesViewModel {
 
     var isLoading: Bool = false
     var showPreReleases: Bool = false
+    
+    /// Number of miners that have firmware updates available
+    var minersWithUpdatesAvailable: Int = 0
+    
+    /// Timer for periodic firmware update checks
+    private var updateCheckTimer: Timer?
+    
+    /// Interval for checking firmware updates (30 minutes)
+    private let updateCheckInterval: TimeInterval = 30 * 60
 
     var includePreReleases: Binding<Bool> {
             Binding(
@@ -32,6 +41,113 @@ final class FirmwareReleasesViewModel {
         self.database = database
         // Initialize from saved settings
         self.showPreReleases = appSettings.includePreReleases
+    }
+    
+    /// Start periodic firmware update checking (on app launch and every 30 minutes)
+    func startPeriodicUpdateCheck() {
+        // Check immediately on start
+        Task {
+            await checkForFirmwareUpdates()
+        }
+        
+        // Schedule periodic checks
+        updateCheckTimer?.invalidate()
+        updateCheckTimer = Timer.scheduledTimer(withTimeInterval: updateCheckInterval, repeats: true) { [weak self] _ in
+            Task { [weak self] in
+                await self?.checkForFirmwareUpdates()
+            }
+        }
+    }
+    
+    /// Stop periodic update checking
+    func stopPeriodicUpdateCheck() {
+        updateCheckTimer?.invalidate()
+        updateCheckTimer = nil
+    }
+    
+    /// Check all miners for available firmware updates
+    @MainActor
+    func checkForFirmwareUpdates() async {
+        // First refresh firmware releases from GitHub
+        updateReleasesSources()
+        
+        // Wait a bit for the releases to be fetched
+        try? await Task.sleep(for: .seconds(3))
+        
+        // Now check each miner against available firmware
+        let updateCount = await countMinersWithUpdates()
+        
+        self.minersWithUpdatesAvailable = updateCount
+    }
+    
+    /// Count how many miners have firmware updates available
+    private func countMinersWithUpdates() async -> Int {
+        let showPreReleases = self.showPreReleases
+        
+        do {
+            return try await database.withModelContext { [self] context in
+                let miners = try context.fetch(FetchDescriptor<Miner>())
+                let releases = try context.fetch(FetchDescriptor<FirmwareRelease>())
+                
+                var count = 0
+                
+                for miner in miners {
+                    // Get the miner's current firmware version from latest update
+                    let macAddress = miner.macAddress
+                    var updateDescriptor = FetchDescriptor<MinerUpdate>(
+                        predicate: #Predicate<MinerUpdate> { update in
+                            update.macAddress == macAddress && !update.isFailedUpdate
+                        },
+                        sortBy: [SortDescriptor(\.timestamp, order: .reverse)]
+                    )
+                    updateDescriptor.fetchLimit = 1
+                    
+                    guard let latestUpdate = try context.fetch(updateDescriptor).first else {
+                        continue
+                    }
+                    
+                    let currentVersion = latestUpdate.minerFirmwareVersion
+                    guard !currentVersion.isEmpty else {
+                        continue
+                    }
+                    
+                    // Find compatible releases for this miner type
+                    let minerType = miner.minerType
+                    let compatibleReleases = releases.filter { release in
+                        switch minerType.deviceGenre {
+                        case .bitaxe:
+                            return release.device == "Bitaxe"
+                        case .nerdQAxe:
+                            guard let deviceModel = self.getDeviceModelFromMinerType(minerType) else {
+                                return false
+                            }
+                            return release.device == deviceModel
+                        case .unknown:
+                            return false
+                        }
+                    }
+                    
+                    let filteredReleases = showPreReleases ? compatibleReleases : compatibleReleases.filter { !$0.isPreRelease }
+                    
+                    guard let latestRelease = filteredReleases
+                        .filter({ !$0.isDraftRelease })
+                        .sorted(by: { $0.releaseDate > $1.releaseDate })
+                        .first else {
+                        continue
+                    }
+                    
+                    // Check if update is available
+                    if self.compareVersions(current: currentVersion, latest: latestRelease.versionTag) {
+                        count += 1
+                    }
+                }
+                
+                return count
+            }
+        } catch {
+            print("Error checking for firmware updates: \(error)")
+            return 0
+        }
     }
 
     private var modelsByGenre: [MinerDeviceGenre : Int] = [:]
