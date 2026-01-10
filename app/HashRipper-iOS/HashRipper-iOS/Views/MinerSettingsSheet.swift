@@ -527,6 +527,11 @@ struct MinerSettingsSheet: View {
                 currentFanSpeed = fanSpeed
                 currentAutoFan = autoFanSpeed
                 
+                // Update the miner's hostname if it changed
+                if !hostname.isEmpty && miner.hostName != hostname {
+                    miner.hostName = hostname
+                }
+                
                 showSuccessAlert = true
                 
             case .failure(let error):

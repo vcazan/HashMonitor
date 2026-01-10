@@ -506,6 +506,10 @@ struct MinerSettingsView: View {
                 
                 switch result {
                 case .success:
+                    // Update the miner's hostname if it changed
+                    if !hostname.isEmpty && miner.hostName != hostname {
+                        miner.hostName = hostname
+                    }
                     showSuccessAlert = true
                 case .failure(let error):
                     errorMessage = "Failed to apply settings: \(error)"
