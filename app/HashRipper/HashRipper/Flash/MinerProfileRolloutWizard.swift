@@ -294,15 +294,17 @@ struct MinerProfileRolloutWizard: View {
                         .buttonStyle(.bordered)
                         .controlSize(.large)
                     
-                    Button("Back") { onPrevious() }
-                        .buttonStyle(.bordered)
-                        .controlSize(.large)
-                        .disabled(model.stage == .one || (preSelectedProfile != nil && model.stage == .two))
+                    // Only show Back button if there's a previous step to go to
+                    if model.stage != .one && !(preSelectedProfile != nil && model.stage == .two) {
+                        Button("Back") { onPrevious() }
+                            .buttonStyle(.bordered)
+                            .controlSize(.large)
+                    }
                     
                     Spacer()
                     
                     Button(action: onNext) {
-                        Text("Next")
+                        Text(nextButtonTitle)
                             .frame(minWidth: 80)
                     }
                     .buttonStyle(.borderedProminent)
@@ -355,6 +357,14 @@ struct MinerProfileRolloutWizard: View {
         case .three:
             return "Deploying profile to selected miners..."
         }
+    }
+    
+    private var nextButtonTitle: String {
+        // Show "Deploy" on the last step before deployment
+        if model.stage == .two {
+            return "Deploy"
+        }
+        return "Next"
     }
     
     private var allComplete: Bool {
