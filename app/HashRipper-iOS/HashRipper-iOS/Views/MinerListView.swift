@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import HashRipperKit
+import AxeOSClient
 
 enum MinerSortOption: String, CaseIterable {
     case name = "Name"
@@ -36,6 +37,10 @@ struct MinerListView: View {
     @State private var minerToDelete: Miner?
     @State private var sortOption: MinerSortOption = .name
     @State private var sortAscending = true
+    @State private var backgroundRefreshTimer: Timer?
+    
+    // Settings
+    @AppStorage("refreshInterval") private var refreshInterval = 30
     
     // Get totals from latest update of each online miner
     private var onlineMinerStats: (hashRate: Double, power: Double) {
@@ -253,13 +258,98 @@ struct MinerListView: View {
                 Text("Are you sure you want to remove \(miner.hostName)?")
             }
         }
+        .onAppear {
+            startBackgroundRefresh()
+        }
+        .onDisappear {
+            stopBackgroundRefresh()
+        }
+        .onChange(of: refreshInterval) { _, _ in
+            // Restart with new interval
+            stopBackgroundRefresh()
+            startBackgroundRefresh()
+        }
     }
     
     private func refreshMiners() async {
         isRefreshing = true
-        // TODO: Implement actual refresh using AxeOSClient
-        try? await Task.sleep(nanoseconds: 1_000_000_000)
-        isRefreshing = false
+        defer { isRefreshing = false }
+        
+        // Poll all miners in parallel
+        await withTaskGroup(of: Void.self) { group in
+            for miner in miners {
+                group.addTask {
+                    await self.pollMiner(miner)
+                }
+            }
+        }
+    }
+    
+    private func pollMiner(_ miner: Miner) async {
+        let client = AxeOSClient(
+            deviceIpAddress: miner.ipAddress,
+            urlSession: .shared
+        )
+        
+        let result = await client.getSystemInfo()
+        
+        await MainActor.run {
+            switch result {
+            case .success(let info):
+                miner.consecutiveTimeoutErrors = 0
+                
+                let update = MinerUpdate(
+                    miner: miner,
+                    hostname: info.hostname,
+                    stratumUser: info.stratumUser ?? "",
+                    fallbackStratumUser: info.fallbackStratumUser ?? "",
+                    stratumURL: info.stratumURL ?? "",
+                    stratumPort: info.stratumPort ?? 0,
+                    fallbackStratumURL: info.fallbackStratumURL ?? "",
+                    fallbackStratumPort: info.fallbackStratumPort ?? 0,
+                    minerFirmwareVersion: info.version ?? "Unknown",
+                    axeOSVersion: info.ASICModel,
+                    bestDiff: info.bestDiff,
+                    bestSessionDiff: info.bestSessionDiff,
+                    frequency: info.frequency,
+                    temp: info.temp,
+                    vrTemp: info.vrTemp,
+                    fanrpm: info.fanrpm,
+                    fanspeed: info.fanspeed,
+                    hashRate: info.hashRate ?? 0,
+                    power: info.power ?? 0,
+                    sharesAccepted: info.sharesAccepted,
+                    sharesRejected: info.sharesRejected,
+                    uptimeSeconds: info.uptimeSeconds,
+                    isUsingFallbackStratum: info.isUsingFallbackStratum ?? false
+                )
+                modelContext.insert(update)
+                
+            case .failure:
+                miner.consecutiveTimeoutErrors += 1
+            }
+        }
+    }
+    
+    private func startBackgroundRefresh() {
+        guard refreshInterval > 0 else { return } // 0 = manual only
+        
+        // Initial refresh
+        Task {
+            await refreshMiners()
+        }
+        
+        // Periodic refresh
+        backgroundRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(refreshInterval), repeats: true) { _ in
+            Task {
+                await refreshMiners()
+            }
+        }
+    }
+    
+    private func stopBackgroundRefresh() {
+        backgroundRefreshTimer?.invalidate()
+        backgroundRefreshTimer = nil
     }
     
     private func deleteMiner(_ miner: Miner) {
