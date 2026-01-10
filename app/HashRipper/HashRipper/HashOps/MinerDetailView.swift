@@ -181,30 +181,6 @@ struct MinerDetailView: View {
                     // Refresh stats
                     IconButton(icon: "arrow.clockwise.circle", size: 26, iconSize: 12, tooltip: "Refresh now", action: { minerClientManager?.refreshClientInfo() })
                     
-                    // Deploy profile
-                    if let rolloutProfile = rolloutProfile {
-                        IconButton(icon: "iphone.and.arrow.forward.inward", size: 26, iconSize: 12, tooltip: "Deploy profile", action: rolloutProfile)
-                    }
-                    
-                    // WatchDog
-                    Button(action: openWatchDogWindow) {
-                        ZStack(alignment: .topTrailing) {
-                            Image(systemName: "shield.checkered")
-                                .font(.system(size: 12))
-                                .frame(width: 26, height: 26)
-                            
-                            if unreadWatchdogCount > 0 {
-                                Circle()
-                                    .fill(.red)
-                                    .frame(width: 6, height: 6)
-                                    .offset(x: 4, y: -2)
-                            }
-                        }
-                    }
-                    .buttonStyle(.plain)
-                    .foregroundStyle(.secondary)
-                    .help("View WatchDog actions")
-                    
                     Divider()
                         .frame(height: 16)
                         .padding(.horizontal, 4)
