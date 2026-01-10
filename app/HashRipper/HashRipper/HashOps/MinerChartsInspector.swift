@@ -415,9 +415,10 @@ private struct TimeRangeButtonsView: View {
                 .buttonStyle(.plain)
                 .disabled(isPaginating)
                 .help(range.displayName)
-                .id(range) // Stable identity prevents re-creation
+                .id(range)
             }
         }
+        .transaction { $0.animation = nil } // Disable all inherited animations
         .animation(.easeInOut(duration: 0.15), value: selectedRange) // Only animate selection changes
     }
 }

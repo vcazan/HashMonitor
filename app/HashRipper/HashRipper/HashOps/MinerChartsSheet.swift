@@ -270,6 +270,7 @@ private struct SheetTimeRangeButtonsView: View {
         .background(colorScheme == .dark ? Color(white: 0.12) : Color.white)
         .clipShape(RoundedRectangle(cornerRadius: 8))
         .shadow(color: colorScheme == .dark ? .black.opacity(0.3) : .black.opacity(0.06), radius: 2, x: 0, y: 1)
+        .transaction { $0.animation = nil } // Disable inherited animations
         .animation(.easeInOut(duration: 0.15), value: selectedRange)
     }
 }

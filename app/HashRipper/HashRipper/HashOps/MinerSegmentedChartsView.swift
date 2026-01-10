@@ -399,6 +399,7 @@ private struct SegmentedTimeRangeButtonsView: View {
                 .id(range)
             }
         }
+        .transaction { $0.animation = nil } // Disable inherited animations
         .animation(.easeInOut(duration: 0.15), value: selectedRange)
     }
 }
