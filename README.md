@@ -113,8 +113,10 @@ HashRipper/
 
 ---
 
+## Credits
+
+Originally created by [Matt Sellars](https://github.com/mattsellars).
+
 ## License
 
 This project is licensed under the [GNU General Public License v3.0](LICENSE).
-
-You are free to use, modify, and distribute this software under the terms of the GPL-3.0. If you distribute modified versions, you must also make your source code available under the same license.
