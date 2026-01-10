@@ -6,6 +6,7 @@
 //
 
 import Combine
+import MarkdownUI
 import SwiftData
 import SwiftUI
 
@@ -497,9 +498,8 @@ private struct FirmwareDetailView: View {
                     SectionHeader(title: "Release Notes", icon: "doc.text")
                     
                     if !release.changeLogMarkup.isEmpty {
-                        Text(release.changeLogMarkup)
-                            .font(.system(size: 13))
-                            .foregroundStyle(.primary)
+                        Markdown(cleanMarkdown(release.changeLogMarkup))
+                            .markdownTheme(.gitHub)
                             .textSelection(.enabled)
                             .frame(maxWidth: .infinity, alignment: .leading)
                     } else {
@@ -585,4 +585,22 @@ func formatFileSize(_ sizeInBytes: Int) -> String {
     formatter.allowedUnits = [.useKB, .useMB]
     formatter.countStyle = .file
     return formatter.string(fromByteCount: Int64(sizeInBytes))
+}
+
+/// Cleans markdown text by removing HTML comments and converting HTML img tags
+private func cleanMarkdown(_ text: String) -> String {
+    var result = text.trimmingCharacters(in: .whitespacesAndNewlines)
+    
+    // Remove HTML comments
+    result = result.replacing(/<!--.*?-->/.dotMatchesNewlines(), with: "")
+    
+    // Convert HTML <img> tags to Markdown image syntax
+    let imgPattern = /<img[^>]*src="([^"]+)"[^>]*\/?>/
+        .ignoresCase()
+    result = result.replacing(imgPattern, with: { match in
+        let url = match.output.1
+        return "![](\(url))"
+    })
+    
+    return result
 }
