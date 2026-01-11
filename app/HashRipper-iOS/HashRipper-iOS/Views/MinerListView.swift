@@ -288,10 +288,15 @@ struct MinerListView: View {
                 
                 // Cache for UI
                 latestUpdates[miner.macAddress] = update
+                
+                // Save changes
+                try? modelContext.save()
             }
-        case .failure:
+        case .failure(let error):
             await MainActor.run {
                 miner.consecutiveTimeoutErrors += 1
+                print("Miner refresh failed for \(miner.hostName): \(error)")
+                try? modelContext.save()
             }
         }
     }

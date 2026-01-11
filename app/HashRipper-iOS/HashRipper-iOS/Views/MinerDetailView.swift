@@ -523,10 +523,14 @@ struct MinerDetailView: View {
                 
                 latestUpdate = update
                 loadChartData()
+                
+                try? modelContext.save()
             }
-        case .failure:
+        case .failure(let error):
             await MainActor.run {
                 miner.consecutiveTimeoutErrors += 1
+                print("Detail refresh failed for \(miner.hostName): \(error)")
+                try? modelContext.save()
             }
         }
         
