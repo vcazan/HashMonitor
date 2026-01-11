@@ -21,18 +21,18 @@ struct FlashMinerSettings: View {
 
     let isNewMinerSetup: Bool
 
-    // Dependencies
+    // Dependencies
     let client: AxeOSClient
     let settings: MinerSettings
 
-    // UI state
+    // UI state
     @State private var updateStatus:  StepStatus = .idle
     @State private var restartStatus: StepStatus = .idle
-    @State private var isRunning = false           // overall spinner flag
+    @State private var isRunning = false           // overall spinner flag
 
-    @Environment(\.dismiss) private var dismiss    // for “Done” or “Cancel”
+    @Environment(\.dismiss) private var dismiss    // for "Done" or "Cancel"
 
-    // MARK:‑ Body
+    // MARK:‑ Body
     var body: some View {
         VStack(alignment: .leading, spacing: 24) {
             // 1️⃣ Checklist
@@ -64,7 +64,7 @@ struct FlashMinerSettings: View {
 
 // MARK: ‑ Private helpers
 private extension FlashMinerSettings {
-    // Creates the checklist rows
+    // Creates the checklist rows
     var checklist: some View {
         VStack(alignment: .leading, spacing: 12) {
             checklistRow(
@@ -114,52 +114,50 @@ private extension FlashMinerSettings {
         updateStatus = .idle
         restartStatus = .idle
 
-        _ = self.client.deviceIpAddress
+        // Capture values for use in task
+        let settingsCopy = settings
+        let clientCopy = client
 
-        Task.detached {
+        Task {
             try? await Task.sleep(for: .seconds(0.15))
-            Task.detached { @MainActor in
-                self.updateStatus  = .inProgress
+            await MainActor.run {
+                self.updateStatus = .inProgress
             }
-            // STEP 1 – update settings
-            switch await client.updateSystemSettings(settings: settings) {
+            
+            // STEP 1 – update settings
+            switch await clientCopy.updateSystemSettings(settings: settingsCopy) {
             case .success(true):
-                Task.detached { @MainActor in
+                await MainActor.run {
                     self.updateStatus = .success
                 }
             default:
-                Task.detached { @MainActor in
+                await MainActor.run {
                     self.updateStatus = .failure
-                    isRunning = false
+                    self.isRunning = false
                 }
-                return                               // stop – show Retry
+                return                               // stop – show Retry
             }
 
-
-
-
-            // STEP 2 – restart
-
-            restartStatus = .inProgress
-            // ⏱ 500 ms pause
+            // STEP 2 – restart
+            await MainActor.run {
+                self.restartStatus = .inProgress
+            }
+            
+            // ⏱ 500 ms pause
             try? await Task.sleep(for: .seconds(0.25))
-            switch await self.client.restartClient() {
+            switch await clientCopy.restartClient() {
             case .success(true):
-                Task.detached { @MainActor in
-                    restartStatus = .success
+                await MainActor.run {
+                    self.restartStatus = .success
                 }
             default:
-                Task.detached { @MainActor in
-                    restartStatus = .failure
+                await MainActor.run {
+                    self.restartStatus = .failure
                 }
             }
-            Task.detached { @MainActor in
-                isRunning = false
+            await MainActor.run {
+                self.isRunning = false
             }
-
-//            try? modelContext.delete(model: Miner.self, where: #Predicate { m in
-//                m.ipAddress == deviceIP
-//            })
         }
     }
 }

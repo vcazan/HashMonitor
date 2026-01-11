@@ -631,12 +631,16 @@ private struct DeploymentScreen: View {
             
             // Only start deployment if none are already running
             if existingDeployments.isEmpty {
+                // Capture values for sendable context
+                let minersToFlash = selectedMiners
+                let release = model.firmwareRelease
+                
                 // Start deployment using a detached task that won't be cancelled when view disappears
                 // This ensures deployment continues even if the app is backgrounded
                 Task.detached {
                     await deploymentManager.startDeployment(
-                        miners: selectedMiners,
-                        firmwareRelease: model.firmwareRelease
+                        miners: minersToFlash,
+                        firmwareRelease: release
                     )
                 }
             }

@@ -38,7 +38,7 @@ actor DeploymentWorker {
     }
 
     func start() async {
-        guard let deployment = try? modelContext.model(for: deploymentId) as? FirmwareDeployment else {
+        guard let deployment = modelContext.model(for: deploymentId) as? FirmwareDeployment else {
             return
         }
 
@@ -63,7 +63,7 @@ actor DeploymentWorker {
     }
 
     func retryMiner(_ minerDeploymentId: PersistentIdentifier) async {
-        guard let minerDeployment = try? modelContext.model(for: minerDeploymentId) as? MinerFirmwareDeployment else {
+        guard let minerDeployment = modelContext.model(for: minerDeploymentId) as? MinerFirmwareDeployment else {
             return
         }
 
@@ -156,6 +156,12 @@ actor DeploymentWorker {
     }
 
     private func performDeployment(_ minerDeployment: MinerFirmwareDeployment, firmwareRelease: FirmwareRelease, deployment: FirmwareDeployment) async throws {
+        // Capture identifiers for sendable context
+        let minerDeploymentId = minerDeployment.persistentModelID
+        let minerIPAddress = minerDeployment.minerIPAddress
+        let restartTimeout = deployment.restartTimeout
+        let enableRestartMonitoring = deployment.enableRestartMonitoring
+        
         // Get firmware file paths
         guard let minerFilePath = await MainActor.run(body: {
             downloadsManager.downloadedFilePath(for: firmwareRelease, fileType: .miner, shouldCreateDirectory: false)
@@ -167,45 +173,44 @@ actor DeploymentWorker {
 
         // Get AxeOS client for this miner
         let client = await MainActor.run {
-            clientManager.client(forIpAddress: minerDeployment.minerIPAddress) ?? AxeOSClient(deviceIpAddress: minerDeployment.minerIPAddress, urlSession: URLSession.shared)
+            clientManager.client(forIpAddress: minerIPAddress) ?? AxeOSClient(deviceIpAddress: minerIPAddress, urlSession: URLSession.shared)
         }
 
         // Step 1: Upload miner firmware (skip if already completed)
         if minerDeployment.completedStage != "firmware" && minerDeployment.completedStage != "www" {
-            await updateMinerState(minerDeployment.persistentModelID, state: .uploadingFirmware(progress: 0.0))
+            await updateMinerState(minerDeploymentId, state: .uploadingFirmware(progress: 0.0))
             try await Task.sleep(nanoseconds: 200_000_000)
 
-            let minerUploadResult = await client.uploadFirmware(from: minerFilePath) { progress in
+            let minerUploadResult = await client.uploadFirmware(from: minerFilePath) { [weak self] progress in
+                guard let self = self else { return }
                 Task {
-                    await self.updateMinerState(minerDeployment.persistentModelID, state: .uploadingFirmware(progress: progress))
-                    await MainActor.run {
-                        minerDeployment.progress = progress
-                    }
+                    await self.updateMinerState(minerDeploymentId, state: .uploadingFirmware(progress: progress))
+                    await self.updateMinerProgress(minerDeploymentId, progress: progress)
                 }
             }
 
             switch minerUploadResult {
             case .success:
-                print("✅ Successfully uploaded miner firmware to \(minerDeployment.minerIPAddress)")
+                print("✅ Successfully uploaded miner firmware to \(minerIPAddress)")
 
                 // Mark firmware stage as complete
                 minerDeployment.completedStage = "firmware"
                 try? modelContext.save()
 
                 // IMPORTANT: Wait for miner to restart after firmware upload
-                if deployment.enableRestartMonitoring {
-                    await updateMinerState(minerDeployment.persistentModelID, state: .waitingForRestart)
-                    print("⏳ Waiting for \(minerDeployment.minerIPAddress) to restart after firmware upload...")
-                    try await monitorFirmwareInstall(client: client, timeout: deployment.restartTimeout)
-                    print("✅ \(minerDeployment.minerIPAddress) has restarted and is responsive")
+                if enableRestartMonitoring {
+                    await updateMinerState(minerDeploymentId, state: .waitingForRestart)
+                    print("⏳ Waiting for \(minerIPAddress) to restart after firmware upload...")
+                    try await monitorFirmwareInstall(client: client, timeout: restartTimeout)
+                    print("✅ \(minerIPAddress) has restarted and is responsive")
 
                     // Additional stabilization delay - miner may respond to GET requests
                     // but not be ready for large file uploads yet
-                    print("⏳ Waiting 15s for \(minerDeployment.minerIPAddress) to stabilize before WWW upload...")
+                    print("⏳ Waiting 15s for \(minerIPAddress) to stabilize before WWW upload...")
                     try await Task.sleep(nanoseconds: 15_000_000_000)
                 } else {
                     // Even without monitoring, give it time to apply firmware
-                    print("⏳ Waiting 30s for \(minerDeployment.minerIPAddress) to apply firmware...")
+                    print("⏳ Waiting 30s for \(minerIPAddress) to apply firmware...")
                     try await Task.sleep(nanoseconds: 30_000_000_000)
                 }
 
@@ -213,54 +218,62 @@ actor DeploymentWorker {
                 throw DeploymentWorkerError.minerUploadFailed(error)
             }
         } else {
-            print("⏭️ Skipping firmware upload for \(minerDeployment.minerIPAddress) - already completed")
+            print("⏭️ Skipping firmware upload for \(minerIPAddress) - already completed")
         }
 
         // Step 2: Upload www firmware (skip if already completed)
         if minerDeployment.completedStage != "www" {
-            await updateMinerState(minerDeployment.persistentModelID, state: .uploadingWWW(progress: 0.0))
+            await updateMinerState(minerDeploymentId, state: .uploadingWWW(progress: 0.0))
             try await Task.sleep(nanoseconds: 200_000_000)
 
-            let wwwUploadResult = await client.uploadWebInterface(from: wwwFilePath) { progress in
+            let wwwUploadResult = await client.uploadWebInterface(from: wwwFilePath) { [weak self] progress in
+                guard let self = self else { return }
                 Task {
-                    await self.updateMinerState(minerDeployment.persistentModelID, state: .uploadingWWW(progress: progress))
-                    await MainActor.run {
-                        minerDeployment.progress = progress
-                    }
+                    await self.updateMinerState(minerDeploymentId, state: .uploadingWWW(progress: progress))
+                    await self.updateMinerProgress(minerDeploymentId, progress: progress)
                 }
             }
 
             switch wwwUploadResult {
             case .success:
-                print("✅ Successfully uploaded www firmware to \(minerDeployment.minerIPAddress)")
+                print("✅ Successfully uploaded www firmware to \(minerIPAddress)")
 
                 // Mark www stage as complete
                 minerDeployment.completedStage = "www"
                 try? modelContext.save()
 
                 // Restart the client to apply www changes
-                print("🔄 Restarting \(minerDeployment.minerIPAddress) to apply web interface update...")
+                print("🔄 Restarting \(minerIPAddress) to apply web interface update...")
                 _ = await client.restartClient()
 
             case .failure(let error):
                 throw DeploymentWorkerError.wwwUploadFailed(error)
             }
         } else {
-            print("⏭️ Skipping www upload for \(minerDeployment.minerIPAddress) - already completed")
+            print("⏭️ Skipping www upload for \(minerIPAddress) - already completed")
         }
 
         // Step 3: Verify deployment
-        if deployment.enableRestartMonitoring {
-            await updateMinerState(minerDeployment.persistentModelID, state: .verifying)
-            print("⏳ Waiting for \(minerDeployment.minerIPAddress) to restart after www update...")
-            try await verifyDeployment(client: client, targetVersion: minerDeployment.targetFirmwareVersion, timeout: deployment.restartTimeout)
-            print("✅ \(minerDeployment.minerIPAddress) deployment verified and responsive")
+        let targetFirmwareVersion = minerDeployment.targetFirmwareVersion
+        if enableRestartMonitoring {
+            await updateMinerState(minerDeploymentId, state: .verifying)
+            print("⏳ Waiting for \(minerIPAddress) to restart after www update...")
+            try await verifyDeployment(client: client, targetVersion: targetFirmwareVersion, timeout: restartTimeout)
+            print("✅ \(minerIPAddress) deployment verified and responsive")
         }
 
         // Update current firmware version
         let systemInfo = await client.getSystemInfo()
         if case .success(let info) = systemInfo {
             minerDeployment.currentFirmwareVersion = info.version
+        }
+    }
+    
+    private func updateMinerProgress(_ minerDeploymentId: PersistentIdentifier, progress: Double) async {
+        await MainActor.run {
+            if let minerDeployment = modelContext.model(for: minerDeploymentId) as? MinerFirmwareDeployment {
+                minerDeployment.progress = progress
+            }
         }
     }
 
@@ -388,26 +401,37 @@ actor DeploymentWorker {
         // Save all changes (miner status, deployment counts, and completion)
         try? modelContext.save()
 
-        if deployment.isFinished {
+        // Capture values for sendable context
+        let deploymentId = deployment.persistentModelID
+        let isFinished = deployment.isFinished
+        let versionTag = deployment.firmwareRelease?.versionTag ?? "Unknown"
+        let successCount = deployment.successCount
+        let failureCount = deployment.failureCount
+        
+        if isFinished {
             // Notify store to clean up worker and refresh contexts FIRST
             // This ensures the store's ModelContext sees the completedAt date before notifications are sent
             await onComplete()
 
             // NOW send completion notifications - store has refreshed its context
-            await MainActor.run {
-                DeploymentNotificationHelper.postDeploymentCompleted(deployment)
+            await MainActor.run { [modelContext] in
+                if let dep = modelContext.model(for: deploymentId) as? FirmwareDeployment {
+                    DeploymentNotificationHelper.postDeploymentCompleted(dep)
+                }
             }
 
             // Send local notification with accurate counts
             await sendCompletionNotification(
-                versionTag: deployment.firmwareRelease?.versionTag ?? "Unknown",
-                successCount: deployment.successCount,
-                failureCount: deployment.failureCount
+                versionTag: versionTag,
+                successCount: successCount,
+                failureCount: failureCount
             )
         } else {
             // Post update notification
-            await MainActor.run {
-                DeploymentNotificationHelper.postDeploymentUpdated(deployment)
+            await MainActor.run { [modelContext] in
+                if let dep = modelContext.model(for: deploymentId) as? FirmwareDeployment {
+                    DeploymentNotificationHelper.postDeploymentUpdated(dep)
+                }
             }
         }
     }

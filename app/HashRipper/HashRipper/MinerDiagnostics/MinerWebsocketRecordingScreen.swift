@@ -164,7 +164,7 @@ struct WebsocketFileOrStartRecordingView: View {
 
 @MainActor
 class MinerSelectionViewModel: ObservableObject, Identifiable {
-    var id: String { minerIpAddress }
+    nonisolated let id: String
 
     @Published var isRecording: Bool = false
     var cancellables: Set<AnyCancellable> = []
@@ -181,6 +181,7 @@ class MinerSelectionViewModel: ObservableObject, Identifiable {
 
     let session: MinerWebsocketDataRecordingSession
     init(minerHostName: String, minerIpAddress: String, session: MinerWebsocketDataRecordingSession) {
+        self.id = minerIpAddress
         self.minerHostName = minerHostName
         self.minerIpAddress = minerIpAddress
         self.session = session

@@ -155,18 +155,19 @@ class FirmwareDownloadsManager: NSObject {
                 destinationURL: destinationURL
             )
             
+            let itemId = downloadItem.id
             let task = urlSession.downloadTask(with: url) { [weak self] tempURL, response, error in
                 Task { @MainActor in
                     guard let self = self else { return }
                     
                     if let error = error {
-                        self.updateDownloadStatus(for: downloadItem.id, status: .failed(error: error.localizedDescription))
+                        self.updateDownloadStatus(for: itemId, status: .failed(error: error.localizedDescription))
                     } else if let tempURL = tempURL {
                         do {
                             try self.fileManager.moveItem(at: tempURL, to: destinationURL)
-                            self.updateDownloadStatus(for: downloadItem.id, status: .completed)
+                            self.updateDownloadStatus(for: itemId, status: .completed)
                         } catch {
-                            self.updateDownloadStatus(for: downloadItem.id, status: .failed(error: error.localizedDescription))
+                            self.updateDownloadStatus(for: itemId, status: .failed(error: error.localizedDescription))
                         }
                     }
                 }
