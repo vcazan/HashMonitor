@@ -34,6 +34,9 @@ struct MinerListView: View {
     
     private let session = URLSession.shared
     
+    // Auto-refresh timer (every 10 seconds)
+    private let refreshTimer = Timer.publish(every: 10, on: .main, in: .common).autoconnect()
+    
     enum SortOption: String, CaseIterable {
         case name = "Name"
         case hashRate = "Hash Rate"
@@ -119,6 +122,10 @@ struct MinerListView: View {
                 guard !hasLoadedInitially else { return }
                 hasLoadedInitially = true
                 await initialLoad()
+            }
+            .onReceive(refreshTimer) { _ in
+                // Auto-refresh all miners every 10 seconds
+                Task { await refreshAllMiners() }
             }
             .onChange(of: miners.count) { _, _ in
                 // Reload cache when miners list changes (add/delete)
