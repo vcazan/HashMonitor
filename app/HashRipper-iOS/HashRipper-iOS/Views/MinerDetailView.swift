@@ -141,50 +141,50 @@ struct MinerDetailView: View {
     // MARK: - Hero Header
     
     private var heroHeader: some View {
-        HStack(spacing: Spacing.lg) {
+        HStack(spacing: Spacing.md) {
             // Device image with status indicator
             ZStack(alignment: .bottomTrailing) {
                 ZStack {
-                    RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
-                        .fill(AppColors.backgroundGroupedSecondary)
-                        .frame(width: 72, height: 72)
+                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                        .fill(AppColors.fillTertiary)
+                        .frame(width: 56, height: 56)
                     
                     Image(miner.minerType.imageName)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 48, height: 48)
+                        .frame(width: 40, height: 40)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
                 }
                 
                 // Status dot
                 Circle()
                     .fill(miner.isOnline ? AppColors.statusOnline : AppColors.statusOffline)
-                    .frame(width: 16, height: 16)
+                    .frame(width: 14, height: 14)
                     .overlay(
                         Circle()
-                            .stroke(AppColors.backgroundGrouped, lineWidth: 3)
+                            .stroke(AppColors.backgroundGroupedSecondary, lineWidth: 2)
                     )
-                    .offset(x: 4, y: 4)
+                    .offset(x: 3, y: 3)
             }
             
             // Info
-            VStack(alignment: .leading, spacing: Spacing.xs) {
+            VStack(alignment: .leading, spacing: 2) {
                 // Hash rate
                 if let update = latestUpdate {
                     HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                         Text(formatHashRate(update.hashRate).value)
-                            .font(.system(size: 32, weight: .bold, design: .rounded))
+                            .font(.system(size: 26, weight: .bold, design: .rounded))
                             .foregroundStyle(AppColors.textPrimary)
                             .contentTransition(.numericText())
                         
                         Text(formatHashRate(update.hashRate).unit)
-                            .font(.bodyLarge)
+                            .font(.bodyMedium)
                             .fontWeight(.medium)
                             .foregroundStyle(AppColors.textSecondary)
                     }
                 } else {
                     Text("—")
-                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .font(.system(size: 26, weight: .bold, design: .rounded))
                         .foregroundStyle(AppColors.textTertiary)
                 }
                 
@@ -196,7 +196,7 @@ struct MinerDetailView: View {
             
             Spacer()
         }
-        .padding(Spacing.lg)
+        .padding(Spacing.md)
         .background(
             RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
                 .fill(AppColors.backgroundGroupedSecondary)
