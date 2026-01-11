@@ -130,7 +130,7 @@ class MinerLogsViewModel: ObservableObject {
     }
     
     func connect() {
-        guard let url = URL(string: "ws://\(ipAddress)/ws") else { return }
+        guard let url = URL(string: "ws://\(ipAddress)/api/ws") else { return }
         
         Task {
             // Configure auto-reconnect
