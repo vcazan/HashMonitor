@@ -141,56 +141,73 @@ struct MinerDetailView: View {
     // MARK: - Hero Header
     
     private var heroHeader: some View {
-        VStack(spacing: Spacing.lg) {
-            // Miner Image & Status
-            ZStack {
-                // Glow effect
-                if miner.isOnline {
-                    Circle()
-                        .fill(AppColors.statusOnline.opacity(0.15))
-                        .frame(width: 100, height: 100)
-                        .blur(radius: 20)
-                }
-                
-                // Device image
+        HStack(spacing: Spacing.lg) {
+            // Device image with status indicator
+            ZStack(alignment: .bottomTrailing) {
                 ZStack {
                     RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
                         .fill(AppColors.backgroundGroupedSecondary)
-                        .frame(width: 80, height: 80)
+                        .frame(width: 72, height: 72)
                     
                     Image(miner.minerType.imageName)
                         .resizable()
                         .scaledToFit()
-                        .frame(width: 56, height: 56)
+                        .frame(width: 48, height: 48)
                         .clipShape(RoundedRectangle(cornerRadius: Radius.sm, style: .continuous))
                 }
+                
+                // Status dot
+                Circle()
+                    .fill(miner.isOnline ? AppColors.statusOnline : AppColors.statusOffline)
+                    .frame(width: 16, height: 16)
+                    .overlay(
+                        Circle()
+                            .stroke(AppColors.backgroundGrouped, lineWidth: 3)
+                    )
+                    .offset(x: 4, y: 4)
             }
             
-            // Status badge
-            StatusBadge(isOnline: miner.isOnline)
-            
-            // Primary metric - Hash Rate
-            if let update = latestUpdate {
-                VStack(spacing: Spacing.xxs) {
-                    HStack(alignment: .lastTextBaseline, spacing: Spacing.xs) {
+            // Info
+            VStack(alignment: .leading, spacing: Spacing.xs) {
+                // Status text
+                Text(miner.isOnline ? "Online" : "Offline")
+                    .font(.captionLarge)
+                    .fontWeight(.medium)
+                    .foregroundStyle(miner.isOnline ? AppColors.statusOnline : AppColors.statusOffline)
+                
+                // Hash rate
+                if let update = latestUpdate {
+                    HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                         Text(formatHashRate(update.hashRate).value)
-                            .font(.numericLarge)
+                            .font(.system(size: 32, weight: .bold, design: .rounded))
                             .foregroundStyle(AppColors.textPrimary)
                             .contentTransition(.numericText())
                         
                         Text(formatHashRate(update.hashRate).unit)
-                            .font(.titleMedium)
+                            .font(.bodyLarge)
+                            .fontWeight(.medium)
                             .foregroundStyle(AppColors.textSecondary)
                     }
-                    
-                    Text("Hash Rate")
-                        .font(.captionLarge)
+                } else {
+                    Text("—")
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
                         .foregroundStyle(AppColors.textTertiary)
                 }
+                
+                // Miner type
+                Text(miner.minerType.displayName)
+                    .font(.captionLarge)
+                    .foregroundStyle(AppColors.textTertiary)
             }
+            
+            Spacer()
         }
-        .frame(maxWidth: .infinity)
-        .padding(.vertical, Spacing.xl)
+        .padding(Spacing.lg)
+        .background(
+            RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+                .fill(AppColors.backgroundGroupedSecondary)
+        )
+        .padding(.horizontal)
         .opacity(headerAppeared ? 1 : 0)
         .offset(y: headerAppeared ? 0 : 20)
         .onAppear {
