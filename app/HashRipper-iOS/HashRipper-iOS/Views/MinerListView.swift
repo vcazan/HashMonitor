@@ -107,7 +107,7 @@ struct MinerListView: View {
                     }
                 }
                 
-                ToolbarItem(placement: .secondaryAction) {
+                ToolbarItem(placement: .primaryAction) {
                     sortMenu
                 }
             }
