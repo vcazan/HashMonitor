@@ -18,6 +18,8 @@
 		A1000009 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000010 /* Theme.swift */; };
 		A1000010 /* HashRipperKit in Frameworks */ = {isa = PBXBuildFile; productRef = A3000001 /* HashRipperKit */; };
 		A1000011 /* MinerLogsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000011 /* MinerLogsSheet.swift */; };
+		A1000012 /* Miner+iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000012 /* Miner+iOS.swift */; };
+		A1000013 /* MinerUpdate+Factory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* MinerUpdate+Factory.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -32,6 +34,8 @@
 		A2000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
 		A2000010 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
 		A2000011 /* MinerLogsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinerLogsSheet.swift; sourceTree = "<group>"; };
+		A2000012 /* Miner+iOS.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "Miner+iOS.swift"; sourceTree = "<group>"; };
+		A2000013 /* MinerUpdate+Factory.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = "MinerUpdate+Factory.swift"; sourceTree = "<group>"; };
 		A2000020 /* HashRipper-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HashRipper-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -62,6 +66,7 @@
 				A2000002 /* ContentView.swift */,
 				A2000010 /* Theme.swift */,
 				A5000004 /* Views */,
+				A5000005 /* Extensions */,
 				A2000003 /* Assets.xcassets */,
 				A2000009 /* Info.plist */,
 			);
@@ -87,6 +92,15 @@
 				A2000011 /* MinerLogsSheet.swift */,
 			);
 			path = Views;
+			sourceTree = "<group>";
+		};
+		A5000005 /* Extensions */ = {
+			isa = PBXGroup;
+			children = (
+				A2000012 /* Miner+iOS.swift */,
+				A2000013 /* MinerUpdate+Factory.swift */,
+			);
+			path = Extensions;
 			sourceTree = "<group>";
 		};
 /* End PBXGroup section */
@@ -174,6 +188,8 @@
 				A1000007 /* SettingsView.swift in Sources */,
 				A1000008 /* MinerSettingsSheet.swift in Sources */,
 				A1000011 /* MinerLogsSheet.swift in Sources */,
+				A1000012 /* Miner+iOS.swift in Sources */,
+				A1000013 /* MinerUpdate+Factory.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -321,7 +337,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.hashmonitor.hashmonitor-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;
@@ -352,7 +368,7 @@
 					"$(inherited)",
 					"@executable_path/Frameworks",
 				);
-				MARKETING_VERSION = 1.0;
+				MARKETING_VERSION = 1.1;
 				PRODUCT_BUNDLE_IDENTIFIER = "com.hashmonitor.hashmonitor-ios";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 				SWIFT_EMIT_LOC_STRINGS = YES;

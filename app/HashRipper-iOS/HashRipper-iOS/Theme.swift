@@ -1,135 +1,306 @@
 //
 //  Theme.swift
-//  HashRipper-iOS
+//  HashMonitor
 //
-//  Design system for consistent, professional styling
+//  Apple Design Language Implementation
+//  Inspired by Home, Health, and Weather apps
 //
 
 import SwiftUI
 
-// MARK: - App Colors
+// MARK: - Design Tokens
+
+/// Apple-style spacing system based on 4pt grid
+enum Spacing {
+    static let xxs: CGFloat = 2
+    static let xs: CGFloat = 4
+    static let sm: CGFloat = 8
+    static let md: CGFloat = 12
+    static let lg: CGFloat = 16
+    static let xl: CGFloat = 20
+    static let xxl: CGFloat = 24
+    static let xxxl: CGFloat = 32
+}
+
+/// Corner radius tokens
+enum Radius {
+    static let sm: CGFloat = 8
+    static let md: CGFloat = 12
+    static let lg: CGFloat = 16
+    static let xl: CGFloat = 20
+    static let full: CGFloat = 100
+}
+
+// MARK: - App Colors (Adaptive)
 
 struct AppColors {
-    // Primary colors
-    static let accent = Color.blue
-    static let accentLight = Color.blue.opacity(0.1)
+    // MARK: - Semantic Colors
     
-    // Text colors
-    static let subtleText = Color(.secondaryLabel)
-    static let mutedText = Color(.tertiaryLabel)
+    /// Primary accent - a refined teal/cyan inspired by Apple's system teal
+    static let accent = Color("AccentColor", bundle: nil)
+    static let accentTint = Color.teal
     
-    // Background colors
-    static let cardBackground = Color(.secondarySystemGroupedBackground)
-    static let cardBorder = Color(.separator).opacity(0.5)
+    // MARK: - Text Hierarchy
+    static let textPrimary = Color(.label)
+    static let textSecondary = Color(.secondaryLabel)
+    static let textTertiary = Color(.tertiaryLabel)
+    static let textQuaternary = Color(.quaternaryLabel)
     
-    // Semantic colors
-    static let success = Color(red: 0.2, green: 0.7, blue: 0.4)
-    static let successLight = Color(red: 0.2, green: 0.7, blue: 0.4).opacity(0.12)
-    static let error = Color(red: 0.85, green: 0.25, blue: 0.25)
-    static let errorLight = Color(red: 0.85, green: 0.25, blue: 0.25).opacity(0.1)
-    static let warning = Color(red: 0.95, green: 0.65, blue: 0.15)
-    static let warningLight = Color(red: 0.95, green: 0.65, blue: 0.15).opacity(0.12)
+    // MARK: - Backgrounds (Semantic)
+    static let backgroundPrimary = Color(.systemBackground)
+    static let backgroundSecondary = Color(.secondarySystemBackground)
+    static let backgroundTertiary = Color(.tertiarySystemBackground)
+    static let backgroundGrouped = Color(.systemGroupedBackground)
+    static let backgroundGroupedSecondary = Color(.secondarySystemGroupedBackground)
     
-    // Data colors
-    static let hashRate = Color(red: 0.3, green: 0.65, blue: 0.9)
-    static let power = Color(red: 0.95, green: 0.6, blue: 0.2)
-    static let frequency = Color(red: 0.55, green: 0.45, blue: 0.85)
-    static let fan = Color(red: 0.3, green: 0.75, blue: 0.7)
+    // MARK: - Fill Colors
+    static let fill = Color(.systemFill)
+    static let fillSecondary = Color(.secondarySystemFill)
+    static let fillTertiary = Color(.tertiarySystemFill)
+    static let fillQuaternary = Color(.quaternarySystemFill)
     
-    // Chart colors
-    static let chartGreen = Color(red: 0.25, green: 0.75, blue: 0.45)
-    static let chartOrange = Color(red: 0.95, green: 0.55, blue: 0.2)
-    static let chartBlue = Color(red: 0.35, green: 0.55, blue: 0.9)
+    // MARK: - Status Colors (Muted, Apple-style)
+    static let statusOnline = Color(red: 0.30, green: 0.69, blue: 0.31)  // Soft green
+    static let statusOffline = Color(red: 0.95, green: 0.33, blue: 0.31) // Soft red
+    static let statusWarning = Color(red: 1.0, green: 0.62, blue: 0.04)  // Soft orange
+    
+    // MARK: - Data Visualization Colors (Inspired by Health app)
+    static let hashRate = Color(red: 0.35, green: 0.78, blue: 0.98)      // Cyan
+    static let power = Color(red: 1.0, green: 0.58, blue: 0.0)           // Orange
+    static let temperature = Color(red: 1.0, green: 0.27, blue: 0.23)    // Red
+    static let frequency = Color(red: 0.69, green: 0.55, blue: 0.99)     // Purple
+    static let shares = Color(red: 0.30, green: 0.85, blue: 0.39)        // Green
+    static let efficiency = Color(red: 0.0, green: 0.48, blue: 1.0)      // Blue
+    
+    // MARK: - Chart Colors
+    static let chartLine = Color.teal
+    static let chartGradientTop = Color.teal.opacity(0.3)
+    static let chartGradientBottom = Color.teal.opacity(0.0)
+    
+    // MARK: - Separator
+    static let separator = Color(.separator)
+    static let separatorOpaque = Color(.opaqueSeparator)
 }
 
 // MARK: - Temperature Color Helper
 
 func temperatureColor(_ temp: Double) -> Color {
     switch temp {
-    case ..<40:
-        return AppColors.success
-    case 40..<55:
-        return Color(red: 0.95, green: 0.75, blue: 0.2)
-    case 55..<70:
-        return AppColors.warning
-    default:
-        return AppColors.error
+    case ..<45: return AppColors.statusOnline
+    case 45..<60: return AppColors.statusWarning
+    default: return AppColors.statusOffline
     }
+}
+
+// MARK: - Typography (SF Pro)
+
+extension Font {
+    // MARK: - Display
+    static let displayLarge = Font.system(size: 34, weight: .bold, design: .rounded)
+    static let displayMedium = Font.system(size: 28, weight: .bold, design: .rounded)
+    static let displaySmall = Font.system(size: 22, weight: .bold, design: .rounded)
+    
+    // MARK: - Title
+    static let titleLarge = Font.system(size: 20, weight: .semibold)
+    static let titleMedium = Font.system(size: 17, weight: .semibold)
+    static let titleSmall = Font.system(size: 15, weight: .semibold)
+    
+    // MARK: - Body
+    static let bodyLarge = Font.system(size: 17, weight: .regular)
+    static let bodyMedium = Font.system(size: 15, weight: .regular)
+    static let bodySmall = Font.system(size: 13, weight: .regular)
+    
+    // MARK: - Caption
+    static let captionLarge = Font.system(size: 12, weight: .medium)
+    static let captionMedium = Font.system(size: 11, weight: .medium)
+    static let captionSmall = Font.system(size: 10, weight: .medium)
+    
+    // MARK: - Numeric (Rounded for data)
+    static let numericLarge = Font.system(size: 34, weight: .bold, design: .rounded)
+    static let numericMedium = Font.system(size: 24, weight: .semibold, design: .rounded)
+    static let numericSmall = Font.system(size: 17, weight: .semibold, design: .rounded)
+    
+    // MARK: - Monospaced (for technical data)
+    static let monoLarge = Font.system(size: 15, weight: .medium, design: .monospaced)
+    static let monoMedium = Font.system(size: 13, weight: .medium, design: .monospaced)
+    static let monoSmall = Font.system(size: 11, weight: .medium, design: .monospaced)
 }
 
 // MARK: - View Modifiers
 
-struct CardStyle: ViewModifier {
+/// Apple-style card with subtle elevation
+struct AppleCard: ViewModifier {
+    @Environment(\.colorScheme) private var colorScheme
+    
+    var padding: CGFloat = Spacing.lg
+    var cornerRadius: CGFloat = Radius.lg
+    
     func body(content: Content) -> some View {
         content
-            .background(AppColors.cardBackground)
-            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
-            .overlay(
-                RoundedRectangle(cornerRadius: 12, style: .continuous)
-                    .strokeBorder(AppColors.cardBorder, lineWidth: 0.5)
+            .padding(padding)
+            .background(
+                RoundedRectangle(cornerRadius: cornerRadius, style: .continuous)
+                    .fill(AppColors.backgroundGroupedSecondary)
+                    .shadow(
+                        color: colorScheme == .dark ? .clear : .black.opacity(0.04),
+                        radius: 8,
+                        x: 0,
+                        y: 2
+                    )
             )
     }
 }
 
-extension View {
-    func cardStyle() -> some View {
-        self.modifier(CardStyle())
+/// Glassy material card (like Control Center)
+struct GlassCard: ViewModifier {
+    var cornerRadius: CGFloat = Radius.lg
+    
+    func body(content: Content) -> some View {
+        content
+            .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: cornerRadius, style: .continuous))
     }
 }
 
-// MARK: - Common Components
+/// Subtle press animation
+struct PressableStyle: ButtonStyle {
+    func makeBody(configuration: Configuration) -> some View {
+        configuration.label
+            .scaleEffect(configuration.isPressed ? 0.97 : 1.0)
+            .opacity(configuration.isPressed ? 0.9 : 1.0)
+            .animation(.spring(response: 0.25, dampingFraction: 0.7), value: configuration.isPressed)
+    }
+}
 
-struct StatusBadge: View {
+extension View {
+    func appleCard(padding: CGFloat = Spacing.lg, cornerRadius: CGFloat = Radius.lg) -> some View {
+        modifier(AppleCard(padding: padding, cornerRadius: cornerRadius))
+    }
+    
+    func glassCard(cornerRadius: CGFloat = Radius.lg) -> some View {
+        modifier(GlassCard(cornerRadius: cornerRadius))
+    }
+}
+
+// MARK: - Reusable Components
+
+/// Status indicator dot (Apple-style)
+struct StatusDot: View {
     let isOnline: Bool
-    var compact: Bool = false
+    var size: CGFloat = 8
     
     var body: some View {
-        HStack(spacing: 4) {
-            Circle()
-                .fill(isOnline ? AppColors.success : AppColors.error)
-                .frame(width: compact ? 6 : 8, height: compact ? 6 : 8)
-            
-            if !compact {
-                Text(isOnline ? "Online" : "Offline")
-                    .font(.system(size: 11, weight: .medium))
-                    .foregroundStyle(isOnline ? AppColors.success : AppColors.error)
-            }
-        }
-        .padding(.horizontal, compact ? 6 : 8)
-        .padding(.vertical, compact ? 3 : 4)
-        .background((isOnline ? AppColors.success : AppColors.error).opacity(0.12))
-        .clipShape(Capsule())
+        Circle()
+            .fill(isOnline ? AppColors.statusOnline : AppColors.statusOffline)
+            .frame(width: size, height: size)
+            .shadow(color: (isOnline ? AppColors.statusOnline : AppColors.statusOffline).opacity(0.5), radius: size/2)
     }
 }
 
+/// Compact status badge (like Apple Mail)
+struct StatusBadge: View {
+    let isOnline: Bool
+    var showLabel: Bool = true
+    
+    var body: some View {
+        HStack(spacing: Spacing.xs) {
+            StatusDot(isOnline: isOnline, size: 6)
+            
+            if showLabel {
+                Text(isOnline ? "Online" : "Offline")
+                    .font(.captionMedium)
+                    .foregroundStyle(isOnline ? AppColors.statusOnline : AppColors.statusOffline)
+            }
+        }
+        .padding(.horizontal, showLabel ? Spacing.sm : Spacing.xs)
+        .padding(.vertical, Spacing.xs)
+        .background(
+            Capsule()
+                .fill((isOnline ? AppColors.statusOnline : AppColors.statusOffline).opacity(0.12))
+        )
+    }
+}
+
+/// Large stat display (Health app style)
+struct StatDisplay: View {
+    let value: String
+    let unit: String
+    let label: String
+    let icon: String
+    let color: Color
+    
+    @State private var hasAppeared = false
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: Spacing.xs) {
+            // Icon and label
+            HStack(spacing: Spacing.xs) {
+                Image(systemName: icon)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(color)
+                
+                Text(label.uppercased())
+                    .font(.captionSmall)
+                    .foregroundStyle(AppColors.textTertiary)
+                    .tracking(0.5)
+            }
+            
+            // Value
+            HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
+                Text(value)
+                    .font(.numericMedium)
+                    .foregroundStyle(AppColors.textPrimary)
+                    .contentTransition(.numericText())
+                
+                Text(unit)
+                    .font(.captionLarge)
+                    .foregroundStyle(AppColors.textSecondary)
+            }
+        }
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .padding(Spacing.md)
+        .background(color.opacity(0.08))
+        .clipShape(RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+        .opacity(hasAppeared ? 1 : 0)
+        .offset(y: hasAppeared ? 0 : 10)
+        .onAppear {
+            withAnimation(.spring(response: 0.5, dampingFraction: 0.8).delay(0.1)) {
+                hasAppeared = true
+            }
+        }
+    }
+}
+
+/// Compact stat badge (for lists)
 struct StatBadge: View {
     let icon: String
     let value: String
     let unit: String
     let color: Color
-    var iconColor: Color? = nil
     var compact: Bool = false
     
     var body: some View {
-        HStack(spacing: compact ? 3 : 4) {
+        HStack(spacing: Spacing.xxs) {
             Image(systemName: icon)
                 .font(.system(size: compact ? 9 : 10, weight: .semibold))
-                .foregroundStyle(iconColor ?? color)
+                .foregroundStyle(color)
             
             Text(value)
-                .font(.system(size: compact ? 11 : 12, weight: .semibold, design: .rounded))
+                .font(compact ? .captionMedium : .captionLarge)
+                .fontWeight(.semibold)
+                .fontDesign(.rounded)
             
             Text(unit)
-                .font(.system(size: compact ? 9 : 10, weight: .medium))
-                .foregroundStyle(AppColors.mutedText)
+                .font(.captionSmall)
+                .foregroundStyle(AppColors.textTertiary)
         }
-        .padding(.horizontal, compact ? 6 : 8)
-        .padding(.vertical, compact ? 4 : 5)
+        .padding(.horizontal, compact ? Spacing.sm : Spacing.md)
+        .padding(.vertical, compact ? Spacing.xs : Spacing.sm)
         .background(color.opacity(0.1))
         .clipShape(Capsule())
     }
 }
 
+/// Empty state view (Apple-style)
 struct EmptyStateView: View {
     let icon: String
     let title: String
@@ -138,92 +309,183 @@ struct EmptyStateView: View {
     var action: (() -> Void)? = nil
     
     var body: some View {
-        VStack(spacing: 20) {
-            Image(systemName: icon)
-                .font(.system(size: 56, weight: .light))
-                .foregroundStyle(AppColors.mutedText)
+        VStack(spacing: Spacing.xl) {
+            // Icon with gradient background
+            ZStack {
+                Circle()
+                    .fill(
+                        LinearGradient(
+                            colors: [AppColors.fillSecondary, AppColors.fillTertiary],
+                            startPoint: .topLeading,
+                            endPoint: .bottomTrailing
+                        )
+                    )
+                    .frame(width: 80, height: 80)
+                
+                Image(systemName: icon)
+                    .font(.system(size: 32, weight: .medium))
+                    .foregroundStyle(AppColors.textTertiary)
+            }
             
-            VStack(spacing: 8) {
+            VStack(spacing: Spacing.sm) {
                 Text(title)
-                    .font(.system(size: 20, weight: .semibold))
+                    .font(.titleMedium)
+                    .foregroundStyle(AppColors.textPrimary)
                 
                 Text(message)
-                    .font(.system(size: 14))
-                    .foregroundStyle(AppColors.subtleText)
+                    .font(.bodySmall)
+                    .foregroundStyle(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
+                    .frame(maxWidth: 280)
             }
             
             if let buttonTitle = buttonTitle, let action = action {
                 Button(action: action) {
                     Text(buttonTitle)
-                        .frame(minWidth: 120)
+                        .font(.bodyMedium)
+                        .fontWeight(.semibold)
+                        .padding(.horizontal, Spacing.xxl)
+                        .padding(.vertical, Spacing.md)
                 }
                 .buttonStyle(.borderedProminent)
-                .tint(AppColors.accent)
-                .controlSize(.large)
+                .tint(.teal)
             }
         }
-        .padding(32)
+        .padding(Spacing.xxxl)
     }
 }
 
+/// Section header (Settings-style)
 struct SectionHeader: View {
     let title: String
     var count: Int? = nil
+    var action: (() -> Void)? = nil
+    var actionLabel: String? = nil
     
     var body: some View {
-        HStack(spacing: 8) {
-            Text(title)
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AppColors.subtleText)
+        HStack(alignment: .center) {
+            Text(title.uppercased())
+                .font(.captionMedium)
+                .foregroundStyle(AppColors.textSecondary)
+                .tracking(0.5)
             
             if let count = count {
                 Text("\(count)")
-                    .font(.system(size: 12, weight: .medium))
-                    .foregroundStyle(AppColors.mutedText)
-                    .padding(.horizontal, 6)
-                    .padding(.vertical, 2)
-                    .background(Color(.tertiarySystemFill))
+                    .font(.captionMedium)
+                    .foregroundStyle(AppColors.textTertiary)
+                    .padding(.horizontal, Spacing.sm)
+                    .padding(.vertical, Spacing.xxs)
+                    .background(AppColors.fillTertiary)
                     .clipShape(Capsule())
             }
             
             Spacer()
+            
+            if let action = action, let label = actionLabel {
+                Button(action: action) {
+                    Text(label)
+                        .font(.captionLarge)
+                        .foregroundStyle(.teal)
+                }
+            }
         }
-        .padding(.horizontal, 4)
+        .padding(.horizontal, Spacing.xs)
+    }
+}
+
+/// Mini graph sparkline
+struct Sparkline: View {
+    let data: [Double]
+    let color: Color
+    
+    var body: some View {
+        GeometryReader { geometry in
+            let maxVal = data.max() ?? 1
+            let minVal = data.min() ?? 0
+            let range = maxVal - minVal
+            let normalizedData = data.map { range > 0 ? ($0 - minVal) / range : 0.5 }
+            
+            Path { path in
+                guard normalizedData.count > 1 else { return }
+                
+                let stepX = geometry.size.width / CGFloat(normalizedData.count - 1)
+                
+                path.move(to: CGPoint(
+                    x: 0,
+                    y: geometry.size.height * (1 - normalizedData[0])
+                ))
+                
+                for (index, value) in normalizedData.enumerated().dropFirst() {
+                    path.addLine(to: CGPoint(
+                        x: stepX * CGFloat(index),
+                        y: geometry.size.height * (1 - value)
+                    ))
+                }
+            }
+            .stroke(color, style: StrokeStyle(lineWidth: 1.5, lineCap: .round, lineJoin: .round))
+        }
+    }
+}
+
+// MARK: - Haptics
+
+struct Haptics {
+    static func impact(_ style: UIImpactFeedbackGenerator.FeedbackStyle = .light) {
+        UIImpactFeedbackGenerator(style: style).impactOccurred()
+    }
+    
+    static func notification(_ type: UINotificationFeedbackGenerator.FeedbackType) {
+        UINotificationFeedbackGenerator().notificationOccurred(type)
+    }
+    
+    static func selection() {
+        UISelectionFeedbackGenerator().selectionChanged()
     }
 }
 
 // MARK: - Preview
 
-#Preview("Theme Components") {
+#Preview("Design System") {
     ScrollView {
-        VStack(spacing: 20) {
+        VStack(spacing: Spacing.xxl) {
             // Status badges
-            HStack {
+            HStack(spacing: Spacing.md) {
                 StatusBadge(isOnline: true)
                 StatusBadge(isOnline: false)
-                StatusBadge(isOnline: true, compact: true)
+                StatusBadge(isOnline: true, showLabel: false)
             }
+            
+            // Stat displays
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+                StatDisplay(value: "524", unit: "GH/s", label: "Hash Rate", icon: "cube.fill", color: AppColors.hashRate)
+                StatDisplay(value: "14.2", unit: "W", label: "Power", icon: "bolt.fill", color: AppColors.power)
+                StatDisplay(value: "52", unit: "°C", label: "Temperature", icon: "thermometer.medium", color: AppColors.temperature)
+                StatDisplay(value: "575", unit: "MHz", label: "Frequency", icon: "waveform", color: AppColors.frequency)
+            }
+            .padding(.horizontal)
             
             // Stat badges
-            HStack {
-                StatBadge(icon: "cube.fill", value: "525", unit: "GH/s", color: AppColors.hashRate)
-                StatBadge(icon: "bolt.fill", value: "14.2", unit: "W", color: AppColors.power)
+            HStack(spacing: Spacing.sm) {
+                StatBadge(icon: "cube.fill", value: "524", unit: "GH/s", color: AppColors.hashRate)
+                StatBadge(icon: "bolt.fill", value: "14.2", unit: "W", color: AppColors.power, compact: true)
             }
-            
-            // Section header
-            SectionHeader(title: "Devices", count: 3)
             
             // Empty state
             EmptyStateView(
-                icon: "server.rack",
+                icon: "cpu",
                 title: "No Miners",
-                message: "Add a miner to get started",
+                message: "Add a miner to start monitoring your Bitcoin mining devices",
                 buttonTitle: "Add Miner",
                 action: { }
             )
-            .cardStyle()
+            .appleCard()
+            .padding(.horizontal)
+            
+            // Section header
+            SectionHeader(title: "Devices", count: 3, action: {}, actionLabel: "See All")
+                .padding(.horizontal)
         }
-        .padding()
+        .padding(.vertical)
     }
+    .background(AppColors.backgroundGrouped)
 }

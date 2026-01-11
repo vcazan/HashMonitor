@@ -1,8 +1,8 @@
 //
 //  MinerSettingsSheet.swift
-//  HashRipper-iOS
+//  HashMonitor
 //
-//  Professional miner settings with muted, sophisticated design
+//  Apple Design Language - Settings inspired
 //
 
 import SwiftUI
@@ -13,621 +13,558 @@ import AxeOSClient
 struct MinerSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
+    @Bindable var miner: Miner
     
-    let miner: Miner
-    
-    // Current values (read-only display)
-    @State private var currentFrequency: Int = 0
-    @State private var currentVoltage: Int = 0
-    @State private var currentFanSpeed: Int = 0
-    @State private var currentAutoFan: Bool = true
-    
-    // Editable settings
-    @State private var frequency: Int = 500
-    @State private var coreVoltage: Int = 1200
-    @State private var fanSpeed: Int = 100
-    @State private var autoFanSpeed: Bool = true
-    @State private var tuningEnabled: Bool = false
-    @State private var flipScreen: Bool = false
-    @State private var invertScreen: Bool = false
-    @State private var invertFanPolarity: Bool = false
-    
-    // Device settings
+    // Settings state
     @State private var hostname: String = ""
+    @State private var frequency: Double = 575
+    @State private var voltage: Double = 1200
+    @State private var fanSpeed: Double = 100
+    @State private var autoFan: Bool = true
     
     // Pool settings
-    @State private var stratumURL: String = ""
-    @State private var stratumPort: String = ""
-    @State private var stratumUser: String = ""
-    @State private var stratumPassword: String = ""
+    @State private var poolURL: String = ""
+    @State private var poolPort: String = "3333"
+    @State private var poolUser: String = ""
+    @State private var poolPassword: String = ""
     
-    // UI State
-    @State private var isLoading = true
+    // UI state
     @State private var isSaving = false
-    @State private var showSuccessAlert = false
-    @State private var showErrorAlert = false
-    @State private var showRemoveAlert = false
-    @State private var errorMessage: String = ""
+    @State private var showSaveSuccess = false
+    @State private var showDeleteConfirmation = false
     @State private var hasChanges = false
+    @State private var latestUpdate: MinerUpdate?
     
-    private var frequencyRange: ClosedRange<Int> { 495...1000 }
-    private var voltageRange: ClosedRange<Int> { 1085...1350 }
+    private let session = URLSession.shared
+    
+    // Constraints
+    private let frequencyRange: ClosedRange<Double> = 495...1000
+    private let voltageRange: ClosedRange<Double> = 1085...1350
+    private let fanRange: ClosedRange<Double> = 0...100
     
     var body: some View {
         NavigationStack {
-            Group {
-                if isLoading {
-                    loadingView
-                } else {
-                    settingsContent
+            ZStack {
+                AppColors.backgroundGrouped
+                    .ignoresSafeArea()
+                
+                ScrollView {
+                    LazyVStack(spacing: Spacing.xl) {
+                        // Device section
+                        deviceSection
+                        
+                        // Performance section
+                        performanceSection
+                        
+                        // Pool section
+                        poolSection
+                        
+                        // Danger zone
+                        dangerSection
+                    }
+                    .padding()
                 }
             }
-            .background(Color(.systemGroupedBackground))
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") { dismiss() }
-                }
-                
-                ToolbarItem(placement: .principal) {
-                    if hasChanges && !isLoading {
-                        Button("Revert") {
-                            Task { await loadCurrentSettings() }
-                            hasChanges = false
-                        }
-                        .font(.system(size: 14))
-                        .foregroundStyle(AppColors.subtleText)
+                    Button("Cancel") {
+                        dismiss()
                     }
                 }
                 
-                ToolbarItem(placement: .confirmationAction) {
-                    if isSaving {
-                        ProgressView()
-                    } else {
-                        Button("Save") {
+                ToolbarItem(placement: .primaryAction) {
+                    if hasChanges {
+                        Button {
+                            Haptics.impact(.medium)
                             Task { await saveSettings() }
+                        } label: {
+                            if isSaving {
+                                ProgressView()
+                                    .tint(.teal)
+                            } else {
+                                Text("Save")
+                                    .fontWeight(.semibold)
+                            }
                         }
-                        .fontWeight(.semibold)
-                        .foregroundStyle(hasChanges ? AppColors.accent : AppColors.mutedText)
-                        .disabled(!hasChanges)
+                        .disabled(isSaving)
                     }
                 }
             }
-            .alert("Settings Saved", isPresented: $showSuccessAlert) {
+            .alert("Miner Removed", isPresented: $showDeleteConfirmation) {
                 Button("OK") { dismiss() }
             } message: {
-                Text("Miner settings updated successfully.")
+                Text("The miner has been removed from your list.")
             }
-            .alert("Error", isPresented: $showErrorAlert) {
-                Button("OK") { }
-            } message: {
-                Text(errorMessage)
+            .overlay {
+                if showSaveSuccess {
+                    saveSuccessOverlay
+                }
             }
-            .alert("Remove Miner?", isPresented: $showRemoveAlert) {
-                Button("Cancel", role: .cancel) { }
-                Button("Remove", role: .destructive) { removeMiner() }
-            } message: {
-                Text("Remove \(miner.hostName) and all stored data?")
+            .task {
+                loadCurrentSettings()
             }
-        }
-        .task {
-            await loadCurrentSettings()
-        }
-    }
-    
-    // MARK: - Loading View
-    
-    private var loadingView: some View {
-        VStack(spacing: 16) {
-            ProgressView()
-                .tint(AppColors.accent)
-            Text("Loading settings...")
-                .font(.system(size: 14))
-                .foregroundStyle(AppColors.subtleText)
-        }
-        .frame(maxWidth: .infinity, maxHeight: .infinity)
-    }
-    
-    // MARK: - Settings Content
-    
-    private var settingsContent: some View {
-        ScrollView {
-            VStack(spacing: 16) {
-                deviceCard
-                poolCard
-                statusCard
-                performanceCard
-                coolingCard
-                displayCard
-                dangerCard
-            }
-            .padding(16)
+            .onChange(of: hostname) { _, _ in hasChanges = true }
+            .onChange(of: poolURL) { _, _ in hasChanges = true }
+            .onChange(of: poolPort) { _, _ in hasChanges = true }
+            .onChange(of: poolUser) { _, _ in hasChanges = true }
+            .onChange(of: poolPassword) { _, _ in hasChanges = true }
+            .onChange(of: frequency) { _, _ in hasChanges = true }
+            .onChange(of: voltage) { _, _ in hasChanges = true }
+            .onChange(of: fanSpeed) { _, _ in hasChanges = true }
+            .onChange(of: autoFan) { _, _ in hasChanges = true }
         }
     }
     
-    // MARK: - Device Card
+    // MARK: - Device Section
     
-    private var deviceCard: some View {
-        SettingsCard(title: "Device", icon: "desktopcomputer") {
-            VStack(alignment: .leading, spacing: 8) {
-                Text("Hostname")
-                    .font(.system(size: 12))
-                    .foregroundStyle(AppColors.subtleText)
+    private var deviceSection: some View {
+        SettingsSection(title: "Device", icon: "cpu") {
+            VStack(spacing: 1) {
+                SettingsTextField(
+                    label: "Hostname",
+                    placeholder: "BitAxe",
+                    text: $hostname
+                )
                 
-                TextField("Hostname", text: Binding(
-                    get: { hostname },
-                    set: { hostname = $0; hasChanges = true }
-                ))
-                .font(.system(size: 15, weight: .medium, design: .monospaced))
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .padding(12)
-                .background(Color(.tertiarySystemFill))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
-            }
-        }
-    }
-    
-    // MARK: - Pool Card
-    
-    private var poolCard: some View {
-        SettingsCard(title: "Mining Pool", icon: "server.rack") {
-            VStack(spacing: 12) {
-                SettingsTextField(label: "Pool URL", text: Binding(
-                    get: { stratumURL },
-                    set: { stratumURL = $0; hasChanges = true }
-                ), placeholder: "stratum+tcp://pool.example.com")
-                .textContentType(.URL)
+                SettingsInfoRow(
+                    label: "IP Address",
+                    value: miner.ipAddress
+                )
                 
-                SettingsTextField(label: "Port", text: Binding(
-                    get: { stratumPort },
-                    set: { stratumPort = $0; hasChanges = true }
-                ), placeholder: "3333")
-                .keyboardType(.numberPad)
+                SettingsInfoRow(
+                    label: "MAC Address",
+                    value: miner.macAddress
+                )
                 
-                SettingsTextField(label: "Worker", text: Binding(
-                    get: { stratumUser },
-                    set: { stratumUser = $0; hasChanges = true }
-                ), placeholder: "wallet.worker")
-                
-                VStack(alignment: .leading, spacing: 4) {
-                    Text("Password")
-                        .font(.system(size: 12))
-                        .foregroundStyle(AppColors.subtleText)
-                    
-                    SecureField("Optional", text: Binding(
-                        get: { stratumPassword },
-                        set: { stratumPassword = $0; hasChanges = true }
-                    ))
-                    .font(.system(size: 15))
-                    .padding(12)
-                    .background(Color(.tertiarySystemFill))
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                if let update = latestUpdate {
+                    SettingsInfoRow(
+                        label: "Firmware",
+                        value: update.minerFirmwareVersion
+                    )
                 }
             }
         }
     }
     
-    // MARK: - Status Card
+    // MARK: - Performance Section
     
-    private var statusCard: some View {
-        SettingsCard(title: "Current Status", icon: "info.circle") {
-            VStack(spacing: 0) {
-                StatusRow(label: "Frequency", value: "\(currentFrequency) MHz")
-                Divider().padding(.leading, 16)
-                StatusRow(label: "Core Voltage", value: "\(currentVoltage) mV")
-                Divider().padding(.leading, 16)
-                StatusRow(label: "Fan", value: currentAutoFan ? "Auto" : "\(currentFanSpeed)%")
-            }
-        }
-    }
-    
-    // MARK: - Performance Card
-    
-    private var performanceCard: some View {
-        SettingsCard(title: "Performance", icon: "bolt.fill") {
-            VStack(spacing: 16) {
-                Toggle(isOn: Binding(
-                    get: { tuningEnabled },
-                    set: { tuningEnabled = $0; hasChanges = true }
-                )) {
-                    HStack(spacing: 10) {
-                        Image(systemName: "bolt.fill")
-                            .foregroundStyle(tuningEnabled ? AppColors.warning : AppColors.mutedText)
-                            .font(.system(size: 14))
-                        Text("Enable Tuning")
-                            .font(.system(size: 15))
+    private var performanceSection: some View {
+        SettingsSection(title: "Performance", icon: "gauge.with.dots.needle.67percent") {
+            VStack(spacing: Spacing.lg) {
+                // Frequency
+                SettingsSlider(
+                    label: "Frequency",
+                    value: $frequency,
+                    range: frequencyRange,
+                    step: 5,
+                    unit: "MHz",
+                    color: AppColors.frequency
+                )
+                
+                Divider()
+                
+                // Voltage
+                SettingsSlider(
+                    label: "Core Voltage",
+                    value: $voltage,
+                    range: voltageRange,
+                    step: 5,
+                    unit: "mV",
+                    color: AppColors.power
+                )
+                
+                Divider()
+                
+                // Fan
+                Toggle(isOn: $autoFan) {
+                    HStack {
+                        Image(systemName: "fan.fill")
+                            .foregroundStyle(AppColors.efficiency)
+                        Text("Auto Fan")
+                            .font(.bodyMedium)
                     }
                 }
-                .tint(AppColors.accent)
+                .tint(.teal)
                 
-                if tuningEnabled {
-                    Divider()
-                    
-                    // Frequency Slider
-                    SliderControl(
-                        label: "Frequency",
-                        value: $frequency,
-                        range: frequencyRange,
-                        step: 5,
-                        unit: "MHz",
-                        color: AppColors.frequency,
-                        onChange: { hasChanges = true }
-                    )
-                    
-                    // Voltage Slider
-                    SliderControl(
-                        label: "Core Voltage",
-                        value: $coreVoltage,
-                        range: voltageRange,
-                        step: 10,
-                        unit: "mV",
-                        color: AppColors.warning,
-                        onChange: { hasChanges = true }
-                    )
-                    
-                    HStack(spacing: 8) {
-                        Image(systemName: "exclamationmark.triangle.fill")
-                            .font(.system(size: 12))
-                            .foregroundStyle(AppColors.warning)
-                        Text("Modifying these settings may affect stability")
-                            .font(.system(size: 11))
-                            .foregroundStyle(AppColors.warning)
-                    }
-                    .padding(10)
-                    .frame(maxWidth: .infinity, alignment: .leading)
-                    .background(AppColors.warningLight)
-                    .clipShape(RoundedRectangle(cornerRadius: 8))
-                }
-            }
-        }
-    }
-    
-    // MARK: - Cooling Card
-    
-    private var coolingCard: some View {
-        SettingsCard(title: "Cooling", icon: "fan.fill") {
-            VStack(spacing: 16) {
-                Toggle(isOn: Binding(
-                    get: { autoFanSpeed },
-                    set: { autoFanSpeed = $0; hasChanges = true }
-                )) {
-                    Text("Auto Fan Speed")
-                        .font(.system(size: 15))
-                }
-                .tint(AppColors.accent)
-                
-                if !autoFanSpeed {
-                    Divider()
-                    
-                    SliderControl(
+                if !autoFan {
+                    SettingsSlider(
                         label: "Fan Speed",
                         value: $fanSpeed,
-                        range: 0...100,
+                        range: fanRange,
                         step: 5,
                         unit: "%",
-                        color: AppColors.fan,
-                        onChange: { hasChanges = true }
+                        color: AppColors.efficiency
                     )
                 }
+            }
+            .padding(Spacing.lg)
+        }
+    }
+    
+    // MARK: - Pool Section
+    
+    private var poolSection: some View {
+        SettingsSection(title: "Mining Pool", icon: "network") {
+            VStack(spacing: 1) {
+                SettingsTextField(
+                    label: "Pool URL",
+                    placeholder: "stratum+tcp://pool.example.com",
+                    text: $poolURL
+                )
                 
-                Divider()
+                SettingsTextField(
+                    label: "Port",
+                    placeholder: "3333",
+                    text: $poolPort,
+                    keyboardType: .numberPad
+                )
                 
-                Toggle(isOn: Binding(
-                    get: { invertFanPolarity },
-                    set: { invertFanPolarity = $0; hasChanges = true }
-                )) {
-                    Text("Invert Fan Polarity")
-                        .font(.system(size: 15))
-                }
-                .tint(AppColors.accent)
+                SettingsTextField(
+                    label: "Worker",
+                    placeholder: "your_wallet.worker",
+                    text: $poolUser
+                )
+                
+                SettingsTextField(
+                    label: "Password",
+                    placeholder: "x",
+                    text: $poolPassword,
+                    isSecure: true
+                )
             }
         }
     }
     
-    // MARK: - Display Card
+    // MARK: - Danger Section
     
-    private var displayCard: some View {
-        SettingsCard(title: "Display", icon: "display") {
-            VStack(spacing: 12) {
-                Toggle(isOn: Binding(
-                    get: { flipScreen },
-                    set: { flipScreen = $0; hasChanges = true }
-                )) {
-                    Text("Flip Screen")
-                        .font(.system(size: 15))
+    private var dangerSection: some View {
+        SettingsSection(title: "Actions", icon: "exclamationmark.triangle") {
+            VStack(spacing: 1) {
+                Button {
+                    Haptics.impact(.medium)
+                    Task { await restartMiner() }
+                } label: {
+                    SettingsButtonRow(
+                        label: "Restart Miner",
+                        icon: "arrow.clockwise",
+                        color: .orange
+                    )
                 }
-                .tint(AppColors.accent)
+                .buttonStyle(.plain)
                 
-                Divider()
-                
-                Toggle(isOn: Binding(
-                    get: { invertScreen },
-                    set: { invertScreen = $0; hasChanges = true }
-                )) {
-                    Text("Invert Colors")
-                        .font(.system(size: 15))
+                Button {
+                    Haptics.impact(.heavy)
+                    removeMiner()
+                } label: {
+                    SettingsButtonRow(
+                        label: "Remove Miner",
+                        icon: "trash",
+                        color: AppColors.statusOffline
+                    )
                 }
-                .tint(AppColors.accent)
+                .buttonStyle(.plain)
             }
         }
     }
     
-    // MARK: - Danger Card
+    // MARK: - Save Success Overlay
     
-    private var dangerCard: some View {
-        VStack(alignment: .leading, spacing: 10) {
-            Text("Danger Zone")
-                .font(.system(size: 13, weight: .semibold))
-                .foregroundStyle(AppColors.error)
+    private var saveSuccessOverlay: some View {
+        VStack(spacing: Spacing.md) {
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 48))
+                .foregroundStyle(AppColors.statusOnline)
             
-            Button {
-                showRemoveAlert = true
-            } label: {
-                HStack {
-                    Spacer()
-                    Image(systemName: "trash")
-                    Text("Remove Miner")
-                    Spacer()
-                }
-                .font(.system(size: 15, weight: .medium))
-            }
-            .foregroundStyle(AppColors.error)
-            .padding(14)
-            .background(AppColors.errorLight)
-            .clipShape(RoundedRectangle(cornerRadius: 10))
-            
-            Text("Removes all monitoring and stored data")
-                .font(.system(size: 11))
-                .foregroundStyle(AppColors.mutedText)
+            Text("Settings Saved")
+                .font(.titleSmall)
+                .foregroundStyle(AppColors.textPrimary)
         }
-        .padding(14)
-        .cardStyle()
+        .padding(Spacing.xxl)
+        .background(.ultraThinMaterial, in: RoundedRectangle(cornerRadius: Radius.xl, style: .continuous))
+        .transition(.scale.combined(with: .opacity))
     }
     
-    // MARK: - Actions
+    // MARK: - Functions
     
-    private func loadCurrentSettings() async {
-        isLoading = true
-        defer { isLoading = false }
+    private func loadCurrentSettings() {
+        hostname = miner.hostName
+        latestUpdate = miner.getLatestUpdate(from: modelContext)
         
-        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: .shared)
-        let result = await client.getSystemInfo()
-        
-        if case .success(let info) = result {
-            await MainActor.run {
-                currentFrequency = Int(info.frequency ?? 500)
-                currentVoltage = info.coreVoltage ?? 1200
-                currentFanSpeed = Int(info.fanspeed ?? 100)
-                currentAutoFan = (info.autofanspeed ?? 1) == 1
-                
-                frequency = Int(info.frequency ?? 500)
-                coreVoltage = info.coreVoltage ?? 1200
-                fanSpeed = Int(info.fanspeed ?? 100)
-                autoFanSpeed = (info.autofanspeed ?? 1) == 1
-                flipScreen = (info.flipscreen ?? 0) == 1
-                invertScreen = (info.invertscreen ?? 0) == 1
-                invertFanPolarity = (info.invertfanpolarity ?? 0) == 1
-                
-                hostname = info.hostname
-                stratumURL = info.stratumURL ?? ""
-                stratumPort = String(info.stratumPort ?? 0)
-                stratumUser = info.stratumUser ?? ""
-                
-                tuningEnabled = UserDefaults.standard.bool(forKey: "tuningEnabled_\(miner.macAddress)")
-            }
+        if let update = latestUpdate {
+            frequency = update.frequency ?? 575
+            voltage = update.voltage ?? 1200
+            fanSpeed = update.fanspeed ?? 100
+            autoFan = update.autofanspeed == 1
+            
+            poolURL = update.stratumURL
+            poolPort = String(update.stratumPort)
+            poolUser = update.stratumUser
+            poolPassword = ""
         }
+        
+        hasChanges = false
     }
     
     private func saveSettings() async {
         isSaving = true
-        defer { isSaving = false }
         
-        UserDefaults.standard.set(tuningEnabled, forKey: "tuningEnabled_\(miner.macAddress)")
+        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
         
-        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: .shared)
-        
+        // Build the settings object with all current values
         let settings = MinerSettings(
-            stratumURL: stratumURL.isEmpty ? nil : stratumURL,
+            stratumURL: poolURL,
             fallbackStratumURL: nil,
-            stratumUser: stratumUser.isEmpty ? nil : stratumUser,
-            stratumPassword: stratumPassword.isEmpty ? nil : stratumPassword,
+            stratumUser: poolUser,
+            stratumPassword: poolPassword.isEmpty ? "x" : poolPassword,
             fallbackStratumUser: nil,
             fallbackStratumPassword: nil,
-            stratumPort: Int(stratumPort),
+            stratumPort: Int(poolPort) ?? 3333,
             fallbackStratumPort: nil,
             ssid: nil,
             wifiPass: nil,
-            hostname: hostname.isEmpty ? nil : hostname,
-            coreVoltage: tuningEnabled ? coreVoltage : nil,
-            frequency: tuningEnabled ? frequency : nil,
-            flipscreen: flipScreen ? 1 : 0,
+            hostname: hostname,
+            coreVoltage: Int(voltage),
+            frequency: Int(frequency),
+            flipscreen: nil,
             overheatMode: nil,
-            overclockEnabled: tuningEnabled ? 1 : 0,
-            invertscreen: invertScreen ? 1 : 0,
-            invertfanpolarity: invertFanPolarity ? 1 : 0,
-            autofanspeed: autoFanSpeed ? 1 : 0,
-            fanspeed: autoFanSpeed ? nil : fanSpeed
+            overclockEnabled: nil,
+            invertscreen: nil,
+            invertfanpolarity: nil,
+            autofanspeed: autoFan ? 1 : 0,
+            fanspeed: autoFan ? nil : Int(fanSpeed)
         )
         
         let result = await client.updateSystemSettings(settings: settings)
         
-        await MainActor.run {
-            switch result {
-            case .success:
-                hasChanges = false
-                currentFrequency = frequency
-                currentVoltage = coreVoltage
-                currentFanSpeed = fanSpeed
-                currentAutoFan = autoFanSpeed
-                
-                if !hostname.isEmpty && miner.hostName != hostname {
-                    miner.hostName = hostname
-                }
-                showSuccessAlert = true
-                
-            case .failure(let error):
-                errorMessage = "Failed to save: \(error.localizedDescription)"
-                showErrorAlert = true
+        switch result {
+        case .success:
+            // Update local miner hostname if changed
+            if hostname != miner.hostName {
+                miner.hostName = hostname
             }
+            
+            await MainActor.run {
+                withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
+                    showSaveSuccess = true
+                }
+                Haptics.notification(.success)
+                hasChanges = false
+            }
+            
+            try? await Task.sleep(nanoseconds: 1_500_000_000)
+            
+            await MainActor.run {
+                withAnimation {
+                    showSaveSuccess = false
+                }
+                dismiss()
+            }
+            
+        case .failure:
+            await MainActor.run {
+                Haptics.notification(.error)
+            }
+        }
+        
+        isSaving = false
+    }
+    
+    private func restartMiner() async {
+        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
+        let result = await client.restartClient()
+        
+        switch result {
+        case .success:
+            Haptics.notification(.success)
+        case .failure:
+            Haptics.notification(.error)
         }
     }
     
     private func removeMiner() {
+        // Delete associated updates first
         let macAddress = miner.macAddress
-        let updateDescriptor = FetchDescriptor<MinerUpdate>(
+        let descriptor = FetchDescriptor<MinerUpdate>(
             predicate: #Predicate<MinerUpdate> { $0.macAddress == macAddress }
         )
         
-        do {
-            let updates = try modelContext.fetch(updateDescriptor)
-            for update in updates { modelContext.delete(update) }
-        } catch {
-            print("Error cleaning up miner updates: \(error)")
+        if let updates = try? modelContext.fetch(descriptor) {
+            for update in updates {
+                modelContext.delete(update)
+            }
         }
         
         modelContext.delete(miner)
         
-        do {
-            try modelContext.save()
-        } catch {
-            print("Error saving after miner deletion: \(error)")
-        }
-        
-        dismiss()
+        try? modelContext.save()
+        showDeleteConfirmation = true
     }
 }
 
-// MARK: - Supporting Views
+// MARK: - Settings Section
 
-struct SettingsCard<Content: View>: View {
+struct SettingsSection<Content: View>: View {
     let title: String
     let icon: String
-    @ViewBuilder let content: Content
+    @ViewBuilder let content: () -> Content
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 14) {
-            HStack(spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.md) {
+            HStack(spacing: Spacing.sm) {
                 Image(systemName: icon)
-                    .font(.system(size: 13))
-                    .foregroundStyle(AppColors.subtleText)
-                Text(title)
-                    .font(.system(size: 13, weight: .semibold))
-                    .foregroundStyle(AppColors.subtleText)
+                    .font(.system(size: 12, weight: .semibold))
+                    .foregroundStyle(.teal)
+                
+                Text(title.uppercased())
+                    .font(.captionMedium)
+                    .foregroundStyle(AppColors.textSecondary)
+                    .tracking(0.5)
             }
+            .padding(.horizontal, Spacing.xs)
             
-            content
+            content()
+                .background(
+                    RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+                        .fill(AppColors.backgroundGroupedSecondary)
+                )
         }
-        .padding(14)
-        .cardStyle()
     }
 }
+
+// MARK: - Settings Text Field
 
 struct SettingsTextField: View {
     let label: String
-    @Binding var text: String
     let placeholder: String
+    @Binding var text: String
+    var keyboardType: UIKeyboardType = .default
+    var isSecure: Bool = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 4) {
+        HStack {
             Text(label)
-                .font(.system(size: 12))
-                .foregroundStyle(AppColors.subtleText)
+                .font(.bodyMedium)
+                .foregroundStyle(AppColors.textPrimary)
             
-            TextField(placeholder, text: $text)
-                .font(.system(size: 15))
-                .autocorrectionDisabled()
-                .textInputAutocapitalization(.never)
-                .padding(12)
-                .background(Color(.tertiarySystemFill))
-                .clipShape(RoundedRectangle(cornerRadius: 8))
+            Spacer()
+            
+            if isSecure {
+                SecureField(placeholder, text: $text)
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppColors.textSecondary)
+                    .multilineTextAlignment(.trailing)
+                    .frame(maxWidth: 180)
+            } else {
+                TextField(placeholder, text: $text)
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppColors.textSecondary)
+                    .multilineTextAlignment(.trailing)
+                    .keyboardType(keyboardType)
+                    .autocorrectionDisabled()
+                    .textInputAutocapitalization(.never)
+                    .frame(maxWidth: 180)
+            }
         }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
     }
 }
 
-struct StatusRow: View {
+// MARK: - Settings Info Row
+
+struct SettingsInfoRow: View {
     let label: String
     let value: String
     
     var body: some View {
         HStack {
             Text(label)
-                .font(.system(size: 14))
+                .font(.bodyMedium)
+                .foregroundStyle(AppColors.textPrimary)
+            
             Spacer()
+            
             Text(value)
-                .font(.system(size: 14, weight: .medium, design: .monospaced))
-                .foregroundStyle(AppColors.subtleText)
+                .font(.bodyMedium)
+                .foregroundStyle(AppColors.textTertiary)
         }
-        .padding(.vertical, 10)
-        .padding(.horizontal, 4)
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
     }
 }
 
-struct SliderControl: View {
+// MARK: - Settings Slider
+
+struct SettingsSlider: View {
     let label: String
-    @Binding var value: Int
-    let range: ClosedRange<Int>
-    let step: Int
+    @Binding var value: Double
+    let range: ClosedRange<Double>
+    let step: Double
     let unit: String
     let color: Color
-    let onChange: () -> Void
     
     var body: some View {
-        VStack(alignment: .leading, spacing: 8) {
+        VStack(alignment: .leading, spacing: Spacing.sm) {
             HStack {
                 Text(label)
-                    .font(.system(size: 14))
+                    .font(.bodyMedium)
+                    .foregroundStyle(AppColors.textPrimary)
+                
                 Spacer()
-                Text("\(value) \(unit)")
-                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                
+                Text("\(Int(value)) \(unit)")
+                    .font(.numericSmall)
                     .foregroundStyle(color)
+                    .contentTransition(.numericText())
             }
             
-            HStack(spacing: 12) {
-                Button {
-                    if value > range.lowerBound {
-                        value -= step
-                        onChange()
-                    }
-                } label: {
-                    Image(systemName: "minus.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(value > range.lowerBound ? color : AppColors.mutedText)
-                }
-                .buttonStyle(.plain)
-                
-                Slider(
-                    value: Binding(
-                        get: { Double(value) },
-                        set: { value = Int($0); onChange() }
-                    ),
-                    in: Double(range.lowerBound)...Double(range.upperBound),
-                    step: Double(step)
-                )
-                .tint(color)
-                
-                Button {
-                    if value < range.upperBound {
-                        value += step
-                        onChange()
-                    }
-                } label: {
-                    Image(systemName: "plus.circle.fill")
-                        .font(.system(size: 22))
-                        .foregroundStyle(value < range.upperBound ? color : AppColors.mutedText)
-                }
-                .buttonStyle(.plain)
+            Slider(value: $value, in: range, step: step) { _ in
+                Haptics.selection()
             }
+            .tint(color)
         }
     }
 }
+
+// MARK: - Settings Button Row
+
+struct SettingsButtonRow: View {
+    let label: String
+    let icon: String
+    let color: Color
+    
+    var body: some View {
+        HStack {
+            Image(systemName: icon)
+                .font(.system(size: 14))
+                .foregroundStyle(color)
+                .frame(width: 24)
+            
+            Text(label)
+                .font(.bodyMedium)
+                .foregroundStyle(color)
+            
+            Spacer()
+            
+            Image(systemName: "chevron.right")
+                .font(.system(size: 12, weight: .semibold))
+                .foregroundStyle(AppColors.textQuaternary)
+        }
+        .padding(.horizontal, Spacing.lg)
+        .padding(.vertical, Spacing.md)
+    }
+}
+
+// MARK: - Preview
 
 #Preview {
     MinerSettingsSheet(miner: Miner(
-        hostName: "test-miner",
+        hostName: "BitAxe-Ultra",
         ipAddress: "192.168.1.100",
         ASICModel: "BM1366",
         macAddress: "AA:BB:CC:DD:EE:FF"
     ))
+    .modelContainer(for: [Miner.self, MinerUpdate.self], inMemory: true)
 }
