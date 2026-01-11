@@ -214,39 +214,63 @@ struct MinerDetailView: View {
     // MARK: - Primary Stats
     
     private var primaryStats: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
-            if let update = latestUpdate {
-                StatDisplay(
-                    value: String(format: "%.1f", update.power),
-                    unit: "W",
-                    label: "Power",
-                    icon: "bolt.fill",
-                    color: AppColors.power
-                )
-                
-                StatDisplay(
-                    value: String(format: "%.0f", update.temp ?? 0),
-                    unit: "°C",
-                    label: "ASIC Temp",
-                    icon: "thermometer.medium",
-                    color: temperatureColor(update.temp ?? 0)
-                )
-                
-                StatDisplay(
-                    value: String(format: "%.0f", update.frequency ?? 0),
-                    unit: "MHz",
-                    label: "Frequency",
-                    icon: "waveform",
-                    color: AppColors.frequency
-                )
-                
-                StatDisplay(
-                    value: fanDisplayValue(update: update),
-                    unit: update.autofanspeed == 1 ? "" : "%",
-                    label: "Fan Speed",
-                    icon: "fan.fill",
-                    color: AppColors.efficiency
-                )
+        VStack(spacing: Spacing.md) {
+            // First row - Power, Temp, Frequency, Fan
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+                if let update = latestUpdate {
+                    StatDisplay(
+                        value: String(format: "%.1f", update.power),
+                        unit: "W",
+                        label: "Power",
+                        icon: "bolt.fill",
+                        color: AppColors.power
+                    )
+                    
+                    StatDisplay(
+                        value: String(format: "%.0f", update.temp ?? 0),
+                        unit: "°C",
+                        label: "ASIC Temp",
+                        icon: "thermometer.medium",
+                        color: temperatureColor(update.temp ?? 0)
+                    )
+                    
+                    StatDisplay(
+                        value: String(format: "%.0f", update.frequency ?? 0),
+                        unit: "MHz",
+                        label: "Frequency",
+                        icon: "waveform",
+                        color: AppColors.frequency
+                    )
+                    
+                    StatDisplay(
+                        value: fanDisplayValue(update: update),
+                        unit: update.autofanspeed == 1 ? "" : "%",
+                        label: "Fan Speed",
+                        icon: "fan.fill",
+                        color: AppColors.efficiency
+                    )
+                }
+            }
+            
+            // Second row - Best Difficulty & Session Best
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
+                if let update = latestUpdate {
+                    StatDisplay(
+                        value: update.bestDiff ?? "—",
+                        unit: "",
+                        label: "Best Difficulty",
+                        icon: "trophy.fill",
+                        color: .yellow
+                    )
+                    
+                    StatDisplay(
+                        value: update.bestSessionDiff ?? "—",
+                        unit: "",
+                        label: "Session Best",
+                        icon: "star.fill",
+                        color: .orange
+                    )
+                }
             }
         }
         .padding(.horizontal)
