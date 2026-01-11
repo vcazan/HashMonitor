@@ -15,7 +15,9 @@
 		A1000006 /* AddMinerView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000006 /* AddMinerView.swift */; };
 		A1000007 /* SettingsView.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000007 /* SettingsView.swift */; };
 		A1000008 /* MinerSettingsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000008 /* MinerSettingsSheet.swift */; };
+		A1000009 /* Theme.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000010 /* Theme.swift */; };
 		A1000010 /* HashRipperKit in Frameworks */ = {isa = PBXBuildFile; productRef = A3000001 /* HashRipperKit */; };
+		A1000011 /* MinerLogsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000011 /* MinerLogsSheet.swift */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -28,6 +30,8 @@
 		A2000007 /* SettingsView.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = SettingsView.swift; sourceTree = "<group>"; };
 		A2000008 /* MinerSettingsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinerSettingsSheet.swift; sourceTree = "<group>"; };
 		A2000009 /* Info.plist */ = {isa = PBXFileReference; lastKnownFileType = text.plist.xml; path = Info.plist; sourceTree = "<group>"; };
+		A2000010 /* Theme.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = Theme.swift; sourceTree = "<group>"; };
+		A2000011 /* MinerLogsSheet.swift */ = {isa = PBXFileReference; lastKnownFileType = sourcecode.swift; path = MinerLogsSheet.swift; sourceTree = "<group>"; };
 		A2000020 /* HashRipper-iOS.app */ = {isa = PBXFileReference; explicitFileType = wrapper.application; includeInIndex = 0; path = "HashRipper-iOS.app"; sourceTree = BUILT_PRODUCTS_DIR; };
 /* End PBXFileReference section */
 
@@ -56,6 +60,7 @@
 			children = (
 				A2000001 /* HashRipperApp.swift */,
 				A2000002 /* ContentView.swift */,
+				A2000010 /* Theme.swift */,
 				A5000004 /* Views */,
 				A2000003 /* Assets.xcassets */,
 				A2000009 /* Info.plist */,
@@ -79,6 +84,7 @@
 				A2000006 /* AddMinerView.swift */,
 				A2000007 /* SettingsView.swift */,
 				A2000008 /* MinerSettingsSheet.swift */,
+				A2000011 /* MinerLogsSheet.swift */,
 			);
 			path = Views;
 			sourceTree = "<group>";
@@ -161,11 +167,13 @@
 			files = (
 				A1000001 /* HashRipperApp.swift in Sources */,
 				A1000002 /* ContentView.swift in Sources */,
+				A1000009 /* Theme.swift in Sources */,
 				A1000004 /* MinerListView.swift in Sources */,
 				A1000005 /* MinerDetailView.swift in Sources */,
 				A1000006 /* AddMinerView.swift in Sources */,
 				A1000007 /* SettingsView.swift in Sources */,
 				A1000008 /* MinerSettingsSheet.swift in Sources */,
+				A1000011 /* MinerLogsSheet.swift in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};

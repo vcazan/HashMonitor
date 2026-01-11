@@ -2,7 +2,7 @@
 //  MinerListView.swift
 //  HashRipper-iOS
 //
-//  List of all miners with pull-to-refresh
+//  Professional miner list with muted, sophisticated design
 //
 
 import SwiftUI
@@ -10,11 +10,13 @@ import SwiftData
 import HashRipperKit
 import AxeOSClient
 
-enum MinerSortOption: String, CaseIterable {
+enum MinerSortOption: String, CaseIterable, Identifiable {
     case name = "Name"
     case hashRate = "Hash Rate"
     case temperature = "Temperature"
     case power = "Power"
+    
+    var id: String { rawValue }
     
     var icon: String {
         switch self {
@@ -23,6 +25,14 @@ enum MinerSortOption: String, CaseIterable {
         case .temperature: return "thermometer.medium"
         case .power: return "bolt.fill"
         }
+    }
+}
+
+enum SortDirection {
+    case ascending, descending
+    
+    mutating func toggle() {
+        self = self == .ascending ? .descending : .ascending
     }
 }
 
@@ -36,13 +46,17 @@ struct MinerListView: View {
     @State private var showingAddMiner = false
     @State private var minerToDelete: Miner?
     @State private var sortOption: MinerSortOption = .name
-    @State private var sortAscending = true
+    @State private var sortDirection: SortDirection = .ascending
     @State private var backgroundRefreshTimer: Timer?
     
-    // Settings
     @AppStorage("refreshInterval") private var refreshInterval = 30
     
-    // Get totals from latest update of each online miner
+    // MARK: - Computed Properties
+    
+    private var onlineCount: Int {
+        miners.filter { !$0.isOffline }.count
+    }
+    
     private var onlineMinerStats: (hashRate: Double, power: Double) {
         let onlineMacAddresses = Set(miners.filter { !$0.isOffline }.map { $0.macAddress })
         var latestHashByMac: [String: Double] = [:]
@@ -67,11 +81,6 @@ struct MinerListView: View {
         formatMinerHashRate(rawRateValue: onlineMinerStats.hashRate)
     }
     
-    private var totalPower: Double {
-        onlineMinerStats.power
-    }
-    
-    // Get latest update for each miner by MAC address
     private var latestUpdateByMac: [String: MinerUpdate] {
         var result: [String: MinerUpdate] = [:]
         for update in allUpdates {
@@ -85,7 +94,6 @@ struct MinerListView: View {
     private var filteredMiners: [Miner] {
         var result = miners
         
-        // Filter by search
         if !searchText.isEmpty {
             result = result.filter {
                 $0.hostName.localizedCaseInsensitiveContains(searchText) ||
@@ -93,7 +101,6 @@ struct MinerListView: View {
             }
         }
         
-        // Sort
         let updates = latestUpdateByMac
         result.sort { miner1, miner2 in
             let update1 = updates[miner1.macAddress]
@@ -106,29 +113,31 @@ struct MinerListView: View {
             case .hashRate:
                 let rate1 = update1?.hashRate ?? 0
                 let rate2 = update2?.hashRate ?? 0
-                comparison = rate1 > rate2 // Higher is better, so descending by default
+                comparison = rate1 > rate2
             case .temperature:
                 let temp1 = update1?.temp ?? 0
                 let temp2 = update2?.temp ?? 0
-                comparison = temp1 > temp2 // Higher first by default
+                comparison = temp1 > temp2
             case .power:
                 let power1 = update1?.power ?? 0
                 let power2 = update2?.power ?? 0
-                comparison = power1 > power2 // Higher first by default
+                comparison = power1 > power2
             }
             
-            return sortAscending ? comparison : !comparison
+            return sortDirection == .ascending ? comparison : !comparison
         }
         
         return result
     }
+    
+    // MARK: - Body
     
     var body: some View {
         Group {
             if miners.isEmpty {
                 emptyStateView
             } else {
-                minerList
+                minerListContent
             }
         }
         .navigationTitle("Miners")
@@ -144,110 +153,40 @@ struct MinerListView: View {
                     Image(systemName: "plus")
                 }
             }
+            ToolbarItem(placement: .primaryAction) {
+                Menu {
+                    Picker("Sort By", selection: $sortOption) {
+                        ForEach(MinerSortOption.allCases) { option in
+                            Label(option.rawValue, systemImage: option.icon)
+                                .tag(option)
+                        }
+                    }
+                    .pickerStyle(.inline)
+                    
+                    Divider()
+                    
+                    Button {
+                        sortDirection.toggle()
+                    } label: {
+                        Label(
+                            sortDirection == .ascending ? "Ascending" : "Descending",
+                            systemImage: sortDirection == .ascending ? "arrow.up" : "arrow.down"
+                        )
+                    }
+                } label: {
+                    Image(systemName: "arrow.up.arrow.down")
+                }
+            }
         }
         .sheet(isPresented: $showingAddMiner) {
             AddMinerView()
         }
-    }
-    
-    private var emptyStateView: some View {
-        ContentUnavailableView {
-            Label("No Miners", systemImage: "cpu")
-        } description: {
-            Text("Scan your network to find miners automatically, or add one by IP address")
-        } actions: {
-            Button {
-                showingAddMiner = true
-            } label: {
-                Label("Add Miner", systemImage: "plus.circle")
-            }
-            .buttonStyle(.borderedProminent)
-        }
-    }
-    
-    private var minerList: some View {
-        List {
-            // Stats summary
-            Section {
-                MinerStatsSummaryCard(hashRate: formattedTotalHashRate, totalPower: totalPower)
-                    .listRowInsets(EdgeInsets())
-                    .listRowBackground(Color.clear)
-            }
-            
-            // Miner list with inline counts and sort
-            Section {
-                ForEach(filteredMiners, id: \.macAddress) { miner in
-                    NavigationLink(value: miner) {
-                        MinerRowView(miner: miner)
-                    }
-                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
-                        Button(role: .destructive) {
-                            minerToDelete = miner
-                        } label: {
-                            Label("Delete", systemImage: "trash")
-                        }
-                    }
-                }
-            } header: {
-                HStack {
-                    Menu {
-                        ForEach(MinerSortOption.allCases, id: \.self) { option in
-                            Button {
-                                if sortOption == option {
-                                    sortAscending.toggle()
-                                } else {
-                                    sortOption = option
-                                    sortAscending = option == .name
-                                }
-                            } label: {
-                                Label {
-                                    Text(option.rawValue)
-                                } icon: {
-                                    if sortOption == option {
-                                        Image(systemName: "checkmark")
-                                    }
-                                }
-                            }
-                        }
-                    } label: {
-                        HStack(spacing: 4) {
-                            Text("Devices")
-                                .foregroundStyle(.primary)
-                            Image(systemName: sortAscending ? "chevron.up" : "chevron.down")
-                                .font(.caption2)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    
-                    Spacer()
-                    
-                    HStack(spacing: 8) {
-                        Label("\(miners.filter { !$0.isOffline }.count) online", systemImage: "checkmark.circle.fill")
-                            .font(.caption)
-                            .foregroundStyle(.green)
-                        
-                        Text("•")
-                            .foregroundStyle(.secondary)
-                        
-                        Text("\(miners.count) total")
-                            .font(.caption)
-                            .foregroundStyle(.secondary)
-                    }
-                }
-                .textCase(nil)
-            }
-        }
-        .navigationDestination(for: Miner.self) { miner in
-            MinerDetailView(miner: miner)
-        }
-        .alert("Delete Miner?", isPresented: Binding(
+        .alert("Remove Miner?", isPresented: Binding(
             get: { minerToDelete != nil },
             set: { if !$0 { minerToDelete = nil } }
         )) {
-            Button("Cancel", role: .cancel) {
-                minerToDelete = nil
-            }
-            Button("Delete", role: .destructive) {
+            Button("Cancel", role: .cancel) { minerToDelete = nil }
+            Button("Remove", role: .destructive) {
                 if let miner = minerToDelete {
                     deleteMiner(miner)
                 }
@@ -258,39 +197,93 @@ struct MinerListView: View {
                 Text("Are you sure you want to remove \(miner.hostName)?")
             }
         }
-        .onAppear {
-            startBackgroundRefresh()
+    }
+    
+    // MARK: - Empty State
+    
+    private var emptyStateView: some View {
+        EmptyStateView(
+            icon: "cpu",
+            title: "No Miners",
+            message: "Scan your network to find miners, or add one manually by IP address",
+            buttonTitle: "Add Miner"
+        ) {
+            showingAddMiner = true
         }
-        .onDisappear {
-            stopBackgroundRefresh()
+    }
+    
+    // MARK: - Miner List
+    
+    private var minerListContent: some View {
+        List {
+            // Stats Summary Card
+            Section {
+                StatsOverviewCard(
+                    hashRate: formattedTotalHashRate,
+                    power: onlineMinerStats.power,
+                    onlineCount: onlineCount,
+                    totalCount: miners.count
+                )
+                .listRowInsets(EdgeInsets(top: 8, leading: 0, bottom: 8, trailing: 0))
+                .listRowBackground(Color.clear)
+            }
+            
+            // Miner List
+            Section {
+                ForEach(filteredMiners, id: \.macAddress) { miner in
+                    NavigationLink(value: miner) {
+                        MinerRowView(miner: miner)
+                    }
+                    .swipeActions(edge: .trailing, allowsFullSwipe: true) {
+                        Button(role: .destructive) {
+                            minerToDelete = miner
+                        } label: {
+                            Label("Remove", systemImage: "trash")
+                        }
+                    }
+                }
+            } header: {
+                HStack {
+                    Text("Devices")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(.primary)
+                    
+                    Spacer()
+                    
+                    Text("\(onlineCount) online • \(miners.count) total")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.subtleText)
+                }
+                .textCase(nil)
+            }
         }
+        .listStyle(.insetGrouped)
+        .navigationDestination(for: Miner.self) { miner in
+            MinerDetailView(miner: miner)
+        }
+        .onAppear { startBackgroundRefresh() }
+        .onDisappear { stopBackgroundRefresh() }
         .onChange(of: refreshInterval) { _, _ in
-            // Restart with new interval
             stopBackgroundRefresh()
             startBackgroundRefresh()
         }
     }
+    
+    // MARK: - Actions
     
     private func refreshMiners() async {
         isRefreshing = true
         defer { isRefreshing = false }
         
-        // Poll all miners in parallel
         await withTaskGroup(of: Void.self) { group in
             for miner in miners {
-                group.addTask {
-                    await self.pollMiner(miner)
-                }
+                group.addTask { await self.pollMiner(miner) }
             }
         }
     }
     
     private func pollMiner(_ miner: Miner) async {
-        let client = AxeOSClient(
-            deviceIpAddress: miner.ipAddress,
-            urlSession: .shared
-        )
-        
+        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: .shared)
         let result = await client.getSystemInfo()
         
         await MainActor.run {
@@ -298,7 +291,6 @@ struct MinerListView: View {
             case .success(let info):
                 miner.consecutiveTimeoutErrors = 0
                 
-                // Update hostname if it changed on the miner
                 if !info.hostname.isEmpty && miner.hostName != info.hostname {
                     miner.hostName = info.hostname
                 }
@@ -306,13 +298,13 @@ struct MinerListView: View {
                 let update = MinerUpdate(
                     miner: miner,
                     hostname: info.hostname,
-                    stratumUser: info.stratumUser ?? "",
-                    fallbackStratumUser: info.fallbackStratumUser ?? "",
-                    stratumURL: info.stratumURL ?? "",
-                    stratumPort: info.stratumPort ?? 0,
-                    fallbackStratumURL: info.fallbackStratumURL ?? "",
-                    fallbackStratumPort: info.fallbackStratumPort ?? 0,
-                    minerFirmwareVersion: info.version ?? "Unknown",
+                    stratumUser: info.stratumUser,
+                    fallbackStratumUser: info.fallbackStratumUser,
+                    stratumURL: info.stratumURL,
+                    stratumPort: info.stratumPort,
+                    fallbackStratumURL: info.fallbackStratumURL,
+                    fallbackStratumPort: info.fallbackStratumPort,
+                    minerFirmwareVersion: info.version,
                     axeOSVersion: info.ASICModel,
                     bestDiff: info.bestDiff,
                     bestSessionDiff: info.bestSessionDiff,
@@ -326,7 +318,7 @@ struct MinerListView: View {
                     sharesAccepted: info.sharesAccepted,
                     sharesRejected: info.sharesRejected,
                     uptimeSeconds: info.uptimeSeconds,
-                    isUsingFallbackStratum: info.isUsingFallbackStratum ?? false
+                    isUsingFallbackStratum: info.isUsingFallbackStratum
                 )
                 modelContext.insert(update)
                 
@@ -337,18 +329,12 @@ struct MinerListView: View {
     }
     
     private func startBackgroundRefresh() {
-        guard refreshInterval > 0 else { return } // 0 = manual only
+        guard refreshInterval > 0 else { return }
         
-        // Initial refresh
-        Task {
-            await refreshMiners()
-        }
+        Task { await refreshMiners() }
         
-        // Periodic refresh
         backgroundRefreshTimer = Timer.scheduledTimer(withTimeInterval: TimeInterval(refreshInterval), repeats: true) { _ in
-            Task {
-                await refreshMiners()
-            }
+            Task { await refreshMiners() }
         }
     }
     
@@ -358,7 +344,6 @@ struct MinerListView: View {
     }
     
     private func deleteMiner(_ miner: Miner) {
-        // Delete associated MinerUpdate records first to prevent orphaned relationships
         let macAddress = miner.macAddress
         let updateDescriptor = FetchDescriptor<MinerUpdate>(
             predicate: #Predicate<MinerUpdate> { $0.macAddress == macAddress }
@@ -373,12 +358,10 @@ struct MinerListView: View {
             print("Error cleaning up miner updates: \(error)")
         }
         
-        // Now delete the miner
         withAnimation {
             modelContext.delete(miner)
         }
         
-        // Save context to ensure clean state
         do {
             try modelContext.save()
         } catch {
@@ -387,7 +370,76 @@ struct MinerListView: View {
     }
 }
 
-// MARK: - Miner Row
+// MARK: - Stats Overview Card
+
+struct StatsOverviewCard: View {
+    let hashRate: FormattedHashRate
+    let power: Double
+    let onlineCount: Int
+    let totalCount: Int
+    
+    var body: some View {
+        HStack(spacing: 0) {
+            // Hash Rate
+            VStack(spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(hashRate.rateString)
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    
+                    Text(hashRate.rateSuffix)
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(AppColors.subtleText)
+                }
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "cube.fill")
+                        .font(.system(size: 10))
+                    Text("Hash Rate")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(AppColors.hashRate)
+            }
+            .frame(maxWidth: .infinity)
+            
+            // Divider
+            Rectangle()
+                .fill(Color(.separator).opacity(0.5))
+                .frame(width: 1, height: 44)
+            
+            // Power
+            VStack(spacing: 6) {
+                HStack(alignment: .firstTextBaseline, spacing: 3) {
+                    Text(String(format: "%.0f", power))
+                        .font(.system(size: 32, weight: .bold, design: .rounded))
+                        .foregroundStyle(.primary)
+                    
+                    Text("W")
+                        .font(.system(size: 14, weight: .medium))
+                        .foregroundStyle(AppColors.subtleText)
+                }
+                
+                HStack(spacing: 4) {
+                    Image(systemName: "bolt.fill")
+                        .font(.system(size: 10))
+                    Text("Power")
+                        .font(.system(size: 11, weight: .medium))
+                }
+                .foregroundStyle(AppColors.power)
+            }
+            .frame(maxWidth: .infinity)
+        }
+        .padding(.vertical, 16)
+        .background(AppColors.cardBackground)
+        .clipShape(RoundedRectangle(cornerRadius: 14, style: .continuous))
+        .overlay(
+            RoundedRectangle(cornerRadius: 14, style: .continuous)
+                .strokeBorder(AppColors.cardBorder, lineWidth: 0.5)
+        )
+    }
+}
+
+// MARK: - Miner Row View
 
 struct MinerRowView: View {
     let miner: Miner
@@ -402,159 +454,91 @@ struct MinerRowView: View {
         )
     }
     
-    private var latestUpdate: MinerUpdate? {
-        updates.first
-    }
+    private var latestUpdate: MinerUpdate? { updates.first }
     
     var body: some View {
         HStack(spacing: 12) {
-            // Miner icon with status indicator
+            // Miner icon with status
             ZStack(alignment: .bottomTrailing) {
                 Image(miner.minerType.imageName)
                     .resizable()
                     .aspectRatio(contentMode: .fit)
-                    .frame(width: 48, height: 48)
-                    .background(Color(.systemGray6))
-                    .clipShape(RoundedRectangle(cornerRadius: 10))
+                    .frame(width: 44, height: 44)
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
                 
-                // Status dot
                 Circle()
-                    .fill(miner.isOffline ? Color.red : Color.green)
-                    .frame(width: 12, height: 12)
-                    .overlay(
-                        Circle()
-                            .stroke(Color(.systemBackground), lineWidth: 2)
-                    )
+                    .fill(miner.isOffline ? AppColors.error : AppColors.success)
+                    .frame(width: 10, height: 10)
+                    .overlay(Circle().stroke(Color(.systemBackground), lineWidth: 2))
                     .offset(x: 2, y: 2)
             }
             
-            // Info column
-            VStack(alignment: .leading, spacing: 3) {
+            // Info
+            VStack(alignment: .leading, spacing: 4) {
                 Text(miner.hostName)
-                    .font(.system(.body, weight: .semibold))
+                    .font(.system(size: 15, weight: .semibold))
                     .lineLimit(1)
                 
                 Text(miner.minerDeviceDisplayName)
-                    .font(.caption)
-                    .foregroundStyle(.secondary)
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.subtleText)
                     .lineLimit(1)
                 
-                // Stats row - only show if we have data
+                // Stats row
                 if let update = latestUpdate {
-                    HStack(spacing: 12) {
-                        // Hash rate
+                    HStack(spacing: 10) {
                         let formatted = formatMinerHashRate(rawRateValue: update.hashRate)
-                        HStack(spacing: 3) {
-                            Image(systemName: "cube.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.green)
-                            Text("\(formatted.rateString) \(formatted.rateSuffix)")
-                                .font(.system(.caption, design: .rounded, weight: .medium))
-                                .foregroundStyle(.primary)
-                        }
+                        StatBadge(
+                            icon: "cube.fill",
+                            value: formatted.rateString,
+                            unit: formatted.rateSuffix,
+                            color: AppColors.hashRate,
+                            compact: true
+                        )
                         
-                        // Temperature pill
                         if let temp = update.temp {
-                            TemperaturePill(temp: temp)
+                            TemperatureBadge(temp: temp)
                         }
                         
-                        // Power
-                        HStack(spacing: 3) {
-                            Image(systemName: "bolt.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.orange)
-                            Text(String(format: "%.0fW", update.power))
-                                .font(.system(.caption, design: .rounded, weight: .medium))
-                                .foregroundStyle(.secondary)
-                        }
+                        StatBadge(
+                            icon: "bolt.fill",
+                            value: String(format: "%.0f", update.power),
+                            unit: "W",
+                            color: AppColors.power,
+                            compact: true
+                        )
                     }
                 }
             }
             
             Spacer()
         }
-        .padding(.vertical, 6)
+        .padding(.vertical, 4)
     }
 }
 
-// MARK: - Temperature Pill
+// MARK: - Temperature Badge
 
-struct TemperaturePill: View {
+struct TemperatureBadge: View {
     let temp: Double
     
-    private var color: Color {
-        if temp >= 70 { return .red }
-        if temp >= 55 { return .orange }
-        return .green
-    }
+    private var color: Color { temperatureColor(temp) }
     
     var body: some View {
-        HStack(spacing: 2) {
+        HStack(spacing: 3) {
             Circle()
                 .fill(color)
-                .frame(width: 6, height: 6)
+                .frame(width: 5, height: 5)
+            
             Text(String(format: "%.0f°", temp))
-                .font(.system(.caption, design: .rounded, weight: .medium))
+                .font(.system(size: 12, weight: .semibold, design: .rounded))
+                .foregroundStyle(.primary)
         }
         .padding(.horizontal, 6)
-        .padding(.vertical, 2)
-        .background(color.opacity(0.15))
+        .padding(.vertical, 3)
+        .background(color.opacity(0.12))
         .clipShape(Capsule())
-    }
-}
-
-// MARK: - Miner Stats Summary Card
-
-struct MinerStatsSummaryCard: View {
-    let hashRate: FormattedHashRate
-    let totalPower: Double
-    
-    var body: some View {
-        HStack(spacing: 0) {
-            // Hash Rate
-            VStack(spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(hashRate.rateString)
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    
-                    Text(hashRate.rateSuffix)
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Label("Hash Rate", systemImage: "cube.fill")
-                    .font(.caption)
-                    .foregroundStyle(.green)
-            }
-            .frame(maxWidth: .infinity)
-            
-            // Divider
-            Rectangle()
-                .fill(Color(.separator))
-                .frame(width: 1, height: 50)
-            
-            // Power
-            VStack(spacing: 4) {
-                HStack(alignment: .firstTextBaseline, spacing: 4) {
-                    Text(String(format: "%.0f", totalPower))
-                        .font(.system(size: 36, weight: .bold, design: .rounded))
-                        .foregroundStyle(.primary)
-                    
-                    Text("W")
-                        .font(.system(.body, design: .rounded, weight: .medium))
-                        .foregroundStyle(.secondary)
-                }
-                
-                Label("Power", systemImage: "bolt.fill")
-                    .font(.caption)
-                    .foregroundStyle(.orange)
-            }
-            .frame(maxWidth: .infinity)
-        }
-        .padding(.vertical, 16)
-        .background(Color(.systemGray6))
-        .clipShape(RoundedRectangle(cornerRadius: 16))
     }
 }
 
@@ -564,4 +548,3 @@ struct MinerStatsSummaryCard: View {
     }
     .modelContainer(try! createModelContainer(inMemory: true))
 }
-

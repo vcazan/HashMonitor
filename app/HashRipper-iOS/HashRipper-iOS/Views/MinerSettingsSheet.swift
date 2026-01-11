@@ -2,7 +2,7 @@
 //  MinerSettingsSheet.swift
 //  HashRipper-iOS
 //
-//  Complete miner tuning settings matching macOS functionality
+//  Professional miner settings with muted, sophisticated design
 //
 
 import SwiftUI
@@ -50,16 +50,8 @@ struct MinerSettingsSheet: View {
     @State private var errorMessage: String = ""
     @State private var hasChanges = false
     
-    // Miner type specific limits
-    private var frequencyRange: ClosedRange<Int> {
-        // Universal frequency range for all supported ASICs
-        return 495...1000
-    }
-    
-    private var voltageRange: ClosedRange<Int> {
-        // Safe voltage range for BM1366/BM1368/BM1370 ASICs
-        return 1085...1350
-    }
+    private var frequencyRange: ClosedRange<Int> { 495...1000 }
+    private var voltageRange: ClosedRange<Int> { 1085...1350 }
     
     var body: some View {
         NavigationStack {
@@ -67,25 +59,25 @@ struct MinerSettingsSheet: View {
                 if isLoading {
                     loadingView
                 } else {
-                    settingsForm
+                    settingsContent
                 }
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
+                    Button("Cancel") { dismiss() }
                 }
                 
                 ToolbarItem(placement: .principal) {
-                    if hasChanges {
+                    if hasChanges && !isLoading {
                         Button("Revert") {
                             Task { await loadCurrentSettings() }
                             hasChanges = false
                         }
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 14))
+                        .foregroundStyle(AppColors.subtleText)
                     }
                 }
                 
@@ -97,6 +89,7 @@ struct MinerSettingsSheet: View {
                             Task { await saveSettings() }
                         }
                         .fontWeight(.semibold)
+                        .foregroundStyle(hasChanges ? AppColors.accent : AppColors.mutedText)
                         .disabled(!hasChanges)
                     }
                 }
@@ -104,7 +97,7 @@ struct MinerSettingsSheet: View {
             .alert("Settings Saved", isPresented: $showSuccessAlert) {
                 Button("OK") { dismiss() }
             } message: {
-                Text("Miner settings have been updated successfully.")
+                Text("Miner settings updated successfully.")
             }
             .alert("Error", isPresented: $showErrorAlert) {
                 Button("OK") { }
@@ -113,11 +106,9 @@ struct MinerSettingsSheet: View {
             }
             .alert("Remove Miner?", isPresented: $showRemoveAlert) {
                 Button("Cancel", role: .cancel) { }
-                Button("Remove", role: .destructive) {
-                    removeMiner()
-                }
+                Button("Remove", role: .destructive) { removeMiner() }
             } message: {
-                Text("Are you sure you want to remove \(miner.hostName)? This will remove all stored data for this miner.")
+                Text("Remove \(miner.hostName) and all stored data?")
             }
         }
         .task {
@@ -130,316 +121,269 @@ struct MinerSettingsSheet: View {
     private var loadingView: some View {
         VStack(spacing: 16) {
             ProgressView()
+                .tint(AppColors.accent)
             Text("Loading settings...")
-                .foregroundStyle(.secondary)
+                .font(.system(size: 14))
+                .foregroundStyle(AppColors.subtleText)
         }
+        .frame(maxWidth: .infinity, maxHeight: .infinity)
     }
     
-    // MARK: - Settings Form
+    // MARK: - Settings Content
     
-    private var settingsForm: some View {
-        Form {
-            // Device Section
-            deviceSection
-            
-            // Pool Configuration Section
-            poolSection
-            
-            // Current Status Section
-            currentStatusSection
-            
-            // Performance Tuning Section
-            performanceSection
-            
-            // Cooling Section
-            coolingSection
-            
-            // Display Section
-            displaySection
-            
-            // Danger Zone
-            dangerZoneSection
-        }
-    }
-    
-    // MARK: - Device Section
-    
-    private var deviceSection: some View {
-        Section {
-            TextField("Hostname", text: Binding(
-                get: { hostname },
-                set: { hostname = $0; hasChanges = true }
-            ))
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-        } header: {
-            Label("Device", systemImage: "desktopcomputer")
-        } footer: {
-            Text("The hostname identifies this miner on your network")
-        }
-    }
-    
-    // MARK: - Pool Section
-    
-    private var poolSection: some View {
-        Section {
-            TextField("Pool URL", text: Binding(
-                get: { stratumURL },
-                set: { stratumURL = $0; hasChanges = true }
-            ))
-            .textContentType(.URL)
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            
-            TextField("Port", text: Binding(
-                get: { stratumPort },
-                set: { stratumPort = $0; hasChanges = true }
-            ))
-            .keyboardType(.numberPad)
-            
-            TextField("Worker/Username", text: Binding(
-                get: { stratumUser },
-                set: { stratumUser = $0; hasChanges = true }
-            ))
-            .autocorrectionDisabled()
-            .textInputAutocapitalization(.never)
-            
-            SecureField("Password (optional)", text: Binding(
-                get: { stratumPassword },
-                set: { stratumPassword = $0; hasChanges = true }
-            ))
-        } header: {
-            Label("Mining Pool", systemImage: "server.rack")
-        } footer: {
-            Text("Configure the stratum pool your miner connects to")
-        }
-    }
-    
-    // MARK: - Current Status Section
-    
-    private var currentStatusSection: some View {
-        Section {
-            LabeledContent("Frequency") {
-                Text("\(currentFrequency) MHz")
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.secondary)
+    private var settingsContent: some View {
+        ScrollView {
+            VStack(spacing: 16) {
+                deviceCard
+                poolCard
+                statusCard
+                performanceCard
+                coolingCard
+                displayCard
+                dangerCard
             }
-            
-            LabeledContent("Core Voltage") {
-                Text("\(currentVoltage) mV")
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-            
-            LabeledContent("Fan") {
-                Text(currentAutoFan ? "Auto" : "\(currentFanSpeed)%")
-                    .font(.system(.body, design: .monospaced))
-                    .foregroundStyle(.secondary)
-            }
-        } header: {
-            Text("Current Status")
-        } footer: {
-            Text("Current miner configuration values")
+            .padding(16)
         }
     }
     
-    // MARK: - Performance Section
+    // MARK: - Device Card
     
-    private var performanceSection: some View {
-        Section {
-            Toggle(isOn: Binding(
-                get: { tuningEnabled },
-                set: { tuningEnabled = $0; hasChanges = true }
-            )) {
-                HStack {
-                    Image(systemName: "bolt.fill")
-                        .foregroundStyle(tuningEnabled ? .yellow : .gray)
-                    Text("Enable Tuning")
-                }
-            }
-            
-            if tuningEnabled {
-                // Frequency
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Frequency")
-                        Spacer()
-                        Text("\(frequency) MHz")
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.blue)
-                    }
-                    
-                    HStack {
-                        Button {
-                            if frequency > frequencyRange.lowerBound {
-                                frequency -= 5
-                                hasChanges = true
-                            }
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.title2)
-                        }
-                        .buttonStyle(.borderless)
-                        
-                        Slider(
-                            value: Binding(
-                                get: { Double(frequency) },
-                                set: { frequency = Int($0); hasChanges = true }
-                            ),
-                            in: Double(frequencyRange.lowerBound)...Double(frequencyRange.upperBound),
-                            step: 5
-                        )
-                        
-                        Button {
-                            if frequency < frequencyRange.upperBound {
-                                frequency += 5
-                                hasChanges = true
-                            }
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
+    private var deviceCard: some View {
+        SettingsCard(title: "Device", icon: "desktopcomputer") {
+            VStack(alignment: .leading, spacing: 8) {
+                Text("Hostname")
+                    .font(.system(size: 12))
+                    .foregroundStyle(AppColors.subtleText)
                 
-                // Core Voltage
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Core Voltage")
-                        Spacer()
-                        Text("\(coreVoltage) mV")
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.orange)
-                    }
-                    
-                    HStack {
-                        Button {
-                            if coreVoltage > voltageRange.lowerBound {
-                                coreVoltage -= 10
-                                hasChanges = true
-                            }
-                        } label: {
-                            Image(systemName: "minus.circle.fill")
-                                .font(.title2)
-                        }
-                        .buttonStyle(.borderless)
-                        
-                        Slider(
-                            value: Binding(
-                                get: { Double(coreVoltage) },
-                                set: { coreVoltage = Int($0); hasChanges = true }
-                            ),
-                            in: Double(voltageRange.lowerBound)...Double(voltageRange.upperBound),
-                            step: 10
-                        )
-                        
-                        Button {
-                            if coreVoltage < voltageRange.upperBound {
-                                coreVoltage += 10
-                                hasChanges = true
-                            }
-                        } label: {
-                            Image(systemName: "plus.circle.fill")
-                                .font(.title2)
-                        }
-                        .buttonStyle(.borderless)
-                    }
-                }
-            }
-        } header: {
-            Text("Performance")
-        } footer: {
-            if tuningEnabled {
-                Label("Modifying these settings may affect miner stability. Use at your own risk.", systemImage: "exclamationmark.triangle.fill")
-                    .foregroundStyle(.orange)
+                TextField("Hostname", text: Binding(
+                    get: { hostname },
+                    set: { hostname = $0; hasChanges = true }
+                ))
+                .font(.system(size: 15, weight: .medium, design: .monospaced))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .padding(12)
+                .background(Color(.tertiarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
             }
         }
     }
     
-    // MARK: - Cooling Section
+    // MARK: - Pool Card
     
-    private var coolingSection: some View {
-        Section {
-            Toggle(isOn: Binding(
-                get: { autoFanSpeed },
-                set: { autoFanSpeed = $0; hasChanges = true }
-            )) {
-                Text("Auto Fan Speed")
-            }
-            
-            if !autoFanSpeed {
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        Text("Fan Speed")
-                        Spacer()
-                        Text("\(fanSpeed)%")
-                            .font(.system(.body, design: .monospaced))
-                            .foregroundStyle(.cyan)
-                    }
+    private var poolCard: some View {
+        SettingsCard(title: "Mining Pool", icon: "server.rack") {
+            VStack(spacing: 12) {
+                SettingsTextField(label: "Pool URL", text: Binding(
+                    get: { stratumURL },
+                    set: { stratumURL = $0; hasChanges = true }
+                ), placeholder: "stratum+tcp://pool.example.com")
+                .textContentType(.URL)
+                
+                SettingsTextField(label: "Port", text: Binding(
+                    get: { stratumPort },
+                    set: { stratumPort = $0; hasChanges = true }
+                ), placeholder: "3333")
+                .keyboardType(.numberPad)
+                
+                SettingsTextField(label: "Worker", text: Binding(
+                    get: { stratumUser },
+                    set: { stratumUser = $0; hasChanges = true }
+                ), placeholder: "wallet.worker")
+                
+                VStack(alignment: .leading, spacing: 4) {
+                    Text("Password")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.subtleText)
                     
-                    Slider(
-                        value: Binding(
-                            get: { Double(fanSpeed) },
-                            set: { fanSpeed = Int($0); hasChanges = true }
-                        ),
-                        in: 0...100,
-                        step: 5
+                    SecureField("Optional", text: Binding(
+                        get: { stratumPassword },
+                        set: { stratumPassword = $0; hasChanges = true }
+                    ))
+                    .font(.system(size: 15))
+                    .padding(12)
+                    .background(Color(.tertiarySystemFill))
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
+    }
+    
+    // MARK: - Status Card
+    
+    private var statusCard: some View {
+        SettingsCard(title: "Current Status", icon: "info.circle") {
+            VStack(spacing: 0) {
+                StatusRow(label: "Frequency", value: "\(currentFrequency) MHz")
+                Divider().padding(.leading, 16)
+                StatusRow(label: "Core Voltage", value: "\(currentVoltage) mV")
+                Divider().padding(.leading, 16)
+                StatusRow(label: "Fan", value: currentAutoFan ? "Auto" : "\(currentFanSpeed)%")
+            }
+        }
+    }
+    
+    // MARK: - Performance Card
+    
+    private var performanceCard: some View {
+        SettingsCard(title: "Performance", icon: "bolt.fill") {
+            VStack(spacing: 16) {
+                Toggle(isOn: Binding(
+                    get: { tuningEnabled },
+                    set: { tuningEnabled = $0; hasChanges = true }
+                )) {
+                    HStack(spacing: 10) {
+                        Image(systemName: "bolt.fill")
+                            .foregroundStyle(tuningEnabled ? AppColors.warning : AppColors.mutedText)
+                            .font(.system(size: 14))
+                        Text("Enable Tuning")
+                            .font(.system(size: 15))
+                    }
+                }
+                .tint(AppColors.accent)
+                
+                if tuningEnabled {
+                    Divider()
+                    
+                    // Frequency Slider
+                    SliderControl(
+                        label: "Frequency",
+                        value: $frequency,
+                        range: frequencyRange,
+                        step: 5,
+                        unit: "MHz",
+                        color: AppColors.frequency,
+                        onChange: { hasChanges = true }
+                    )
+                    
+                    // Voltage Slider
+                    SliderControl(
+                        label: "Core Voltage",
+                        value: $coreVoltage,
+                        range: voltageRange,
+                        step: 10,
+                        unit: "mV",
+                        color: AppColors.warning,
+                        onChange: { hasChanges = true }
+                    )
+                    
+                    HStack(spacing: 8) {
+                        Image(systemName: "exclamationmark.triangle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(AppColors.warning)
+                        Text("Modifying these settings may affect stability")
+                            .font(.system(size: 11))
+                            .foregroundStyle(AppColors.warning)
+                    }
+                    .padding(10)
+                    .frame(maxWidth: .infinity, alignment: .leading)
+                    .background(AppColors.warningLight)
+                    .clipShape(RoundedRectangle(cornerRadius: 8))
+                }
+            }
+        }
+    }
+    
+    // MARK: - Cooling Card
+    
+    private var coolingCard: some View {
+        SettingsCard(title: "Cooling", icon: "fan.fill") {
+            VStack(spacing: 16) {
+                Toggle(isOn: Binding(
+                    get: { autoFanSpeed },
+                    set: { autoFanSpeed = $0; hasChanges = true }
+                )) {
+                    Text("Auto Fan Speed")
+                        .font(.system(size: 15))
+                }
+                .tint(AppColors.accent)
+                
+                if !autoFanSpeed {
+                    Divider()
+                    
+                    SliderControl(
+                        label: "Fan Speed",
+                        value: $fanSpeed,
+                        range: 0...100,
+                        step: 5,
+                        unit: "%",
+                        color: AppColors.fan,
+                        onChange: { hasChanges = true }
                     )
                 }
+                
+                Divider()
+                
+                Toggle(isOn: Binding(
+                    get: { invertFanPolarity },
+                    set: { invertFanPolarity = $0; hasChanges = true }
+                )) {
+                    Text("Invert Fan Polarity")
+                        .font(.system(size: 15))
+                }
+                .tint(AppColors.accent)
             }
-            
-            Toggle(isOn: Binding(
-                get: { invertFanPolarity },
-                set: { invertFanPolarity = $0; hasChanges = true }
-            )) {
-                Text("Invert Fan Polarity")
-            }
-        } header: {
-            Text("Cooling")
         }
     }
     
-    // MARK: - Display Section
+    // MARK: - Display Card
     
-    private var displaySection: some View {
-        Section {
-            Toggle(isOn: Binding(
-                get: { flipScreen },
-                set: { flipScreen = $0; hasChanges = true }
-            )) {
-                Text("Flip Screen")
+    private var displayCard: some View {
+        SettingsCard(title: "Display", icon: "display") {
+            VStack(spacing: 12) {
+                Toggle(isOn: Binding(
+                    get: { flipScreen },
+                    set: { flipScreen = $0; hasChanges = true }
+                )) {
+                    Text("Flip Screen")
+                        .font(.system(size: 15))
+                }
+                .tint(AppColors.accent)
+                
+                Divider()
+                
+                Toggle(isOn: Binding(
+                    get: { invertScreen },
+                    set: { invertScreen = $0; hasChanges = true }
+                )) {
+                    Text("Invert Colors")
+                        .font(.system(size: 15))
+                }
+                .tint(AppColors.accent)
             }
-            
-            Toggle(isOn: Binding(
-                get: { invertScreen },
-                set: { invertScreen = $0; hasChanges = true }
-            )) {
-                Text("Invert Colors")
-            }
-        } header: {
-            Text("Display")
         }
     }
     
-    // MARK: - Danger Zone Section
+    // MARK: - Danger Card
     
-    private var dangerZoneSection: some View {
-        Section {
-            Button(role: .destructive) {
+    private var dangerCard: some View {
+        VStack(alignment: .leading, spacing: 10) {
+            Text("Danger Zone")
+                .font(.system(size: 13, weight: .semibold))
+                .foregroundStyle(AppColors.error)
+            
+            Button {
                 showRemoveAlert = true
             } label: {
                 HStack {
                     Spacer()
-                    Label("Remove Miner", systemImage: "trash")
+                    Image(systemName: "trash")
+                    Text("Remove Miner")
                     Spacer()
                 }
+                .font(.system(size: 15, weight: .medium))
             }
-        } header: {
-            Text("Danger Zone")
-        } footer: {
-            Text("Removing the miner will stop monitoring and delete all stored data.")
+            .foregroundStyle(AppColors.error)
+            .padding(14)
+            .background(AppColors.errorLight)
+            .clipShape(RoundedRectangle(cornerRadius: 10))
+            
+            Text("Removes all monitoring and stored data")
+                .font(.system(size: 11))
+                .foregroundStyle(AppColors.mutedText)
         }
+        .padding(14)
+        .cardStyle()
     }
     
     // MARK: - Actions
@@ -448,22 +392,16 @@ struct MinerSettingsSheet: View {
         isLoading = true
         defer { isLoading = false }
         
-        let client = AxeOSClient(
-            deviceIpAddress: miner.ipAddress,
-            urlSession: .shared
-        )
-        
+        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: .shared)
         let result = await client.getSystemInfo()
         
         if case .success(let info) = result {
             await MainActor.run {
-                // Current values
                 currentFrequency = Int(info.frequency ?? 500)
                 currentVoltage = info.coreVoltage ?? 1200
                 currentFanSpeed = Int(info.fanspeed ?? 100)
                 currentAutoFan = (info.autofanspeed ?? 1) == 1
                 
-                // Editable values
                 frequency = Int(info.frequency ?? 500)
                 coreVoltage = info.coreVoltage ?? 1200
                 fanSpeed = Int(info.fanspeed ?? 100)
@@ -472,16 +410,11 @@ struct MinerSettingsSheet: View {
                 invertScreen = (info.invertscreen ?? 0) == 1
                 invertFanPolarity = (info.invertfanpolarity ?? 0) == 1
                 
-                // Device settings
                 hostname = info.hostname
-                
-                // Pool settings
                 stratumURL = info.stratumURL ?? ""
                 stratumPort = String(info.stratumPort ?? 0)
                 stratumUser = info.stratumUser ?? ""
-                // Password is not returned by the API for security
                 
-                // Load tuning enabled state
                 tuningEnabled = UserDefaults.standard.bool(forKey: "tuningEnabled_\(miner.macAddress)")
             }
         }
@@ -489,17 +422,11 @@ struct MinerSettingsSheet: View {
     
     private func saveSettings() async {
         isSaving = true
-        errorMessage = ""
-        
         defer { isSaving = false }
         
-        // Save tuning state to UserDefaults
         UserDefaults.standard.set(tuningEnabled, forKey: "tuningEnabled_\(miner.macAddress)")
         
-        let client = AxeOSClient(
-            deviceIpAddress: miner.ipAddress,
-            urlSession: .shared
-        )
+        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: .shared)
         
         let settings = MinerSettings(
             stratumURL: stratumURL.isEmpty ? nil : stratumURL,
@@ -530,29 +457,24 @@ struct MinerSettingsSheet: View {
             switch result {
             case .success:
                 hasChanges = false
-                
-                // Update current values
                 currentFrequency = frequency
                 currentVoltage = coreVoltage
                 currentFanSpeed = fanSpeed
                 currentAutoFan = autoFanSpeed
                 
-                // Update the miner's hostname if it changed
                 if !hostname.isEmpty && miner.hostName != hostname {
                     miner.hostName = hostname
                 }
-                
                 showSuccessAlert = true
                 
             case .failure(let error):
-                errorMessage = "Failed to save settings: \(error.localizedDescription)"
+                errorMessage = "Failed to save: \(error.localizedDescription)"
                 showErrorAlert = true
             }
         }
     }
     
     private func removeMiner() {
-        // Delete associated MinerUpdate records first to prevent orphaned relationships
         let macAddress = miner.macAddress
         let updateDescriptor = FetchDescriptor<MinerUpdate>(
             predicate: #Predicate<MinerUpdate> { $0.macAddress == macAddress }
@@ -560,25 +482,144 @@ struct MinerSettingsSheet: View {
         
         do {
             let updates = try modelContext.fetch(updateDescriptor)
-            for update in updates {
-                modelContext.delete(update)
-            }
+            for update in updates { modelContext.delete(update) }
         } catch {
             print("Error cleaning up miner updates: \(error)")
         }
         
-        // Delete the miner
         modelContext.delete(miner)
         
-        // Save context to ensure clean state
         do {
             try modelContext.save()
         } catch {
             print("Error saving after miner deletion: \(error)")
         }
         
-        // Dismiss and close
         dismiss()
+    }
+}
+
+// MARK: - Supporting Views
+
+struct SettingsCard<Content: View>: View {
+    let title: String
+    let icon: String
+    @ViewBuilder let content: Content
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 14) {
+            HStack(spacing: 8) {
+                Image(systemName: icon)
+                    .font(.system(size: 13))
+                    .foregroundStyle(AppColors.subtleText)
+                Text(title)
+                    .font(.system(size: 13, weight: .semibold))
+                    .foregroundStyle(AppColors.subtleText)
+            }
+            
+            content
+        }
+        .padding(14)
+        .cardStyle()
+    }
+}
+
+struct SettingsTextField: View {
+    let label: String
+    @Binding var text: String
+    let placeholder: String
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 4) {
+            Text(label)
+                .font(.system(size: 12))
+                .foregroundStyle(AppColors.subtleText)
+            
+            TextField(placeholder, text: $text)
+                .font(.system(size: 15))
+                .autocorrectionDisabled()
+                .textInputAutocapitalization(.never)
+                .padding(12)
+                .background(Color(.tertiarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 8))
+        }
+    }
+}
+
+struct StatusRow: View {
+    let label: String
+    let value: String
+    
+    var body: some View {
+        HStack {
+            Text(label)
+                .font(.system(size: 14))
+            Spacer()
+            Text(value)
+                .font(.system(size: 14, weight: .medium, design: .monospaced))
+                .foregroundStyle(AppColors.subtleText)
+        }
+        .padding(.vertical, 10)
+        .padding(.horizontal, 4)
+    }
+}
+
+struct SliderControl: View {
+    let label: String
+    @Binding var value: Int
+    let range: ClosedRange<Int>
+    let step: Int
+    let unit: String
+    let color: Color
+    let onChange: () -> Void
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            HStack {
+                Text(label)
+                    .font(.system(size: 14))
+                Spacer()
+                Text("\(value) \(unit)")
+                    .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                    .foregroundStyle(color)
+            }
+            
+            HStack(spacing: 12) {
+                Button {
+                    if value > range.lowerBound {
+                        value -= step
+                        onChange()
+                    }
+                } label: {
+                    Image(systemName: "minus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(value > range.lowerBound ? color : AppColors.mutedText)
+                }
+                .buttonStyle(.plain)
+                
+                Slider(
+                    value: Binding(
+                        get: { Double(value) },
+                        set: { value = Int($0); onChange() }
+                    ),
+                    in: Double(range.lowerBound)...Double(range.upperBound),
+                    step: Double(step)
+                )
+                .tint(color)
+                
+                Button {
+                    if value < range.upperBound {
+                        value += step
+                        onChange()
+                    }
+                } label: {
+                    Image(systemName: "plus.circle.fill")
+                        .font(.system(size: 22))
+                        .foregroundStyle(value < range.upperBound ? color : AppColors.mutedText)
+                }
+                .buttonStyle(.plain)
+            }
+        }
     }
 }
 

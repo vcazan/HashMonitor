@@ -2,7 +2,7 @@
 //  AddMinerView.swift
 //  HashRipper-iOS
 //
-//  Combined view for adding miners via scan or IP address
+//  Professional miner addition view with muted design
 //
 
 import SwiftUI
@@ -11,7 +11,7 @@ import HashRipperKit
 import AxeOSClient
 
 enum AddMinerTab: String, CaseIterable {
-    case scan = "Scan Network"
+    case scan = "Scan"
     case manual = "Enter IP"
 }
 
@@ -57,7 +57,8 @@ struct AddMinerView: View {
                     }
                 }
                 .pickerStyle(.segmented)
-                .padding()
+                .padding(.horizontal, 16)
+                .padding(.vertical, 12)
                 
                 Divider()
                 
@@ -71,13 +72,13 @@ struct AddMinerView: View {
                     }
                 }
             }
+            .background(Color(.systemGroupedBackground))
             .navigationTitle("Add Miner")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar {
                 ToolbarItem(placement: .cancellationAction) {
-                    Button("Done") {
-                        dismiss()
-                    }
+                    Button("Done") { dismiss() }
+                        .foregroundStyle(AppColors.accent)
                 }
             }
             .alert("Scan Error", isPresented: $showScanError) {
@@ -86,9 +87,7 @@ struct AddMinerView: View {
                 Text(scanErrorMessage)
             }
             .alert("Miner Added", isPresented: $showManualSuccess) {
-                Button("OK") {
-                    ipAddress = ""
-                }
+                Button("OK") { ipAddress = "" }
             } message: {
                 Text("Successfully connected to the miner")
             }
@@ -98,200 +97,284 @@ struct AddMinerView: View {
     // MARK: - Scan Content
     
     private var scanContent: some View {
-        VStack(spacing: 16) {
+        VStack(spacing: 0) {
             if isScanning {
-                // Scanning state
-                Spacer()
+                scanningView
+            } else if foundDevices.isEmpty {
+                emptyStateView
+            } else {
+                resultsView
+            }
+        }
+    }
+    
+    private var scanningView: some View {
+        VStack(spacing: 24) {
+            Spacer()
+            
+            ZStack {
+                Circle()
+                    .stroke(AppColors.accent.opacity(0.2), lineWidth: 3)
+                    .frame(width: 80, height: 80)
                 
                 ProgressView()
-                    .scaleEffect(1.5)
-                    .padding()
-                
-                Text("Scanning network...")
-                    .font(.headline)
+                    .scaleEffect(1.3)
+                    .tint(AppColors.accent)
+            }
+            
+            VStack(spacing: 6) {
+                Text("Scanning Network")
+                    .font(.system(size: 18, weight: .semibold))
                 
                 if !scanProgress.isEmpty {
                     Text(scanProgress)
-                        .font(.caption)
-                        .foregroundStyle(.secondary)
+                        .font(.system(size: 13))
+                        .foregroundStyle(AppColors.subtleText)
+                        .animation(.easeInOut, value: scanProgress)
                 }
-                
-                Spacer()
-                
-                Button("Cancel") {
-                    isScanning = false
-                }
-                .buttonStyle(.bordered)
-                .padding()
-                
-            } else if foundDevices.isEmpty {
-                // Empty state - ready to scan
-                Spacer()
-                
-                Image(systemName: "wifi.router")
-                    .font(.system(size: 64))
-                    .foregroundStyle(.secondary)
-                    .padding()
-                
+            }
+            
+            Spacer()
+            
+            Button("Cancel") {
+                isScanning = false
+            }
+            .buttonStyle(.bordered)
+            .tint(AppColors.subtleText)
+            .controlSize(.large)
+            .padding(.bottom, 24)
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private var emptyStateView: some View {
+        VStack(spacing: 20) {
+            Spacer()
+            
+            Image(systemName: "wifi.router")
+                .font(.system(size: 56, weight: .light))
+                .foregroundStyle(AppColors.mutedText)
+            
+            VStack(spacing: 8) {
                 Text("Find Miners")
-                    .font(.title2.bold())
+                    .font(.system(size: 20, weight: .semibold))
                 
-                Text("Scan your local network to automatically discover Bitcoin miners")
-                    .font(.subheadline)
-                    .foregroundStyle(.secondary)
+                Text("Scan your local network to discover\nAxeOS-based Bitcoin miners")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColors.subtleText)
                     .multilineTextAlignment(.center)
-                    .padding(.horizontal, 32)
+            }
+            
+            Spacer()
+            
+            Button {
+                Task { await startScan() }
+            } label: {
+                HStack(spacing: 8) {
+                    Image(systemName: "magnifyingglass")
+                    Text("Start Scan")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .tint(AppColors.accent)
+            .controlSize(.large)
+            .padding(.horizontal, 24)
+            .padding(.bottom, 24)
+        }
+        .frame(maxWidth: .infinity)
+    }
+    
+    private var resultsView: some View {
+        VStack(spacing: 0) {
+            // Header
+            HStack {
+                if newDevices.isEmpty {
+                    Text("No new miners")
+                        .font(.system(size: 15, weight: .semibold))
+                } else {
+                    Text("\(newDevices.count) new miner\(newDevices.count == 1 ? "" : "s")")
+                        .font(.system(size: 15, weight: .semibold))
+                }
                 
                 Spacer()
                 
-                Button {
-                    Task { await startScan() }
-                } label: {
-                    Label("Start Scan", systemImage: "magnifyingglass")
-                        .frame(maxWidth: .infinity)
+                if alreadyAddedCount > 0 {
+                    Text("\(alreadyAddedCount) already added")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.mutedText)
+                        .padding(.horizontal, 8)
+                        .padding(.vertical, 4)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(Capsule())
                 }
-                .buttonStyle(.borderedProminent)
-                .controlSize(.large)
-                .padding()
-                
+            }
+            .padding(.horizontal, 16)
+            .padding(.vertical, 12)
+            
+            Divider()
+            
+            if newDevices.isEmpty {
+                allAddedView
             } else {
-                // Results
-                VStack(alignment: .leading, spacing: 8) {
-                    HStack {
-                        if newDevices.isEmpty {
-                            Text("No new miners found")
-                                .font(.headline)
-                        } else {
-                            Text("Found \(newDevices.count) new miner\(newDevices.count == 1 ? "" : "s")")
-                                .font(.headline)
-                        }
-                        
-                        Spacer()
-                        
-                        if alreadyAddedCount > 0 {
-                            Text("\(alreadyAddedCount) already added")
-                                .font(.caption)
-                                .foregroundStyle(.secondary)
-                        }
-                    }
-                    .padding(.horizontal)
-                    .padding(.top, 8)
-                    
-                    if newDevices.isEmpty {
-                        // All miners already added
-                        Spacer()
-                        
-                        Image(systemName: "checkmark.circle")
-                            .font(.system(size: 48))
-                            .foregroundStyle(.green)
-                        
-                        Text("All found miners are already in your list")
-                            .font(.subheadline)
-                            .foregroundStyle(.secondary)
-                            .multilineTextAlignment(.center)
-                            .padding(.horizontal, 32)
-                        
-                        Spacer()
-                    } else {
-                        // Show new devices
-                        List {
-                            ForEach(newDevices, id: \.info.macAddr) { device in
-                                HStack(spacing: 12) {
-                                    Image(MinerType.from(boardVersion: device.info.boardVersion, deviceModel: device.info.deviceModel).imageName)
-                                        .resizable()
-                                        .aspectRatio(contentMode: .fit)
-                                        .frame(width: 40, height: 40)
-                                        .background(Color(.systemGray6))
-                                        .clipShape(RoundedRectangle(cornerRadius: 8))
-                                    
-                                    VStack(alignment: .leading, spacing: 2) {
-                                        Text(device.info.hostname)
-                                            .font(.headline)
-                                        Text(device.client.deviceIpAddress)
-                                            .font(.caption)
-                                            .foregroundStyle(.secondary)
-                                    }
-                                    
-                                    Spacer()
-                                    
-                                    Image(systemName: "checkmark.circle.fill")
-                                        .foregroundStyle(.green)
-                                }
-                            }
-                        }
-                        .listStyle(.plain)
-                    }
-                }
-                
-                // Action buttons
-                VStack(spacing: 12) {
-                    if !newDevices.isEmpty {
-                        Button {
-                            addAllMiners()
-                            dismiss()
-                        } label: {
-                            Label("Add \(newDevices.count) Miner\(newDevices.count == 1 ? "" : "s")", systemImage: "plus.circle")
-                                .frame(maxWidth: .infinity)
-                        }
-                        .buttonStyle(.borderedProminent)
-                        .controlSize(.large)
-                    }
-                    
+                devicesList
+            }
+            
+            // Action buttons
+            VStack(spacing: 10) {
+                if !newDevices.isEmpty {
                     Button {
-                        foundDevices = []
-                        Task { await startScan() }
+                        addAllMiners()
+                        dismiss()
                     } label: {
-                        Label("Scan Again", systemImage: "arrow.clockwise")
-                            .frame(maxWidth: .infinity)
+                        HStack(spacing: 8) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add \(newDevices.count) Miner\(newDevices.count == 1 ? "" : "s")")
+                        }
+                        .frame(maxWidth: .infinity)
                     }
-                    .buttonStyle(.bordered)
+                    .buttonStyle(.borderedProminent)
+                    .tint(AppColors.accent)
                     .controlSize(.large)
                 }
-                .padding()
+                
+                Button {
+                    foundDevices = []
+                    Task { await startScan() }
+                } label: {
+                    HStack(spacing: 8) {
+                        Image(systemName: "arrow.clockwise")
+                        Text("Scan Again")
+                    }
+                    .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .tint(AppColors.subtleText)
+                .controlSize(.large)
             }
+            .padding(16)
+            .background(Color(.systemGroupedBackground))
+        }
+    }
+    
+    private var allAddedView: some View {
+        VStack(spacing: 16) {
+            Spacer()
+            
+            Image(systemName: "checkmark.circle")
+                .font(.system(size: 48, weight: .light))
+                .foregroundStyle(AppColors.success)
+            
+            VStack(spacing: 4) {
+                Text("All Set")
+                    .font(.system(size: 17, weight: .semibold))
+                
+                Text("All discovered miners are already in your list")
+                    .font(.system(size: 14))
+                    .foregroundStyle(AppColors.subtleText)
+                    .multilineTextAlignment(.center)
+            }
+            
+            Spacer()
+        }
+        .frame(maxWidth: .infinity)
+        .padding(.horizontal, 32)
+    }
+    
+    private var devicesList: some View {
+        ScrollView {
+            LazyVStack(spacing: 0) {
+                ForEach(newDevices, id: \.info.macAddr) { device in
+                    DiscoveredMinerRow(device: device)
+                    
+                    if device.info.macAddr != newDevices.last?.info.macAddr {
+                        Divider()
+                            .padding(.leading, 68)
+                    }
+                }
+            }
+            .background(AppColors.cardBackground)
+            .clipShape(RoundedRectangle(cornerRadius: 12, style: .continuous))
+            .overlay(
+                RoundedRectangle(cornerRadius: 12, style: .continuous)
+                    .strokeBorder(AppColors.cardBorder, lineWidth: 0.5)
+            )
+            .padding(.horizontal, 16)
+            .padding(.vertical, 8)
         }
     }
     
     // MARK: - Manual Content
     
     private var manualContent: some View {
-        Form {
-            Section {
-                TextField("IP Address", text: $ipAddress)
-                    .textContentType(.URL)
-                    .keyboardType(.decimalPad)
-                    .autocorrectionDisabled()
-                    .textInputAutocapitalization(.never)
-                    .focused($isIPFieldFocused)
-            } header: {
-                Text("Miner IP Address")
-            } footer: {
-                Text("Enter the IP address of your miner (e.g., 192.168.1.100)")
-            }
-            
-            if let error = manualError {
-                Section {
-                    Label(error, systemImage: "wifi.slash")
-                        .foregroundStyle(.orange)
+        ScrollView {
+            VStack(spacing: 20) {
+                // IP Input Card
+                VStack(alignment: .leading, spacing: 12) {
+                    Text("Miner IP Address")
+                        .font(.system(size: 13, weight: .semibold))
+                        .foregroundStyle(AppColors.subtleText)
+                    
+                    TextField("192.168.1.100", text: $ipAddress)
+                        .textContentType(.URL)
+                        .keyboardType(.decimalPad)
+                        .autocorrectionDisabled()
+                        .textInputAutocapitalization(.never)
+                        .focused($isIPFieldFocused)
+                        .font(.system(size: 17, weight: .medium, design: .monospaced))
+                        .padding(14)
+                        .background(Color(.tertiarySystemFill))
+                        .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                    
+                    Text("Enter the IP address of your AxeOS miner")
+                        .font(.system(size: 12))
+                        .foregroundStyle(AppColors.mutedText)
                 }
-            }
-            
-            Section {
+                .frame(maxWidth: .infinity, alignment: .leading)
+                .padding(16)
+                .cardStyle()
+                
+                // Error message
+                if let error = manualError {
+                    HStack(spacing: 10) {
+                        Image(systemName: "wifi.slash")
+                            .font(.system(size: 16))
+                            .foregroundStyle(AppColors.warning)
+                        
+                        Text(error)
+                            .font(.system(size: 13))
+                            .foregroundStyle(AppColors.warning)
+                        
+                        Spacer()
+                    }
+                    .padding(14)
+                    .background(AppColors.warningLight)
+                    .clipShape(RoundedRectangle(cornerRadius: 10, style: .continuous))
+                }
+                
+                // Add button
                 Button {
                     Task { await addManualMiner() }
                 } label: {
-                    HStack {
-                        Spacer()
+                    HStack(spacing: 8) {
                         if isAddingManually {
                             ProgressView()
-                                .padding(.trailing, 8)
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "plus.circle.fill")
                         }
                         Text(isAddingManually ? "Connecting..." : "Add Miner")
-                        Spacer()
                     }
+                    .frame(maxWidth: .infinity)
                 }
+                .buttonStyle(.borderedProminent)
+                .tint(AppColors.accent)
+                .controlSize(.large)
                 .disabled(ipAddress.isEmpty || isAddingManually)
+                
+                Spacer()
             }
+            .padding(16)
         }
         .onAppear {
             if selectedTab == .manual {
@@ -324,9 +407,8 @@ struct AddMinerView: View {
                 return
             }
             
-            scanProgress = "Scanning \(myIpAddresses.first ?? "unknown")..."
+            scanProgress = "Scanning \(myIpAddresses.first ?? "network")..."
             
-            // Pass existing miner IPs to exclude them from scan
             let existingIPs = existingMiners.map { $0.ipAddress }
             
             try await AxeOSDevicesScanner.shared.executeSwarmScanV2(
@@ -413,18 +495,13 @@ struct AddMinerView: View {
         
         defer { isAddingManually = false }
         
-        // Validate IP format
         let ipPattern = #"^\d{1,3}\.\d{1,3}\.\d{1,3}\.\d{1,3}$"#
         guard ipAddress.range(of: ipPattern, options: .regularExpression) != nil else {
             manualError = "Invalid IP address format"
             return
         }
         
-        let client = AxeOSClient(
-            deviceIpAddress: ipAddress,
-            urlSession: .shared
-        )
-        
+        let client = AxeOSClient(deviceIpAddress: ipAddress, urlSession: .shared)
         let result = await client.getSystemInfo()
         
         switch result {
@@ -459,43 +536,70 @@ struct AddMinerView: View {
     private func friendlyErrorMessage(for error: Error) -> String {
         let errorString = error.localizedDescription.lowercased()
         
-        if errorString.contains("timed out") || 
-           errorString.contains("timeout") ||
-           errorString.contains("could not connect") {
-            return "Could not reach miner at \(ipAddress). Check the IP address and make sure the miner is powered on."
+        if errorString.contains("timed out") || errorString.contains("timeout") || errorString.contains("could not connect") {
+            return "Could not reach miner. Check the IP and ensure it's powered on."
         }
         
-        if errorString.contains("network") ||
-           errorString.contains("internet") ||
-           errorString.contains("offline") {
-            return "Network connection issue. Make sure you're connected to the same network as your miner."
+        if errorString.contains("network") || errorString.contains("internet") || errorString.contains("offline") {
+            return "Network issue. Ensure you're on the same network as the miner."
         }
         
-        if errorString.contains("certificate") ||
-           errorString.contains("ssl") ||
-           errorString.contains("tls") {
-            return "Could not reach miner at \(ipAddress). The device doesn't appear to be a compatible miner."
+        if errorString.contains("certificate") || errorString.contains("ssl") || errorString.contains("tls") {
+            return "Device doesn't appear to be a compatible miner."
         }
         
-        if errorString.contains("host") ||
-           errorString.contains("resolve") {
-            return "Could not find a device at \(ipAddress). Check the IP address is correct."
+        if errorString.contains("host") || errorString.contains("resolve") {
+            return "Could not find a device at this IP address."
         }
         
         if errorString.contains("refused") {
-            return "Connection refused. The device at \(ipAddress) is not accepting connections."
+            return "Connection refused. Device is not accepting connections."
         }
         
-        if errorString.contains("decode") ||
-           errorString.contains("json") {
-            return "Device found but it doesn't appear to be a compatible AxeOS miner."
+        if errorString.contains("decode") || errorString.contains("json") {
+            return "Device found but isn't a compatible AxeOS miner."
         }
         
-        return "Could not connect to miner at \(ipAddress). Verify the address and try again."
+        return "Could not connect. Verify the address and try again."
     }
 }
 
-// Make IPAddressCalculator accessible
+// MARK: - Supporting Views
+
+struct DiscoveredMinerRow: View {
+    let device: DiscoveredDevice
+    
+    var body: some View {
+        HStack(spacing: 14) {
+            Image(MinerType.from(boardVersion: device.info.boardVersion, deviceModel: device.info.deviceModel).imageName)
+                .resizable()
+                .aspectRatio(contentMode: .fit)
+                .frame(width: 40, height: 40)
+                .background(Color(.tertiarySystemFill))
+                .clipShape(RoundedRectangle(cornerRadius: 8, style: .continuous))
+            
+            VStack(alignment: .leading, spacing: 3) {
+                Text(device.info.hostname)
+                    .font(.system(size: 15, weight: .medium))
+                
+                Text(device.client.deviceIpAddress)
+                    .font(.system(size: 12, design: .monospaced))
+                    .foregroundStyle(AppColors.subtleText)
+            }
+            
+            Spacer()
+            
+            Image(systemName: "checkmark.circle.fill")
+                .font(.system(size: 20))
+                .foregroundStyle(AppColors.success)
+        }
+        .padding(.horizontal, 14)
+        .padding(.vertical, 12)
+    }
+}
+
+// MARK: - IP Address Helpers
+
 struct IPAddressCalculator {
     func ipToInt(_ ip: String) -> UInt32? {
         let parts = ip.split(separator: ".")
@@ -531,7 +635,6 @@ struct IPAddressCalculator {
     }
 }
 
-// Get local IP address - works on iOS
 func getMyIPAddress() -> [String] {
     var addresses: [String] = []
     
@@ -543,11 +646,9 @@ func getMyIPAddress() -> [String] {
         let interface = ifptr.pointee
         let addrFamily = interface.ifa_addr.pointee.sa_family
         
-        // Only IPv4
         if addrFamily == UInt8(AF_INET) {
             let name = String(cString: interface.ifa_name)
             
-            // en0 is WiFi on iOS
             if name == "en0" || name == "en1" {
                 var hostname = [CChar](repeating: 0, count: Int(NI_MAXHOST))
                 getnameinfo(interface.ifa_addr, socklen_t(interface.ifa_addr.pointee.sa_len),
