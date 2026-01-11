@@ -58,6 +58,7 @@ class MinerLogsViewModel: ObservableObject {
     private let ipAddress: String
     private let websocketClient: AxeOSWebsocketClient
     private var cancellables = Set<AnyCancellable>()
+    private var isSubscribed = false
     
     var filteredEntries: [LogEntry] {
         entries.filter { entry in
@@ -76,32 +77,6 @@ class MinerLogsViewModel: ObservableObject {
     init(miner: Miner) {
         self.ipAddress = miner.ipAddress
         self.websocketClient = AxeOSWebsocketClient()
-        
-        setupSubscriptions()
-    }
-    
-    private func setupSubscriptions() {
-        Task {
-            await websocketClient.setAutoReconnect(true, maxAttempts: 10)
-            
-            // Subscribe to messages
-            let messagePublisher = await websocketClient.messagePublisher
-            messagePublisher
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] message in
-                    self?.parseLogMessage(message)
-                }
-                .store(in: &cancellables)
-            
-            // Subscribe to connection state
-            let connectionPublisher = await websocketClient.connectionStatePublisher
-            connectionPublisher
-                .receive(on: DispatchQueue.main)
-                .sink { [weak self] state in
-                    self?.isConnected = (state == .connected)
-                }
-                .store(in: &cancellables)
-        }
     }
     
     private func parseLogMessage(_ message: String) {
@@ -156,7 +131,34 @@ class MinerLogsViewModel: ObservableObject {
     
     func connect() {
         guard let url = URL(string: "ws://\(ipAddress)/ws") else { return }
+        
         Task {
+            // Configure auto-reconnect
+            await websocketClient.setAutoReconnect(true, maxAttempts: 10)
+            
+            // Set up subscriptions BEFORE connecting
+            if !isSubscribed {
+                let messagePublisher = await websocketClient.messagePublisher
+                let connectionPublisher = await websocketClient.connectionStatePublisher
+                
+                messagePublisher
+                    .receive(on: DispatchQueue.main)
+                    .sink { [weak self] message in
+                        self?.parseLogMessage(message)
+                    }
+                    .store(in: &cancellables)
+                
+                connectionPublisher
+                    .receive(on: DispatchQueue.main)
+                    .sink { [weak self] state in
+                        self?.isConnected = (state == .connected)
+                    }
+                    .store(in: &cancellables)
+                
+                isSubscribed = true
+            }
+            
+            // Now connect
             await websocketClient.connect(to: url)
         }
     }

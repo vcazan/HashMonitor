@@ -21,6 +21,11 @@ struct MinerSettingsSheet: View {
     @State private var voltage: Double = 1200
     @State private var fanSpeed: Double = 100
     @State private var autoFan: Bool = true
+    @State private var invertFanPolarity: Bool = false
+    
+    // Display settings
+    @State private var flipScreen: Bool = false
+    @State private var invertScreen: Bool = false
     
     // Pool settings
     @State private var poolURL: String = ""
@@ -55,6 +60,9 @@ struct MinerSettingsSheet: View {
                         
                         // Performance section
                         performanceSection
+                        
+                        // Display section
+                        displaySection
                         
                         // Pool section
                         poolSection
@@ -114,6 +122,9 @@ struct MinerSettingsSheet: View {
             .onChange(of: voltage) { _, _ in hasChanges = true }
             .onChange(of: fanSpeed) { _, _ in hasChanges = true }
             .onChange(of: autoFan) { _, _ in hasChanges = true }
+            .onChange(of: invertFanPolarity) { _, _ in hasChanges = true }
+            .onChange(of: flipScreen) { _, _ in hasChanges = true }
+            .onChange(of: invertScreen) { _, _ in hasChanges = true }
         }
     }
     
@@ -198,6 +209,48 @@ struct MinerSettingsSheet: View {
                         color: AppColors.efficiency
                     )
                 }
+                
+                Divider()
+                
+                // Invert Fan Polarity
+                Toggle(isOn: $invertFanPolarity) {
+                    HStack {
+                        Image(systemName: "arrow.left.arrow.right")
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text("Invert Fan Polarity")
+                            .font(.bodyMedium)
+                    }
+                }
+                .tint(.teal)
+            }
+            .padding(Spacing.lg)
+        }
+    }
+    
+    // MARK: - Display Section
+    
+    private var displaySection: some View {
+        SettingsSection(title: "Display", icon: "display") {
+            VStack(spacing: Spacing.md) {
+                Toggle(isOn: $flipScreen) {
+                    HStack {
+                        Image(systemName: "arrow.up.arrow.down")
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text("Flip Screen")
+                            .font(.bodyMedium)
+                    }
+                }
+                .tint(.teal)
+                
+                Toggle(isOn: $invertScreen) {
+                    HStack {
+                        Image(systemName: "circle.lefthalf.filled")
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text("Invert Screen Colors")
+                            .font(.bodyMedium)
+                    }
+                }
+                .tint(.teal)
             }
             .padding(Spacing.lg)
         }
@@ -297,6 +350,11 @@ struct MinerSettingsSheet: View {
             voltage = update.voltage ?? 1200
             fanSpeed = update.fanspeed ?? 100
             autoFan = update.autofanspeed == 1
+            invertFanPolarity = update.invertfanpolarity == 1
+            
+            // Display settings
+            flipScreen = update.flipscreen == 1
+            invertScreen = update.invertscreen == 1
             
             poolURL = update.stratumURL
             poolPort = String(update.stratumPort)
@@ -327,11 +385,11 @@ struct MinerSettingsSheet: View {
             hostname: hostname,
             coreVoltage: Int(voltage),
             frequency: Int(frequency),
-            flipscreen: nil,
+            flipscreen: flipScreen ? 1 : 0,
             overheatMode: nil,
             overclockEnabled: nil,
-            invertscreen: nil,
-            invertfanpolarity: nil,
+            invertscreen: invertScreen ? 1 : 0,
+            invertfanpolarity: invertFanPolarity ? 1 : 0,
             autofanspeed: autoFan ? 1 : 0,
             fanspeed: autoFan ? nil : Int(fanSpeed)
         )
