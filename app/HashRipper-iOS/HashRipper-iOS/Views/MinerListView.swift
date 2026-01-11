@@ -120,6 +120,10 @@ struct MinerListView: View {
                 hasLoadedInitially = true
                 await initialLoad()
             }
+            .onChange(of: miners.count) { _, _ in
+                // Reload cache when miners list changes (add/delete)
+                loadCachedUpdates()
+            }
             .alert("Delete Miner", isPresented: $showDeleteConfirmation, presenting: minerToDelete) { miner in
                 Button("Delete", role: .destructive) {
                     deleteMiner(miner)
