@@ -474,7 +474,7 @@ struct MinerCard: View {
                     .foregroundStyle(AppColors.textPrimary)
                     .contentTransition(.numericText())
                 
-                Text("GH/s")
+                Text(hashRateUnit(update.hashRate))
                     .font(.captionSmall)
                     .foregroundStyle(AppColors.textTertiary)
             }
@@ -510,6 +510,10 @@ struct MinerCard: View {
         } else {
             return String(format: "%.0f", ghPerSec)
         }
+    }
+    
+    private func hashRateUnit(_ ghPerSec: Double) -> String {
+        ghPerSec >= 1000 ? "TH/s" : "GH/s"
     }
 }
 
