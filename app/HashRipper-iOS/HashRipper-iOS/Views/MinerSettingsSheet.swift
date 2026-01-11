@@ -37,7 +37,8 @@ struct MinerSettingsSheet: View {
     // UI state
     @State private var isSaving = false
     @State private var showSaveSuccess = false
-    @State private var showDeleteConfirmation = false
+    @State private var showRemoveConfirmation = false
+    @State private var showRemovedAlert = false
     @State private var hasChanges = false
     @State private var latestUpdate: MinerUpdate?
     
@@ -50,88 +51,112 @@ struct MinerSettingsSheet: View {
     
     var body: some View {
         NavigationStack {
-            ZStack {
-                AppColors.backgroundGrouped
-                    .ignoresSafeArea()
-                
-                ScrollView {
-                    LazyVStack(spacing: Spacing.xl) {
-                        // Device section
-                        deviceSection
-                        
-                        // Performance section
-                        performanceSection
-                        
-                        // Display section
-                        displaySection
-                        
-                        // Pool section
-                        poolSection
-                        
-                        // Danger zone
-                        dangerSection
-                    }
-                    .padding()
-                }
-            }
+            settingsContent
+        }
+    }
+    
+    private var settingsContent: some View {
+        scrollContent
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
-            .toolbar {
-                ToolbarItem(placement: .cancellationAction) {
-                    Button("Cancel") {
-                        dismiss()
-                    }
-                }
-                
-                ToolbarItem(placement: .primaryAction) {
-                    if hasChanges {
-                        Button {
-                            Haptics.impact(.medium)
-                            Task { await saveSettings() }
-                        } label: {
-                            if isSaving {
-                                ProgressView()
-                                    .tint(.teal)
-                            } else {
-                                Text("Save")
-                                    .fontWeight(.semibold)
-                            }
-                        }
-                        .disabled(isSaving)
-                    }
-                }
+            .toolbar { toolbarContent }
+            .confirmationDialog("Remove Miner?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
+                removeConfirmationButtons
+            } message: {
+                Text("This will remove the miner from your list. This cannot be undone.")
             }
-            .alert("Miner Removed", isPresented: $showDeleteConfirmation) {
-                Button("OK") {
-                    dismiss()
-                    // Delay slightly to let sheet dismiss animation complete
-                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
-                        onDelete?()
-                    }
-                }
+            .alert("Miner Removed", isPresented: $showRemovedAlert) {
+                removedAlertButton
             } message: {
                 Text("The miner has been removed from your list.")
             }
-            .overlay {
-                if showSaveSuccess {
-                    saveSuccessOverlay
+            .overlay { saveOverlay }
+            .task { loadCurrentSettings() }
+            .onChange(of: settingsHash) { _, _ in hasChanges = true }
+    }
+    
+    // Track if any settings changed by hashing all values
+    private var settingsHash: Int {
+        var hasher = Hasher()
+        hasher.combine(hostname)
+        hasher.combine(frequency)
+        hasher.combine(voltage)
+        hasher.combine(fanSpeed)
+        hasher.combine(autoFan)
+        hasher.combine(invertFanPolarity)
+        hasher.combine(flipScreen)
+        hasher.combine(invertScreen)
+        hasher.combine(poolURL)
+        hasher.combine(poolPort)
+        hasher.combine(poolUser)
+        hasher.combine(poolPassword)
+        return hasher.finalize()
+    }
+    
+    @ViewBuilder
+    private var removeConfirmationButtons: some View {
+        Button("Remove \(miner.hostName)", role: .destructive) {
+            removeMiner()
+        }
+        Button("Cancel", role: .cancel) { }
+    }
+    
+    private var removedAlertButton: some View {
+        Button("OK") {
+            dismiss()
+            DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                onDelete?()
+            }
+        }
+    }
+    
+    @ViewBuilder
+    private var saveOverlay: some View {
+        if showSaveSuccess {
+            saveSuccessOverlay
+        }
+    }
+    
+    private var scrollContent: some View {
+        ZStack {
+            AppColors.backgroundGrouped
+                .ignoresSafeArea()
+            
+            ScrollView {
+                LazyVStack(spacing: Spacing.xl) {
+                    deviceSection
+                    performanceSection
+                    displaySection
+                    poolSection
+                    dangerSection
                 }
+                .padding()
             }
-            .task {
-                loadCurrentSettings()
+        }
+    }
+    
+    @ToolbarContentBuilder
+    private var toolbarContent: some ToolbarContent {
+        ToolbarItem(placement: .cancellationAction) {
+            Button("Cancel") { dismiss() }
+        }
+        
+        ToolbarItem(placement: .primaryAction) {
+            if hasChanges {
+                Button {
+                    Haptics.impact(.medium)
+                    Task { await saveSettings() }
+                } label: {
+                    if isSaving {
+                        ProgressView()
+                            .tint(.teal)
+                    } else {
+                        Text("Save")
+                            .fontWeight(.semibold)
+                    }
+                }
+                .disabled(isSaving)
             }
-            .onChange(of: hostname) { _, _ in hasChanges = true }
-            .onChange(of: poolURL) { _, _ in hasChanges = true }
-            .onChange(of: poolPort) { _, _ in hasChanges = true }
-            .onChange(of: poolUser) { _, _ in hasChanges = true }
-            .onChange(of: poolPassword) { _, _ in hasChanges = true }
-            .onChange(of: frequency) { _, _ in hasChanges = true }
-            .onChange(of: voltage) { _, _ in hasChanges = true }
-            .onChange(of: fanSpeed) { _, _ in hasChanges = true }
-            .onChange(of: autoFan) { _, _ in hasChanges = true }
-            .onChange(of: invertFanPolarity) { _, _ in hasChanges = true }
-            .onChange(of: flipScreen) { _, _ in hasChanges = true }
-            .onChange(of: invertScreen) { _, _ in hasChanges = true }
         }
     }
     
@@ -316,7 +341,7 @@ struct MinerSettingsSheet: View {
                 
                 Button {
                     Haptics.impact(.heavy)
-                    removeMiner()
+                    showRemoveConfirmation = true
                 } label: {
                     SettingsButtonRow(
                         label: "Remove Miner",
@@ -454,7 +479,8 @@ struct MinerSettingsSheet: View {
         
         do {
             try modelContext.save()
-            showDeleteConfirmation = true
+            Haptics.notification(.success)
+            showRemovedAlert = true
         } catch {
             print("Failed to delete miner: \(error)")
             Haptics.notification(.error)
