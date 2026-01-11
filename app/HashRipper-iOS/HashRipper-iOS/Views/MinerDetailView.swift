@@ -27,6 +27,29 @@ struct MinerDetailView: View {
     @State private var showLogs = false
     @State private var showRestartConfirmation = false
     @State private var selectedTimeRange: TimeRange = .oneHour
+    @State private var selectedChartType: ChartType = .hashRate
+    
+    enum ChartType: String, CaseIterable {
+        case hashRate = "Hash Rate"
+        case temperature = "Temperature"
+        case power = "Power"
+        
+        var icon: String {
+            switch self {
+            case .hashRate: return "cube.fill"
+            case .temperature: return "thermometer.medium"
+            case .power: return "bolt.fill"
+            }
+        }
+        
+        var color: Color {
+            switch self {
+            case .hashRate: return .teal
+            case .temperature: return .orange
+            case .power: return .yellow
+            }
+        }
+    }
     
     // Animation states
     @State private var headerAppeared = false
@@ -229,9 +252,9 @@ struct MinerDetailView: View {
     
     private var performanceChart: some View {
         VStack(spacing: Spacing.md) {
-            // Header with time range picker
+            // Header with chart type picker
             HStack {
-                Text("Performance")
+                Text("Charts")
                     .font(.titleSmall)
                     .foregroundStyle(AppColors.textPrimary)
                 
@@ -263,50 +286,37 @@ struct MinerDetailView: View {
                 }
             }
             
+            // Chart type selector
+            HStack(spacing: Spacing.sm) {
+                ForEach(ChartType.allCases, id: \.self) { type in
+                    Button {
+                        Haptics.selection()
+                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                            selectedChartType = type
+                        }
+                    } label: {
+                        HStack(spacing: Spacing.xs) {
+                            Image(systemName: type.icon)
+                                .font(.system(size: 12, weight: .semibold))
+                            Text(type.rawValue)
+                                .font(.captionMedium)
+                                .fontWeight(.medium)
+                        }
+                        .foregroundStyle(selectedChartType == type ? .white : AppColors.textSecondary)
+                        .padding(.horizontal, Spacing.md)
+                        .padding(.vertical, Spacing.sm)
+                        .background(
+                            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                                .fill(selectedChartType == type ? type.color : AppColors.fillTertiary)
+                        )
+                    }
+                    .buttonStyle(.plain)
+                }
+            }
+            
             // Chart
             if chartUpdates.count >= 2 {
-                Chart {
-                    ForEach(chartUpdates, id: \.timestamp) { update in
-                        LineMark(
-                            x: .value("Time", update.date),
-                            y: .value("Hash Rate", update.hashRate)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(AppColors.chartLine.gradient)
-                        
-                        AreaMark(
-                            x: .value("Time", update.date),
-                            y: .value("Hash Rate", update.hashRate)
-                        )
-                        .interpolationMethod(.catmullRom)
-                        .foregroundStyle(
-                            LinearGradient(
-                                colors: [AppColors.chartGradientTop, AppColors.chartGradientBottom],
-                                startPoint: .top,
-                                endPoint: .bottom
-                            )
-                        )
-                    }
-                }
-                .chartXAxis {
-                    AxisMarks(values: .automatic(desiredCount: 4)) { _ in
-                        AxisValueLabel(format: .dateTime.hour().minute())
-                            .font(.captionSmall)
-                            .foregroundStyle(AppColors.textTertiary)
-                    }
-                }
-                .chartYAxis {
-                    AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
-                        AxisValueLabel {
-                            if let val = value.as(Double.self) {
-                                Text(String(format: "%.0f", val))
-                                    .font(.captionSmall)
-                                    .foregroundStyle(AppColors.textTertiary)
-                            }
-                        }
-                    }
-                }
-                .frame(height: 180)
+                chartContent
             } else {
                 // Empty state for chart
                 VStack(spacing: Spacing.md) {
@@ -334,6 +344,158 @@ struct MinerDetailView: View {
                 chartAppeared = true
             }
         }
+    }
+    
+    @ViewBuilder
+    private var chartContent: some View {
+        switch selectedChartType {
+        case .hashRate:
+            hashRateChart
+        case .temperature:
+            temperatureChart
+        case .power:
+            powerChart
+        }
+    }
+    
+    private var hashRateChart: some View {
+        Chart {
+            ForEach(chartUpdates, id: \.timestamp) { update in
+                LineMark(
+                    x: .value("Time", update.date),
+                    y: .value("Hash Rate", update.hashRate)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(Color.teal.gradient)
+                
+                AreaMark(
+                    x: .value("Time", update.date),
+                    y: .value("Hash Rate", update.hashRate)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.teal.opacity(0.3), Color.teal.opacity(0.0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisValueLabel(format: .dateTime.hour().minute())
+                    .font(.captionSmall)
+                    .foregroundStyle(AppColors.textTertiary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                AxisValueLabel {
+                    if let val = value.as(Double.self) {
+                        Text(String(format: "%.0f", val))
+                            .font(.captionSmall)
+                            .foregroundStyle(AppColors.textTertiary)
+                    }
+                }
+            }
+        }
+        .frame(height: 180)
+    }
+    
+    private var temperatureChart: some View {
+        Chart {
+            ForEach(chartUpdates, id: \.timestamp) { update in
+                // ASIC Temperature
+                LineMark(
+                    x: .value("Time", update.date),
+                    y: .value("ASIC", update.temp ?? 0),
+                    series: .value("Type", "ASIC")
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(Color.orange)
+                
+                // VR Temperature (if available)
+                if let vrTemp = update.vrTemp {
+                    LineMark(
+                        x: .value("Time", update.date),
+                        y: .value("VR", vrTemp),
+                        series: .value("Type", "VR")
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(Color.red)
+                }
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisValueLabel(format: .dateTime.hour().minute())
+                    .font(.captionSmall)
+                    .foregroundStyle(AppColors.textTertiary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                AxisValueLabel {
+                    if let val = value.as(Double.self) {
+                        Text(String(format: "%.0f°", val))
+                            .font(.captionSmall)
+                            .foregroundStyle(AppColors.textTertiary)
+                    }
+                }
+            }
+        }
+        .chartForegroundStyleScale([
+            "ASIC": Color.orange,
+            "VR": Color.red
+        ])
+        .chartLegend(position: .top, alignment: .trailing)
+        .frame(height: 180)
+    }
+    
+    private var powerChart: some View {
+        Chart {
+            ForEach(chartUpdates, id: \.timestamp) { update in
+                LineMark(
+                    x: .value("Time", update.date),
+                    y: .value("Power", update.power)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(Color.yellow.gradient)
+                
+                AreaMark(
+                    x: .value("Time", update.date),
+                    y: .value("Power", update.power)
+                )
+                .interpolationMethod(.catmullRom)
+                .foregroundStyle(
+                    LinearGradient(
+                        colors: [Color.yellow.opacity(0.3), Color.yellow.opacity(0.0)],
+                        startPoint: .top,
+                        endPoint: .bottom
+                    )
+                )
+            }
+        }
+        .chartXAxis {
+            AxisMarks(values: .automatic(desiredCount: 4)) { _ in
+                AxisValueLabel(format: .dateTime.hour().minute())
+                    .font(.captionSmall)
+                    .foregroundStyle(AppColors.textTertiary)
+            }
+        }
+        .chartYAxis {
+            AxisMarks(position: .trailing, values: .automatic(desiredCount: 4)) { value in
+                AxisValueLabel {
+                    if let val = value.as(Double.self) {
+                        Text(String(format: "%.0fW", val))
+                            .font(.captionSmall)
+                            .foregroundStyle(AppColors.textTertiary)
+                    }
+                }
+            }
+        }
+        .frame(height: 180)
     }
     
     // MARK: - Mining Details
