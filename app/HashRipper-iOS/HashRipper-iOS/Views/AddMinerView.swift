@@ -24,6 +24,7 @@ struct AddMinerView: View {
     @State private var isScanning = false
     @State private var discoveredDevices: [DiscoveredDevice] = []
     @State private var networkRange = ""
+    @State private var selectedDevices: Set<UUID> = []
     
     private let session = URLSession.shared
     
@@ -234,13 +235,30 @@ struct AddMinerView: View {
                 
                 Spacer()
                 
+                // Select all / Deselect all
+                if !filteredDevices.isEmpty && !isScanning {
+                    Button {
+                        Haptics.selection()
+                        if selectedDevices.count == filteredDevices.count {
+                            selectedDevices.removeAll()
+                        } else {
+                            selectedDevices = Set(filteredDevices.map { $0.id })
+                        }
+                    } label: {
+                        Text(selectedDevices.count == filteredDevices.count ? "Deselect All" : "Select All")
+                            .font(.captionLarge)
+                            .fontWeight(.medium)
+                    }
+                    .tint(.teal)
+                }
+                
                 Button {
                     Haptics.impact(.light)
+                    selectedDevices.removeAll()
                     Task { await startScan() }
                 } label: {
-                    Label("Rescan", systemImage: "arrow.clockwise")
-                        .font(.captionLarge)
-                        .fontWeight(.medium)
+                    Image(systemName: "arrow.clockwise")
+                        .font(.system(size: 14, weight: .medium))
                 }
                 .tint(.teal)
                 .disabled(isScanning)
@@ -261,9 +279,42 @@ struct AddMinerView: View {
                 .padding(.vertical, Spacing.xxxl)
             } else {
                 ForEach(filteredDevices) { device in
-                    DiscoveredDeviceRow(device: device) {
-                        addMiner(ip: device.ipAddress, info: device.info)
+                    DiscoveredDeviceRow(
+                        device: device,
+                        isSelected: selectedDevices.contains(device.id),
+                        onToggle: {
+                            Haptics.selection()
+                            if selectedDevices.contains(device.id) {
+                                selectedDevices.remove(device.id)
+                            } else {
+                                selectedDevices.insert(device.id)
+                            }
+                        }
+                    )
+                }
+                
+                // Add selected button
+                if !selectedDevices.isEmpty {
+                    Button {
+                        Haptics.impact(.medium)
+                        addSelectedMiners()
+                    } label: {
+                        HStack(spacing: Spacing.sm) {
+                            Image(systemName: "plus.circle.fill")
+                            Text("Add \(selectedDevices.count) Miner\(selectedDevices.count == 1 ? "" : "s")")
+                        }
+                        .font(.bodyMedium)
+                        .fontWeight(.semibold)
+                        .foregroundStyle(.white)
+                        .frame(maxWidth: .infinity)
+                        .padding(.vertical, Spacing.lg)
+                        .background(
+                            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                                .fill(.teal)
+                        )
                     }
+                    .buttonStyle(PressableStyle())
+                    .padding(.top, Spacing.md)
                 }
             }
         }
@@ -438,69 +489,107 @@ struct AddMinerView: View {
         Haptics.notification(.success)
         dismiss()
     }
+    
+    private func addSelectedMiners() {
+        let devicesToAdd = filteredDevices.filter { selectedDevices.contains($0.id) }
+        
+        for device in devicesToAdd {
+            // Skip if already exists by MAC address
+            guard !existingMiners.contains(where: { $0.macAddress == device.info.macAddr }) else {
+                continue
+            }
+            
+            let miner = MinerUpdate.createMiner(from: device.info, ipAddress: device.ipAddress)
+            let update = MinerUpdate.from(miner: miner, info: device.info)
+            
+            modelContext.insert(miner)
+            modelContext.insert(update)
+        }
+        
+        try? modelContext.save()
+        Haptics.notification(.success)
+        dismiss()
+    }
 }
 
 // MARK: - Discovered Device Row
 
 struct DiscoveredDeviceRow: View {
     let device: AddMinerView.DiscoveredDevice
-    let onAdd: () -> Void
+    let isSelected: Bool
+    let onToggle: () -> Void
     
     private var minerType: MinerType {
         MinerType.from(boardVersion: device.info.boardVersion, deviceModel: device.info.deviceModel)
     }
     
     var body: some View {
-        HStack(spacing: Spacing.md) {
-            // Device icon
-            ZStack {
-                RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
-                    .fill(AppColors.fillTertiary)
-                    .frame(width: 44, height: 44)
-                
-                Image(minerType.imageName)
-                    .resizable()
-                    .scaledToFit()
-                    .frame(width: 32, height: 32)
-                    .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
-            }
-            
-            // Info
-            VStack(alignment: .leading, spacing: Spacing.xxs) {
-                Text(device.info.hostname.isEmpty ? "BitAxe" : device.info.hostname)
-                    .font(.bodyMedium)
-                    .fontWeight(.medium)
-                    .foregroundStyle(AppColors.textPrimary)
-                
-                HStack(spacing: Spacing.sm) {
-                    Text(device.ipAddress)
-                        .font(.captionLarge)
-                        .foregroundStyle(AppColors.textTertiary)
+        Button(action: onToggle) {
+            HStack(spacing: Spacing.md) {
+                // Selection checkbox
+                ZStack {
+                    RoundedRectangle(cornerRadius: 6, style: .continuous)
+                        .stroke(isSelected ? Color.teal : AppColors.fillSecondary, lineWidth: 2)
+                        .frame(width: 24, height: 24)
                     
-                    Text("•")
-                        .foregroundStyle(AppColors.textQuaternary)
-                    
-                    Text(minerType.displayName)
-                        .font(.captionLarge)
-                        .foregroundStyle(AppColors.textTertiary)
+                    if isSelected {
+                        RoundedRectangle(cornerRadius: 6, style: .continuous)
+                            .fill(Color.teal)
+                            .frame(width: 24, height: 24)
+                        
+                        Image(systemName: "checkmark")
+                            .font(.system(size: 12, weight: .bold))
+                            .foregroundStyle(.white)
+                    }
                 }
+                
+                // Device icon
+                ZStack {
+                    RoundedRectangle(cornerRadius: Radius.sm, style: .continuous)
+                        .fill(AppColors.fillTertiary)
+                        .frame(width: 44, height: 44)
+                    
+                    Image(minerType.imageName)
+                        .resizable()
+                        .scaledToFit()
+                        .frame(width: 32, height: 32)
+                        .clipShape(RoundedRectangle(cornerRadius: 6, style: .continuous))
+                }
+                
+                // Info
+                VStack(alignment: .leading, spacing: Spacing.xxs) {
+                    Text(device.info.hostname.isEmpty ? "BitAxe" : device.info.hostname)
+                        .font(.bodyMedium)
+                        .fontWeight(.medium)
+                        .foregroundStyle(AppColors.textPrimary)
+                    
+                    HStack(spacing: Spacing.sm) {
+                        Text(device.ipAddress)
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textTertiary)
+                        
+                        Text("•")
+                            .foregroundStyle(AppColors.textQuaternary)
+                        
+                        Text(minerType.displayName)
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textTertiary)
+                    }
+                }
+                
+                Spacer()
             }
-            
-            Spacer()
-            
-            // Add button
-            Button(action: onAdd) {
-                Image(systemName: "plus.circle.fill")
-                    .font(.system(size: 28))
-                    .foregroundStyle(.teal)
-            }
-            .buttonStyle(PressableStyle())
+            .padding(Spacing.md)
+            .background(
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .fill(isSelected ? Color.teal.opacity(0.1) : AppColors.backgroundGroupedSecondary)
+            )
+            .overlay(
+                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                    .stroke(isSelected ? Color.teal : .clear, lineWidth: 2)
+            )
         }
-        .padding(Spacing.md)
-        .background(
-            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                .fill(AppColors.backgroundGroupedSecondary)
-        )
+        .buttonStyle(.plain)
     }
 }
 
