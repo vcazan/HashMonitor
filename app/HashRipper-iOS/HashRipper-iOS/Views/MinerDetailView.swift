@@ -113,14 +113,6 @@ struct MinerDetailView: View {
         .sheet(isPresented: $showLogs) {
             MinerLogsSheet(miner: miner)
         }
-        .alert("Restart Miner?", isPresented: $showRestartConfirmation) {
-            Button("Cancel", role: .cancel) { }
-            Button("Restart", role: .destructive) {
-                Task { await restartMiner() }
-            }
-        } message: {
-            Text("Are you sure you want to restart \(miner.hostName)? The miner will be temporarily offline while it reboots.")
-        }
     }
     
     // MARK: - Hero Header
@@ -449,13 +441,27 @@ struct MinerDetailView: View {
                 .padding(.horizontal)
             
             HStack(spacing: Spacing.md) {
-                ActionButton(
-                    icon: "arrow.clockwise",
-                    label: "Restart",
-                    color: .orange
-                ) {
+                Button {
+                    Haptics.impact(.medium)
                     showRestartConfirmation = true
+                } label: {
+                    VStack(spacing: Spacing.sm) {
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 24, weight: .semibold))
+                            .foregroundStyle(.orange)
+                        
+                        Text("Restart")
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textSecondary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.xl)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+                            .fill(AppColors.backgroundGroupedSecondary)
+                    )
                 }
+                .buttonStyle(PressableStyle())
                 
                 ActionButton(
                     icon: "safari",
@@ -466,6 +472,14 @@ struct MinerDetailView: View {
                 }
             }
             .padding(.horizontal)
+            .alert("Restart Miner?", isPresented: $showRestartConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Restart", role: .destructive) {
+                    Task { await restartMiner() }
+                }
+            } message: {
+                Text("Are you sure you want to restart \(miner.hostName)? The miner will be temporarily offline while it reboots.")
+            }
         }
         .padding(.bottom, Spacing.xxxl)
     }
