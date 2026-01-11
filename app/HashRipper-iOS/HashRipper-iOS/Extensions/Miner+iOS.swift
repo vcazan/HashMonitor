@@ -35,7 +35,7 @@ extension Miner {
     func getUpdates(from context: ModelContext, since: Date) -> [MinerUpdate] {
         let macAddress = self.macAddress
         let startTimestamp = Int64(since.timeIntervalSince1970 * 1000)
-        var descriptor = FetchDescriptor<MinerUpdate>(
+        let descriptor = FetchDescriptor<MinerUpdate>(
             predicate: #Predicate<MinerUpdate> { update in
                 update.macAddress == macAddress && update.timestamp >= startTimestamp
             },

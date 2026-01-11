@@ -88,6 +88,9 @@ struct MinerListView: View {
             }
             .navigationTitle("Miners")
             .navigationBarTitleDisplayMode(.large)
+            .navigationDestination(for: Miner.self) { miner in
+                MinerDetailView(miner: miner)
+            }
             .searchable(text: $searchText, prompt: "Search miners...")
             .toolbar {
                 ToolbarItem(placement: .primaryAction) {
@@ -199,9 +202,6 @@ struct MinerListView: View {
                 .buttonStyle(PressableStyle())
             }
             .padding(.horizontal)
-        }
-        .navigationDestination(for: Miner.self) { miner in
-            MinerDetailView(miner: miner)
         }
     }
     
