@@ -39,6 +39,7 @@ struct MinerSettingsSheet: View {
     @State private var showSaveSuccess = false
     @State private var showRemoveConfirmation = false
     @State private var showRemovedAlert = false
+    @State private var showRestartConfirmation = false
     @State private var hasChanges = false
     @State private var latestUpdate: MinerUpdate?
     
@@ -72,6 +73,14 @@ struct MinerSettingsSheet: View {
                 removedAlertButton
             } message: {
                 Text("The miner has been removed from your list.")
+            }
+            .alert("Restart Miner?", isPresented: $showRestartConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Restart", role: .destructive) {
+                    Task { await restartMiner() }
+                }
+            } message: {
+                Text("Are you sure you want to restart \"\(miner.hostName)\"? The miner will be temporarily offline while it reboots.")
             }
             .overlay { saveOverlay }
             .task { loadCurrentSettings() }
@@ -324,7 +333,7 @@ struct MinerSettingsSheet: View {
             VStack(spacing: 1) {
                 Button {
                     Haptics.impact(.medium)
-                    Task { await restartMiner() }
+                    showRestartConfirmation = true
                 } label: {
                     SettingsButtonRow(
                         label: "Restart Miner",
