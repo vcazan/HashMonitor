@@ -22,6 +22,7 @@ struct MinerListView: View {
     @State private var isRefreshing = false
     @State private var minerToDelete: Miner? = nil
     @State private var showDeleteConfirmation = false
+    @State private var hasLoadedInitially = false
     
     // Aggregate stats
     @State private var totalHashRate: Double = 0
@@ -114,6 +115,9 @@ struct MinerListView: View {
                 await refreshAllMiners()
             }
             .task {
+                // Only run initial load once to prevent rapid re-fetching
+                guard !hasLoadedInitially else { return }
+                hasLoadedInitially = true
                 await initialLoad()
             }
             .alert("Delete Miner", isPresented: $showDeleteConfirmation, presenting: minerToDelete) { miner in
@@ -251,14 +255,14 @@ struct MinerListView: View {
     }
     
     private func refreshAllMiners() async {
+        // Prevent overlapping refreshes
+        guard !isRefreshing else { return }
         isRefreshing = true
         
-        await withTaskGroup(of: Void.self) { group in
-            for miner in miners {
-                group.addTask {
-                    await self.refreshMiner(miner)
-                }
-            }
+        // Refresh miners sequentially to avoid overwhelming the network
+        // and prevent request cancellations
+        for miner in miners {
+            await refreshMiner(miner)
         }
         
         await MainActor.run {

@@ -503,6 +503,8 @@ struct MinerDetailView: View {
     }
     
     private func refresh() async {
+        // Prevent overlapping refreshes
+        guard !isRefreshing else { return }
         isRefreshing = true
         
         let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
