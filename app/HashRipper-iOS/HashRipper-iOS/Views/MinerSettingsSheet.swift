@@ -439,6 +439,16 @@ struct MinerSettingsSheet: View {
                 miner.hostName = hostname
             }
             
+            // Refresh data from miner to update local cache
+            let refreshResult = await client.getSystemInfo()
+            if case .success(let info) = refreshResult {
+                let update = MinerUpdate.from(miner: miner, info: info)
+                await MainActor.run {
+                    modelContext.insert(update)
+                    try? modelContext.save()
+                }
+            }
+            
             await MainActor.run {
                 withAnimation(.spring(response: 0.4, dampingFraction: 0.7)) {
                     showSaveSuccess = true
