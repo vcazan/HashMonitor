@@ -9,6 +9,35 @@ import AxeOSClient
 import Foundation
 import SwiftData
 
+/// Metrics captured when a restart is triggered
+struct RestartMetrics {
+    let consecutiveReadings: Int
+    let latestPower: Double
+    let latestHashRate: Double
+    let avgPower: Double
+    let avgHashRate: Double
+    let powerThreshold: Double
+    
+    var formattedReason: String {
+        var parts: [String] = []
+        
+        // Power condition
+        parts.append("Power: \(String(format: "%.2f", latestPower))W (threshold: ≤\(String(format: "%.1f", powerThreshold))W)")
+        
+        // Hash rate condition  
+        if latestHashRate < 1 {
+            parts.append("Hash rate: \(String(format: "%.4f", latestHashRate)) GH/s (stalled)")
+        } else {
+            parts.append("Hash rate: \(String(format: "%.1f", latestHashRate)) GH/s (unchanged)")
+        }
+        
+        // Number of readings
+        parts.append("\(consecutiveReadings) consecutive low readings detected")
+        
+        return parts.joined(separator: " • ")
+    }
+}
+
 @Observable
 class MinerWatchDog {
     // Default values (can be overridden by AppSettings)
@@ -197,12 +226,44 @@ class MinerWatchDog {
 
             // Issue restart outside of the model context if needed
             if shouldRestart {
-                await issueRestart(to: miner.ipAddress, minerName: miner.hostName, minerMacAddress: miner.macAddress)
+                // Gather metrics for the restart reason
+                let metrics = await database.withModelContext { context -> RestartMetrics? in
+                    guard
+                        let miners = try? context.fetch(FetchDescriptor<Miner>()),
+                        let miner = miners.first(where: { $0.ipAddress == minerIpAddress})
+                    else { return nil }
+                    
+                    let recentUpdates = miner.getRecentUpdates(from: context, limit: 8)
+                    let updates = Array(recentUpdates)
+                    
+                    guard !updates.isEmpty else { return nil }
+                    
+                    let avgPower = updates.reduce(0.0) { $0 + $1.power } / Double(updates.count)
+                    let avgHashRate = updates.reduce(0.0) { $0 + $1.hashRate } / Double(updates.count)
+                    let latestPower = updates.first?.power ?? 0
+                    let latestHashRate = updates.first?.hashRate ?? 0
+                    
+                    return RestartMetrics(
+                        consecutiveReadings: updates.count,
+                        latestPower: latestPower,
+                        latestHashRate: latestHashRate,
+                        avgPower: avgPower,
+                        avgHashRate: avgHashRate,
+                        powerThreshold: self.lowPowerThreshold
+                    )
+                }
+                
+                await issueRestart(
+                    to: miner.ipAddress,
+                    minerName: miner.hostName,
+                    minerMacAddress: miner.macAddress,
+                    metrics: metrics
+                )
             }
         }
     }
 
-    private func issueRestart(to minerIpAddress: String, minerName: String, minerMacAddress: String) async {
+    private func issueRestart(to minerIpAddress: String, minerName: String, minerMacAddress: String, metrics: RestartMetrics?) async {
         // Record restart attempt
         restartLock.perform {
             minerRestartTimestamps[minerIpAddress] = Date().millisecondsSince1970
@@ -223,7 +284,13 @@ class MinerWatchDog {
                 minerRestartTimestamps[minerIpAddress] = Date().millisecondsSince1970
             }
             
-            let reason = "Automatic restart due to low power (≤0.1W) and unchanged hashrate detected"
+            // Build detailed reason from metrics
+            let reason: String
+            if let metrics = metrics {
+                reason = metrics.formattedReason
+            } else {
+                reason = "Automatic restart due to low power and unchanged hashrate detected"
+            }
             
             // Log the successful restart action
             await logWatchdogAction(
@@ -232,11 +299,18 @@ class MinerWatchDog {
                 reason: reason
             )
             
-            // Send system notification
+            // Send system notification with summary
+            let notificationReason: String
+            if let metrics = metrics {
+                notificationReason = "Power: \(String(format: "%.2f", metrics.latestPower))W, Hash rate: \(String(format: "%.1f", metrics.latestHashRate)) GH/s"
+            } else {
+                notificationReason = "Low power and unchanged hashrate detected"
+            }
+            
             await MainActor.run {
                 WatchDogNotificationService.shared.notifyMinerRestarted(
                     minerName: minerName,
-                    reason: reason
+                    reason: notificationReason
                 )
             }
 

@@ -89,7 +89,7 @@ struct AlertsView: View {
                     HStack(spacing: 6) {
                         Image(systemName: "arrow.clockwise.circle")
                             .foregroundStyle(.orange)
-                        Text("\(actionLogs.count) total restarts")
+                        Text("\(actionLogs.count) total restart\(actionLogs.count == 1 ? "" : "s")")
                             .font(.system(size: 12))
                             .foregroundStyle(.secondary)
                     }
@@ -99,13 +99,29 @@ struct AlertsView: View {
                             Circle()
                                 .fill(.blue)
                                 .frame(width: 6, height: 6)
-                            Text("\(unreadCount) unread")
+                            Text("\(unreadCount) new")
+                                .font(.system(size: 12))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                    
+                    // Show affected miners count
+                    let affectedMiners = Set(actionLogs.map { $0.minerMacAddress }).count
+                    if affectedMiners > 0 {
+                        HStack(spacing: 6) {
+                            Image(systemName: "cpu")
+                                .foregroundStyle(.secondary)
+                            Text("\(affectedMiners) miner\(affectedMiners == 1 ? "" : "s") affected")
                                 .font(.system(size: 12))
                                 .foregroundStyle(.secondary)
                         }
                     }
                     
                     Spacer()
+                    
+                    Text("Click to expand details")
+                        .font(.system(size: 10))
+                        .foregroundStyle(.tertiary)
                     
                     Button("Clear All") {
                         clearAll()
@@ -487,51 +503,155 @@ private struct AlertActivityRow: View {
     let miner: Miner?
     
     @Environment(\.colorScheme) private var colorScheme
+    @State private var isExpanded: Bool = false
     
     private var logDate: Date {
         Date(timeIntervalSince1970: Double(log.timestamp) / 1000.0)
     }
     
-    var body: some View {
-        HStack(spacing: 14) {
-            // Icon
-            ZStack {
-                Circle()
-                    .fill(Color.orange.opacity(0.1))
-                    .frame(width: 36, height: 36)
-                
-                Image(systemName: "arrow.clockwise")
-                    .font(.system(size: 14, weight: .medium))
-                    .foregroundStyle(.orange)
+    /// Parse the reason string into structured components for display
+    private var reasonComponents: [(icon: String, text: String)] {
+        let parts = log.reason.components(separatedBy: " • ")
+        return parts.compactMap { part in
+            if part.contains("Power:") {
+                return ("bolt.fill", part)
+            } else if part.contains("Hash rate:") {
+                return ("cube.fill", part)
+            } else if part.contains("readings") {
+                return ("number.circle.fill", part)
+            } else {
+                return ("info.circle.fill", part)
             }
-            
-            // Content
-            VStack(alignment: .leading, spacing: 3) {
-                HStack(spacing: 6) {
-                    Text(miner?.hostName ?? "Unknown Miner")
-                        .font(.system(size: 13, weight: .medium))
-                    
-                    if !log.isRead {
+        }
+    }
+    
+    var body: some View {
+        VStack(alignment: .leading, spacing: 0) {
+            // Main row
+            Button(action: {
+                withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                    isExpanded.toggle()
+                }
+            }) {
+                HStack(spacing: 14) {
+                    // Icon
+                    ZStack {
                         Circle()
-                            .fill(.blue)
-                            .frame(width: 6, height: 6)
+                            .fill(Color.orange.opacity(0.1))
+                            .frame(width: 36, height: 36)
+                        
+                        Image(systemName: "arrow.clockwise")
+                            .font(.system(size: 14, weight: .medium))
+                            .foregroundStyle(.orange)
+                    }
+                    
+                    // Content
+                    VStack(alignment: .leading, spacing: 3) {
+                        HStack(spacing: 6) {
+                            Text(miner?.hostName ?? "Unknown Miner")
+                                .font(.system(size: 13, weight: .medium))
+                                .foregroundStyle(.primary)
+                            
+                            if !log.isRead {
+                                Circle()
+                                    .fill(.blue)
+                                    .frame(width: 6, height: 6)
+                            }
+                        }
+                        
+                        Text("WatchDog restart triggered")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.secondary)
+                    }
+                    
+                    Spacer()
+                    
+                    // Time and expand indicator
+                    VStack(alignment: .trailing, spacing: 4) {
+                        Text(logDate, format: .relative(presentation: .named))
+                            .font(.system(size: 11))
+                            .foregroundStyle(.tertiary)
+                        
+                        Image(systemName: isExpanded ? "chevron.up" : "chevron.down")
+                            .font(.system(size: 10, weight: .medium))
+                            .foregroundStyle(.tertiary)
                     }
                 }
-                
-                Text("Restarted automatically")
-                    .font(.system(size: 11))
-                    .foregroundStyle(.secondary)
             }
+            .buttonStyle(.plain)
+            .padding(.horizontal, 24)
+            .padding(.vertical, 10)
             
-            Spacer()
-            
-            // Time
-            Text(logDate, format: .relative(presentation: .named))
-                .font(.system(size: 11))
-                .foregroundStyle(.tertiary)
+            // Expanded details
+            if isExpanded {
+                VStack(alignment: .leading, spacing: 10) {
+                    // Reason breakdown
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Trigger Conditions")
+                            .font(.system(size: 11, weight: .semibold))
+                            .foregroundStyle(.secondary)
+                            .textCase(.uppercase)
+                        
+                        ForEach(reasonComponents, id: \.text) { component in
+                            HStack(spacing: 8) {
+                                Image(systemName: component.icon)
+                                    .font(.system(size: 10))
+                                    .foregroundStyle(.orange)
+                                    .frame(width: 16)
+                                
+                                Text(component.text)
+                                    .font(.system(size: 12, design: .monospaced))
+                                    .foregroundStyle(.primary)
+                            }
+                        }
+                    }
+                    
+                    // Firmware info if available
+                    if log.minerFirmwareVersion != nil || log.axeOSVersion != nil {
+                        Divider()
+                            .padding(.vertical, 4)
+                        
+                        HStack(spacing: 16) {
+                            if let firmware = log.minerFirmwareVersion {
+                                HStack(spacing: 4) {
+                                    Text("Firmware:")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.tertiary)
+                                    Text(firmware)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                            
+                            if let axeOS = log.axeOSVersion {
+                                HStack(spacing: 4) {
+                                    Text("AxeOS:")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.tertiary)
+                                    Text(axeOS)
+                                        .font(.system(size: 10, design: .monospaced))
+                                        .foregroundStyle(.secondary)
+                                }
+                            }
+                        }
+                    }
+                    
+                    // Exact timestamp
+                    HStack(spacing: 4) {
+                        Text("Time:")
+                            .font(.system(size: 10))
+                            .foregroundStyle(.tertiary)
+                        Text(logDate, format: .dateTime.month().day().hour().minute().second())
+                            .font(.system(size: 10, design: .monospaced))
+                            .foregroundStyle(.secondary)
+                    }
+                }
+                .padding(.horizontal, 24)
+                .padding(.leading, 50) // Align with content
+                .padding(.bottom, 12)
+                .transition(.opacity.combined(with: .move(edge: .top)))
+            }
         }
-        .padding(.horizontal, 24)
-        .padding(.vertical, 10)
         .background(log.isRead ? Color.clear : (colorScheme == .dark ? Color.blue.opacity(0.03) : Color.blue.opacity(0.02)))
     }
 }
