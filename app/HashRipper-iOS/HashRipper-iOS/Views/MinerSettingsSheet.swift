@@ -14,6 +14,7 @@ struct MinerSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
     @Environment(\.modelContext) private var modelContext
     @Bindable var miner: Miner
+    var onDelete: (() -> Void)? = nil
     
     // Settings state
     @State private var hostname: String = ""
@@ -101,7 +102,13 @@ struct MinerSettingsSheet: View {
                 }
             }
             .alert("Miner Removed", isPresented: $showDeleteConfirmation) {
-                Button("OK") { dismiss() }
+                Button("OK") {
+                    dismiss()
+                    // Delay slightly to let sheet dismiss animation complete
+                    DispatchQueue.main.asyncAfter(deadline: .now() + 0.3) {
+                        onDelete?()
+                    }
+                }
             } message: {
                 Text("The miner has been removed from your list.")
             }

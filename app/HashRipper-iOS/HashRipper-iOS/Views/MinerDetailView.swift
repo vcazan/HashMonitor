@@ -18,6 +18,8 @@ struct MinerDetailView: View {
     @Environment(\.modelContext) private var modelContext
     @Environment(\.colorScheme) private var colorScheme
     
+    @Environment(\.dismiss) private var dismiss
+    
     @State private var latestUpdate: MinerUpdate?
     @State private var chartUpdates: [MinerUpdate] = []
     @State private var isRefreshing = false
@@ -103,7 +105,10 @@ struct MinerDetailView: View {
             await initialLoad()
         }
         .sheet(isPresented: $showSettings) {
-            MinerSettingsSheet(miner: miner)
+            MinerSettingsSheet(miner: miner) {
+                // Miner was deleted - dismiss back to list
+                dismiss()
+            }
         }
         .sheet(isPresented: $showLogs) {
             MinerLogsSheet(miner: miner)
