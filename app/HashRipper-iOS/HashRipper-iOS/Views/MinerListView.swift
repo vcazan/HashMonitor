@@ -165,11 +165,11 @@ struct MinerListView: View {
     
     private var statsOverview: some View {
         HStack(spacing: Spacing.md) {
-            // Total Hash Rate
+            // Hash Rate
             StatCard(
                 icon: "cube.fill",
                 value: formatHashRate(totalHashRate),
-                label: "Total Hash Rate",
+                label: "Hash Rate",
                 color: AppColors.hashRate
             )
             
