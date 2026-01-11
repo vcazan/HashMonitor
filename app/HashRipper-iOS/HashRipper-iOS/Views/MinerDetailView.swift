@@ -185,30 +185,10 @@ struct MinerDetailView: View {
                         .foregroundStyle(AppColors.textTertiary)
                 }
                 
-                // Miner type + Difficulty stats in one line
-                if let update = latestUpdate {
-                    HStack(spacing: Spacing.sm) {
-                        Text(miner.minerType.displayName)
-                            .foregroundStyle(AppColors.textTertiary)
-                        
-                        Text("•")
-                            .foregroundStyle(AppColors.textQuaternary)
-                        
-                        Text("Best: \(update.bestDiff ?? "—")")
-                            .foregroundStyle(AppColors.textSecondary)
-                        
-                        Text("•")
-                            .foregroundStyle(AppColors.textQuaternary)
-                        
-                        Text("Session: \(update.bestSessionDiff ?? "—")")
-                            .foregroundStyle(AppColors.textSecondary)
-                    }
-                    .font(.system(size: 11, weight: .medium))
-                } else {
-                    Text(miner.minerType.displayName)
-                        .font(.captionLarge)
-                        .foregroundStyle(AppColors.textTertiary)
-                }
+                // Miner type
+                Text(miner.minerType.displayName)
+                    .font(.captionLarge)
+                    .foregroundStyle(AppColors.textTertiary)
             }
             
             Spacer()
@@ -231,39 +211,87 @@ struct MinerDetailView: View {
     // MARK: - Primary Stats
     
     private var primaryStats: some View {
-        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.sm) {
+        VStack(spacing: Spacing.sm) {
+            // Main stats row
+            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.sm) {
+                if let update = latestUpdate {
+                    StatDisplay(
+                        value: String(format: "%.1f", update.power),
+                        unit: "W",
+                        label: "Power",
+                        icon: "bolt.fill",
+                        color: AppColors.textSecondary
+                    )
+                    
+                    StatDisplay(
+                        value: String(format: "%.0f", update.temp ?? 0),
+                        unit: "°C",
+                        label: "ASIC Temp",
+                        icon: "thermometer.medium",
+                        color: AppColors.textSecondary
+                    )
+                    
+                    StatDisplay(
+                        value: String(format: "%.0f", update.frequency ?? 0),
+                        unit: "MHz",
+                        label: "Frequency",
+                        icon: "waveform",
+                        color: AppColors.textSecondary
+                    )
+                    
+                    StatDisplay(
+                        value: fanDisplayValue(update: update),
+                        unit: update.autofanspeed == 1 ? "" : "%",
+                        label: "Fan",
+                        icon: "fan.fill",
+                        color: AppColors.textSecondary
+                    )
+                }
+            }
+            
+            // Difficulty row
             if let update = latestUpdate {
-                StatDisplay(
-                    value: String(format: "%.1f", update.power),
-                    unit: "W",
-                    label: "Power",
-                    icon: "bolt.fill",
-                    color: AppColors.textSecondary
-                )
-                
-                StatDisplay(
-                    value: String(format: "%.0f", update.temp ?? 0),
-                    unit: "°C",
-                    label: "ASIC Temp",
-                    icon: "thermometer.medium",
-                    color: AppColors.textSecondary
-                )
-                
-                StatDisplay(
-                    value: String(format: "%.0f", update.frequency ?? 0),
-                    unit: "MHz",
-                    label: "Frequency",
-                    icon: "waveform",
-                    color: AppColors.textSecondary
-                )
-                
-                StatDisplay(
-                    value: fanDisplayValue(update: update),
-                    unit: update.autofanspeed == 1 ? "" : "%",
-                    label: "Fan",
-                    icon: "fan.fill",
-                    color: AppColors.textSecondary
-                )
+                HStack(spacing: Spacing.sm) {
+                    // Best Difficulty
+                    HStack(spacing: Spacing.sm) {
+                        Text("Best")
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text(update.bestDiff ?? "—")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(AppColors.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .fill(AppColors.backgroundGroupedSecondary)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                                    .stroke(AppColors.separator.opacity(0.5), lineWidth: 0.5)
+                            )
+                    )
+                    
+                    // Session Best
+                    HStack(spacing: Spacing.sm) {
+                        Text("Session")
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text(update.bestSessionDiff ?? "—")
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(AppColors.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .fill(AppColors.backgroundGroupedSecondary)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                                    .stroke(AppColors.separator.opacity(0.5), lineWidth: 0.5)
+                            )
+                    )
+                }
             }
         }
         .padding(.horizontal)
@@ -280,11 +308,31 @@ struct MinerDetailView: View {
     
     private var performanceChart: some View {
         VStack(spacing: Spacing.md) {
-            // Header with chart type picker
+            // Header
             HStack {
-                Text("Charts")
-                    .font(.titleSmall)
+                // Chart type menu
+                Menu {
+                    ForEach(ChartType.allCases, id: \.self) { type in
+                        Button {
+                            Haptics.selection()
+                            withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
+                                selectedChartType = type
+                            }
+                        } label: {
+                            Label(type.rawValue, systemImage: type.icon)
+                        }
+                    }
+                } label: {
+                    HStack(spacing: Spacing.xs) {
+                        Image(systemName: selectedChartType.icon)
+                            .font(.system(size: 14, weight: .medium))
+                        Text(selectedChartType.rawValue)
+                            .font(.titleSmall)
+                        Image(systemName: "chevron.down")
+                            .font(.system(size: 10, weight: .semibold))
+                    }
                     .foregroundStyle(AppColors.textPrimary)
+                }
                 
                 Spacer()
                 
@@ -311,24 +359,6 @@ struct MinerDetailView: View {
                         }
                         .buttonStyle(.plain)
                     }
-                }
-            }
-            
-            // Chart type selector
-            HStack(spacing: Spacing.sm) {
-                ForEach(ChartType.allCases, id: \.self) { type in
-                    Button {
-                        Haptics.selection()
-                        withAnimation(.spring(response: 0.3, dampingFraction: 0.8)) {
-                            selectedChartType = type
-                        }
-                    } label: {
-                        Text(type.rawValue)
-                            .font(.captionMedium)
-                            .fontWeight(.medium)
-                            .foregroundStyle(selectedChartType == type ? AppColors.statusOnline : AppColors.textTertiary)
-                    }
-                    .buttonStyle(.plain)
                 }
             }
             
