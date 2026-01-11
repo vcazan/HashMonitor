@@ -198,13 +198,6 @@ struct HashRipperApp: App {
             AboutView()
         }
         .windowResizability(.contentSize)
-        
-        Window("Settings", id: SettingsWindow.windowGroupId) {
-            SettingsWindow()
-        }
-        .modelContainer(SharedDatabase.shared.modelContainer)
-        .defaultSize(width: 650, height: 550)
-        .windowResizability(.contentMinSize)
 
     }
 

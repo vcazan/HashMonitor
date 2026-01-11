@@ -133,6 +133,13 @@ struct MainContentView: View {
             isShowingChartsInspector = false
             isShowingSettingsInspector = false
         }
+        .onReceive(NotificationCenter.default.publisher(for: .switchToSettings)) { _ in
+            // Switch to settings tab when requested from menu
+            selectedTab = .settings
+            selectedMiner = nil
+            isShowingChartsInspector = false
+            isShowingSettingsInspector = false
+        }
         .sheet(isPresented: $showAddMinerSheet, onDismiss: {
             // Reload miners after wizard closes
             loadMiners()
