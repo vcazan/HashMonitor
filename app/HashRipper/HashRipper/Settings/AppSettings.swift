@@ -368,13 +368,60 @@ class AppSettings {
     
     @ObservationIgnored
     private let watchdogHashRateThresholdKey = "watchdogHashRateThreshold"
-    /// Hash rate threshold in GH/s - below this is considered stalled (default: 0)
+    /// Hash rate threshold in GH/s - below this is considered stalled (default: 1.0 GH/s)
     var watchdogHashRateThreshold: Double {
         get {
-            return userDefaults.double(forKey: watchdogHashRateThresholdKey)
+            let value = userDefaults.double(forKey: watchdogHashRateThresholdKey)
+            return value > 0 ? value : 1.0 // Default to 1.0 GH/s
         }
         set {
             userDefaults.set(newValue, forKey: watchdogHashRateThresholdKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogRequireBothConditionsKey = "watchdogRequireBothConditions"
+    /// If true, both power AND hash rate must be below threshold. If false, either condition triggers restart.
+    var watchdogRequireBothConditions: Bool {
+        get {
+            // Default to true (both conditions required) for safer operation
+            if userDefaults.object(forKey: watchdogRequireBothConditionsKey) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: watchdogRequireBothConditionsKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogRequireBothConditionsKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogCheckHashRateKey = "watchdogCheckHashRate"
+    /// Whether to check hash rate as a trigger condition
+    var watchdogCheckHashRate: Bool {
+        get {
+            if userDefaults.object(forKey: watchdogCheckHashRateKey) == nil {
+                return true // Default enabled
+            }
+            return userDefaults.bool(forKey: watchdogCheckHashRateKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogCheckHashRateKey)
+        }
+    }
+    
+    @ObservationIgnored
+    private let watchdogCheckPowerKey = "watchdogCheckPower"
+    /// Whether to check power as a trigger condition
+    var watchdogCheckPower: Bool {
+        get {
+            if userDefaults.object(forKey: watchdogCheckPowerKey) == nil {
+                return true // Default enabled
+            }
+            return userDefaults.bool(forKey: watchdogCheckPowerKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: watchdogCheckPowerKey)
         }
     }
     

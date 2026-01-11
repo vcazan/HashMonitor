@@ -309,14 +309,14 @@ struct AlertsView: View {
                     }
                 }
                 
-                // Advanced Settings
+                // Trigger Conditions
                 SettingsCard {
                     VStack(alignment: .leading, spacing: 12) {
                         HStack {
                             VStack(alignment: .leading, spacing: 2) {
-                                Text("Advanced Settings")
+                                Text("Trigger Conditions")
                                     .font(.system(size: 14, weight: .semibold))
-                                Text("Fine-tune WatchDog thresholds")
+                                Text("Configure when WatchDog should restart a miner")
                                     .font(.system(size: 12))
                                     .foregroundStyle(.secondary)
                             }
@@ -331,98 +331,143 @@ struct AlertsView: View {
                         }
                         
                         if settings.isWatchdogAdvancedModeEnabled {
+                            // Trigger Summary
+                            triggerConditionSummary
+                            
                             Divider()
                             
-                            // Restart Cooldown
-                            VStack(alignment: .leading, spacing: 6) {
+                            // Power Condition
+                            VStack(alignment: .leading, spacing: 8) {
                                 HStack {
-                                    Text("Restart Cooldown")
-                                        .font(.system(size: 13))
-                                    Spacer()
-                                    Text("\(Int(settings.watchdogRestartCooldown))s")
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundStyle(.secondary)
+                                    Toggle(isOn: Binding(
+                                        get: { settings.watchdogCheckPower },
+                                        set: { settings.watchdogCheckPower = $0 }
+                                    )) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "bolt.fill")
+                                                .foregroundStyle(.orange)
+                                                .frame(width: 16)
+                                            Text("Low Power Detection")
+                                                .font(.system(size: 13, weight: .medium))
+                                        }
+                                    }
+                                    .toggleStyle(.switch)
                                 }
                                 
-                                Slider(
-                                    value: Binding(
-                                        get: { settings.watchdogRestartCooldown },
-                                        set: { settings.watchdogRestartCooldown = $0 }
-                                    ),
-                                    in: 60...600,
-                                    step: 30
-                                )
-                                
-                                Text("Time to wait between restart attempts")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.tertiary)
+                                if settings.watchdogCheckPower {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Text("Power threshold")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Text("≤ \(settings.watchdogLowPowerThreshold, specifier: "%.1f") W")
+                                                .font(.system(size: 12, design: .monospaced))
+                                                .foregroundStyle(.orange)
+                                        }
+                                        
+                                        Slider(
+                                            value: Binding(
+                                                get: { settings.watchdogLowPowerThreshold },
+                                                set: { settings.watchdogLowPowerThreshold = $0 }
+                                            ),
+                                            in: 0.1...10.0,
+                                            step: 0.1
+                                        )
+                                        
+                                        Text("Restart if power stays at or below this value")
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding(.leading, 24)
+                                }
                             }
                             
                             Divider()
                             
-                            // Check Interval
-                            VStack(alignment: .leading, spacing: 6) {
+                            // Hash Rate Condition
+                            VStack(alignment: .leading, spacing: 8) {
                                 HStack {
-                                    Text("Check Interval")
-                                        .font(.system(size: 13))
-                                    Spacer()
-                                    Text("\(Int(settings.watchdogCheckInterval))s")
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundStyle(.secondary)
+                                    Toggle(isOn: Binding(
+                                        get: { settings.watchdogCheckHashRate },
+                                        set: { settings.watchdogCheckHashRate = $0 }
+                                    )) {
+                                        HStack(spacing: 8) {
+                                            Image(systemName: "cube.fill")
+                                                .foregroundStyle(.blue)
+                                                .frame(width: 16)
+                                            Text("Low Hash Rate Detection")
+                                                .font(.system(size: 13, weight: .medium))
+                                        }
+                                    }
+                                    .toggleStyle(.switch)
                                 }
                                 
-                                Slider(
-                                    value: Binding(
-                                        get: { settings.watchdogCheckInterval },
-                                        set: { settings.watchdogCheckInterval = $0 }
-                                    ),
-                                    in: 10...120,
-                                    step: 10
-                                )
-                                
-                                Text("How often to check each miner's health")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.tertiary)
+                                if settings.watchdogCheckHashRate {
+                                    VStack(alignment: .leading, spacing: 6) {
+                                        HStack {
+                                            Text("Hash rate threshold")
+                                                .font(.system(size: 12))
+                                                .foregroundStyle(.secondary)
+                                            Spacer()
+                                            Text("< \(settings.watchdogHashRateThreshold, specifier: "%.1f") GH/s")
+                                                .font(.system(size: 12, design: .monospaced))
+                                                .foregroundStyle(.blue)
+                                        }
+                                        
+                                        Slider(
+                                            value: Binding(
+                                                get: { settings.watchdogHashRateThreshold },
+                                                set: { settings.watchdogHashRateThreshold = $0 }
+                                            ),
+                                            in: 0.0...100.0,
+                                            step: 1.0
+                                        )
+                                        
+                                        Text("Restart if hash rate stays below this value")
+                                            .font(.system(size: 10))
+                                            .foregroundStyle(.tertiary)
+                                    }
+                                    .padding(.leading, 24)
+                                }
                             }
                             
                             Divider()
                             
-                            // Low Power Threshold
-                            VStack(alignment: .leading, spacing: 6) {
-                                HStack {
-                                    Text("Low Power Threshold")
-                                        .font(.system(size: 13))
-                                    Spacer()
-                                    Text("\(settings.watchdogLowPowerThreshold, specifier: "%.1f")W")
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundStyle(.secondary)
+                            // Condition Logic
+                            if settings.watchdogCheckPower && settings.watchdogCheckHashRate {
+                                VStack(alignment: .leading, spacing: 8) {
+                                    Text("Condition Logic")
+                                        .font(.system(size: 13, weight: .medium))
+                                    
+                                    Picker("", selection: Binding(
+                                        get: { settings.watchdogRequireBothConditions },
+                                        set: { settings.watchdogRequireBothConditions = $0 }
+                                    )) {
+                                        Text("Both conditions must be met (safer)").tag(true)
+                                        Text("Either condition triggers restart").tag(false)
+                                    }
+                                    .pickerStyle(.radioGroup)
+                                    .font(.system(size: 12))
                                 }
                                 
-                                Slider(
-                                    value: Binding(
-                                        get: { settings.watchdogLowPowerThreshold },
-                                        set: { settings.watchdogLowPowerThreshold = $0 }
-                                    ),
-                                    in: 0.1...5.0,
-                                    step: 0.1
-                                )
-                                
-                                Text("Power below this triggers concern")
-                                    .font(.system(size: 11))
-                                    .foregroundStyle(.tertiary)
+                                Divider()
                             }
                             
-                            Divider()
-                            
-                            // Consecutive Updates
+                            // Consecutive Readings
                             VStack(alignment: .leading, spacing: 6) {
                                 HStack {
-                                    Text("Consecutive Low Readings")
-                                        .font(.system(size: 13))
+                                    HStack(spacing: 8) {
+                                        Image(systemName: "number.circle.fill")
+                                            .foregroundStyle(.purple)
+                                            .frame(width: 16)
+                                        Text("Consecutive Readings Required")
+                                            .font(.system(size: 13, weight: .medium))
+                                    }
                                     Spacer()
                                     Text("\(settings.watchdogConsecutiveUpdates)")
-                                        .font(.system(size: 12, design: .monospaced))
-                                        .foregroundStyle(.secondary)
+                                        .font(.system(size: 14, weight: .semibold, design: .monospaced))
+                                        .foregroundStyle(.purple)
                                 }
                                 
                                 Slider(
@@ -434,41 +479,197 @@ struct AlertsView: View {
                                     step: 1
                                 )
                                 
-                                Text("Number of low power readings before restart")
-                                    .font(.system(size: 11))
+                                Text("Number of consecutive checks that must fail before restarting")
+                                    .font(.system(size: 10))
                                     .foregroundStyle(.tertiary)
                             }
                             
                             Divider()
                             
-                            // Reset to Defaults
-                            Button("Reset to Defaults") {
-                                settings.watchdogRestartCooldown = 180
-                                settings.watchdogCheckInterval = 30
-                                settings.watchdogLowPowerThreshold = 0.1
-                                settings.watchdogConsecutiveUpdates = 3
+                            // Timing Settings
+                            VStack(alignment: .leading, spacing: 12) {
+                                Text("Timing")
+                                    .font(.system(size: 13, weight: .medium))
+                                
+                                // Check Interval
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("Check interval")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text("\(Int(settings.watchdogCheckInterval))s")
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Slider(
+                                        value: Binding(
+                                            get: { settings.watchdogCheckInterval },
+                                            set: { settings.watchdogCheckInterval = $0 }
+                                        ),
+                                        in: 10...120,
+                                        step: 10
+                                    )
+                                }
+                                
+                                // Restart Cooldown
+                                VStack(alignment: .leading, spacing: 4) {
+                                    HStack {
+                                        Text("Restart cooldown")
+                                            .font(.system(size: 12))
+                                            .foregroundStyle(.secondary)
+                                        Spacer()
+                                        Text(formatCooldown(settings.watchdogRestartCooldown))
+                                            .font(.system(size: 12, design: .monospaced))
+                                            .foregroundStyle(.secondary)
+                                    }
+                                    
+                                    Slider(
+                                        value: Binding(
+                                            get: { settings.watchdogRestartCooldown },
+                                            set: { settings.watchdogRestartCooldown = $0 }
+                                        ),
+                                        in: 60...600,
+                                        step: 30
+                                    )
+                                    
+                                    Text("Time to wait after a restart before allowing another")
+                                        .font(.system(size: 10))
+                                        .foregroundStyle(.tertiary)
+                                }
                             }
-                            .font(.system(size: 12))
-                            .foregroundStyle(.blue)
+                            
+                            Divider()
+                            
+                            // Reset to Defaults
+                            HStack {
+                                Button("Reset to Defaults") {
+                                    settings.watchdogRestartCooldown = 180
+                                    settings.watchdogCheckInterval = 30
+                                    settings.watchdogLowPowerThreshold = 0.1
+                                    settings.watchdogHashRateThreshold = 1.0
+                                    settings.watchdogConsecutiveUpdates = 3
+                                    settings.watchdogRequireBothConditions = true
+                                    settings.watchdogCheckPower = true
+                                    settings.watchdogCheckHashRate = true
+                                }
+                                .font(.system(size: 12))
+                                .foregroundStyle(.blue)
+                                
+                                Spacer()
+                            }
                         }
                     }
                 }
                 
-                // How it works
-                SettingsCard {
-                    VStack(alignment: .leading, spacing: 12) {
-                        Text("How WatchDog Works")
-                            .font(.system(size: 14, weight: .semibold))
-                        
-                        VStack(alignment: .leading, spacing: 8) {
-                            InfoRow(icon: "eye", text: "Monitors power and hash rate for signs of failure")
-                            InfoRow(icon: "timer", text: "Waits \(Int(settings.watchdogRestartCooldown / 60)) min between restart attempts")
-                            InfoRow(icon: "power", text: "Issues restart after \(settings.watchdogConsecutiveUpdates) low readings")
+                // Current Configuration Summary
+                if !settings.isWatchdogAdvancedModeEnabled {
+                    SettingsCard {
+                        VStack(alignment: .leading, spacing: 12) {
+                            Text("Current Configuration")
+                                .font(.system(size: 14, weight: .semibold))
+                            
+                            VStack(alignment: .leading, spacing: 8) {
+                                InfoRow(icon: "bolt.fill", text: "Power threshold: ≤ \(String(format: "%.1f", settings.watchdogLowPowerThreshold))W")
+                                InfoRow(icon: "cube.fill", text: "Hash rate threshold: < \(String(format: "%.1f", settings.watchdogHashRateThreshold)) GH/s")
+                                InfoRow(icon: "number.circle.fill", text: "\(settings.watchdogConsecutiveUpdates) consecutive readings required")
+                                InfoRow(icon: "timer", text: "\(formatCooldown(settings.watchdogRestartCooldown)) cooldown between restarts")
+                            }
+                            
+                            Text("Enable advanced mode above to customize these settings")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.tertiary)
+                                .padding(.top, 4)
                         }
                     }
                 }
             }
             .padding(24)
+        }
+    }
+    
+    // MARK: - Trigger Summary View
+    
+    private var triggerConditionSummary: some View {
+        VStack(alignment: .leading, spacing: 8) {
+            Text("Restart will trigger when:")
+                .font(.system(size: 11, weight: .semibold))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+            
+            HStack(alignment: .top, spacing: 12) {
+                // Visual condition builder
+                VStack(alignment: .leading, spacing: 6) {
+                    if settings.watchdogCheckPower && settings.watchdogCheckHashRate {
+                        HStack(spacing: 6) {
+                            conditionPill(icon: "bolt.fill", text: "Power ≤ \(String(format: "%.1f", settings.watchdogLowPowerThreshold))W", color: .orange)
+                            
+                            Text(settings.watchdogRequireBothConditions ? "AND" : "OR")
+                                .font(.system(size: 10, weight: .bold))
+                                .foregroundStyle(.secondary)
+                                .padding(.horizontal, 6)
+                                .padding(.vertical, 2)
+                                .background(Color(nsColor: .controlBackgroundColor))
+                                .clipShape(RoundedRectangle(cornerRadius: 4))
+                            
+                            conditionPill(icon: "cube.fill", text: "Hash < \(String(format: "%.0f", settings.watchdogHashRateThreshold)) GH/s", color: .blue)
+                        }
+                    } else if settings.watchdogCheckPower {
+                        conditionPill(icon: "bolt.fill", text: "Power ≤ \(String(format: "%.1f", settings.watchdogLowPowerThreshold))W", color: .orange)
+                    } else if settings.watchdogCheckHashRate {
+                        conditionPill(icon: "cube.fill", text: "Hash < \(String(format: "%.0f", settings.watchdogHashRateThreshold)) GH/s", color: .blue)
+                    } else {
+                        Text("⚠️ No conditions enabled - WatchDog will not trigger restarts")
+                            .font(.system(size: 11))
+                            .foregroundStyle(.red)
+                    }
+                    
+                    if settings.watchdogCheckPower || settings.watchdogCheckHashRate {
+                        HStack(spacing: 4) {
+                            Text("for")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                            
+                            Text("\(settings.watchdogConsecutiveUpdates)")
+                                .font(.system(size: 11, weight: .semibold, design: .monospaced))
+                                .foregroundStyle(.purple)
+                            
+                            Text("consecutive checks")
+                                .font(.system(size: 11))
+                                .foregroundStyle(.secondary)
+                        }
+                    }
+                }
+            }
+        }
+        .padding(12)
+        .frame(maxWidth: .infinity, alignment: .leading)
+        .background(colorScheme == .dark ? Color(white: 0.08) : Color(white: 0.96))
+        .clipShape(RoundedRectangle(cornerRadius: 8))
+    }
+    
+    private func conditionPill(icon: String, text: String, color: Color) -> some View {
+        HStack(spacing: 4) {
+            Image(systemName: icon)
+                .font(.system(size: 10))
+            Text(text)
+                .font(.system(size: 11, weight: .medium, design: .monospaced))
+        }
+        .foregroundStyle(color)
+        .padding(.horizontal, 8)
+        .padding(.vertical, 4)
+        .background(color.opacity(0.1))
+        .clipShape(RoundedRectangle(cornerRadius: 6))
+    }
+    
+    private func formatCooldown(_ seconds: Double) -> String {
+        let mins = Int(seconds) / 60
+        let secs = Int(seconds) % 60
+        if secs == 0 {
+            return "\(mins)m"
+        } else {
+            return "\(mins)m \(secs)s"
         }
     }
     

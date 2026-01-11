@@ -17,22 +17,25 @@ struct RestartMetrics {
     let avgPower: Double
     let avgHashRate: Double
     let powerThreshold: Double
+    let hashRateThreshold: Double
+    let powerConditionTriggered: Bool
+    let hashRateConditionTriggered: Bool
     
     var formattedReason: String {
         var parts: [String] = []
         
-        // Power condition
-        parts.append("Power: \(String(format: "%.2f", latestPower))W (threshold: ≤\(String(format: "%.1f", powerThreshold))W)")
+        // Power condition (only show if it was checked and triggered)
+        if powerConditionTriggered {
+            parts.append("Power: \(String(format: "%.2f", latestPower))W (threshold: ≤\(String(format: "%.1f", powerThreshold))W)")
+        }
         
-        // Hash rate condition  
-        if latestHashRate < 1 {
-            parts.append("Hash rate: \(String(format: "%.4f", latestHashRate)) GH/s (stalled)")
-        } else {
-            parts.append("Hash rate: \(String(format: "%.1f", latestHashRate)) GH/s (unchanged)")
+        // Hash rate condition (only show if it was checked and triggered)
+        if hashRateConditionTriggered {
+            parts.append("Hash rate: \(String(format: "%.2f", latestHashRate)) GH/s (threshold: <\(String(format: "%.1f", hashRateThreshold)) GH/s)")
         }
         
         // Number of readings
-        parts.append("\(consecutiveReadings) consecutive low readings detected")
+        parts.append("\(consecutiveReadings) consecutive readings triggered restart")
         
         return parts.joined(separator: " • ")
     }
@@ -198,28 +201,67 @@ class MinerWatchDog {
                     }
                 }
 
-                // Check if all recent updates have power less than or equal to threshold
+                // Get current settings
+                let settings = AppSettings.shared
+                let checkPower = settings.watchdogCheckPower
+                let checkHashRate = settings.watchdogCheckHashRate
+                let requireBoth = settings.watchdogRequireBothConditions
                 let powerThreshold = self.lowPowerThreshold
-                let allHaveLowPower = updates.allSatisfy { update in
-                    return update.power <= powerThreshold
-                }
-
-                guard allHaveLowPower else {
-                    print("[MinerWatchDog] Miner \(miner.hostName) (\(miner.ipAddress)) power levels healthy ✅")
+                let hashRateThreshold = self.hashRateThreshold
+                
+                // If no conditions are enabled, don't restart
+                guard checkPower || checkHashRate else {
                     return false
                 }
-
-                print("[MinerWatchDog] Miner \(miner.hostName) (\(miner.ipAddress)) unhealthy power levels detected ‼️")
-                // Check if hashrate has not changed across these 3 updates
-                let hashRates = updates.map { $0.hashRate }
-                let firstHashRate = hashRates[0]
-                let hashrateUnchanged = hashRates.allSatisfy { abs($0 - firstHashRate) < 0.001 }
-
-                guard hashrateUnchanged else {
+                
+                // Check power condition
+                let lowPowerConditionMet: Bool
+                if checkPower {
+                    lowPowerConditionMet = updates.allSatisfy { $0.power <= powerThreshold }
+                } else {
+                    lowPowerConditionMet = false
+                }
+                
+                // Check hash rate condition
+                let lowHashRateConditionMet: Bool
+                if checkHashRate {
+                    lowHashRateConditionMet = updates.allSatisfy { $0.hashRate < hashRateThreshold }
+                } else {
+                    lowHashRateConditionMet = false
+                }
+                
+                // Evaluate based on condition logic
+                let shouldTrigger: Bool
+                if checkPower && checkHashRate {
+                    // Both conditions are being checked
+                    if requireBoth {
+                        shouldTrigger = lowPowerConditionMet && lowHashRateConditionMet
+                    } else {
+                        shouldTrigger = lowPowerConditionMet || lowHashRateConditionMet
+                    }
+                } else if checkPower {
+                    shouldTrigger = lowPowerConditionMet
+                } else {
+                    shouldTrigger = lowHashRateConditionMet
+                }
+                
+                guard shouldTrigger else {
+                    let powerStatus = checkPower ? (lowPowerConditionMet ? "LOW ⚠️" : "OK ✅") : "not checked"
+                    let hashStatus = checkHashRate ? (lowHashRateConditionMet ? "LOW ⚠️" : "OK ✅") : "not checked"
+                    print("[MinerWatchDog] \(miner.hostName): Power \(powerStatus), HashRate \(hashStatus)")
                     return false
                 }
-
-                print("Miner \(miner.hostName) (\(miner.ipAddress)) meets restart criteria: \(updates.count) consecutive updates with power <= 0.1 and unchanged hashrate (\(firstHashRate)). Issuing restart...")
+                
+                // Build reason string
+                var reasons: [String] = []
+                if checkPower && lowPowerConditionMet {
+                    reasons.append("low power (≤\(String(format: "%.1f", powerThreshold))W)")
+                }
+                if checkHashRate && lowHashRateConditionMet {
+                    reasons.append("low hash rate (<\(String(format: "%.1f", hashRateThreshold)) GH/s)")
+                }
+                
+                print("[MinerWatchDog] \(miner.hostName) meets restart criteria: \(updates.count) consecutive readings with \(reasons.joined(separator: " and "))")
 
                 return true
             }
@@ -227,6 +269,12 @@ class MinerWatchDog {
             // Issue restart outside of the model context if needed
             if shouldRestart {
                 // Gather metrics for the restart reason
+                let settings = AppSettings.shared
+                let powerThreshold = self.lowPowerThreshold
+                let hashRateThreshold = self.hashRateThreshold
+                let checkPower = settings.watchdogCheckPower
+                let checkHashRate = settings.watchdogCheckHashRate
+                
                 let metrics = await database.withModelContext { context -> RestartMetrics? in
                     guard
                         let miners = try? context.fetch(FetchDescriptor<Miner>()),
@@ -243,13 +291,20 @@ class MinerWatchDog {
                     let latestPower = updates.first?.power ?? 0
                     let latestHashRate = updates.first?.hashRate ?? 0
                     
+                    // Determine which conditions actually triggered
+                    let powerConditionTriggered = checkPower && updates.allSatisfy { $0.power <= powerThreshold }
+                    let hashRateConditionTriggered = checkHashRate && updates.allSatisfy { $0.hashRate < hashRateThreshold }
+                    
                     return RestartMetrics(
                         consecutiveReadings: updates.count,
                         latestPower: latestPower,
                         latestHashRate: latestHashRate,
                         avgPower: avgPower,
                         avgHashRate: avgHashRate,
-                        powerThreshold: self.lowPowerThreshold
+                        powerThreshold: powerThreshold,
+                        hashRateThreshold: hashRateThreshold,
+                        powerConditionTriggered: powerConditionTriggered,
+                        hashRateConditionTriggered: hashRateConditionTriggered
                     )
                 }
                 
