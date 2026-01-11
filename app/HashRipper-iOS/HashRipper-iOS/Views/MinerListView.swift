@@ -312,27 +312,23 @@ struct MinerListView: View {
     }
     
     private func deleteMiner(_ miner: Miner) {
+        // Store mac address before deletion
+        let macAddress = miner.macAddress
+        
+        // Remove from cache first
+        latestUpdates.removeValue(forKey: macAddress)
+        
         withAnimation(.spring(response: 0.35, dampingFraction: 0.8)) {
-            // Delete associated updates first
-            let macAddress = miner.macAddress
-            let descriptor = FetchDescriptor<MinerUpdate>(
-                predicate: #Predicate<MinerUpdate> { $0.macAddress == macAddress }
-            )
-            
-            if let updates = try? modelContext.fetch(descriptor) {
-                for update in updates {
-                    modelContext.delete(update)
-                }
-            }
-            
-            // Remove from cache
-            latestUpdates.removeValue(forKey: miner.macAddress)
-            
-            // Delete miner
+            // Delete miner - cascade rule will delete all associated MinerUpdates
             modelContext.delete(miner)
             
-            try? modelContext.save()
-            Haptics.notification(.success)
+            do {
+                try modelContext.save()
+                Haptics.notification(.success)
+            } catch {
+                print("Failed to delete miner: \(error)")
+                Haptics.notification(.error)
+            }
         }
     }
 }

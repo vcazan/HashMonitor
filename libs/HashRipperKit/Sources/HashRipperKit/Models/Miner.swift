@@ -24,6 +24,10 @@ public final class Miner {
     
     /// Threshold for marking miner as offline
     public static let offlineThreshold: Int = 3
+    
+    /// Inverse relationship to MinerUpdate - cascade deletes all updates when miner is deleted
+    @Relationship(deleteRule: .cascade, inverse: \MinerUpdate.miner)
+    public var updates: [MinerUpdate]? = []
 
     public init(
         hostName: String,

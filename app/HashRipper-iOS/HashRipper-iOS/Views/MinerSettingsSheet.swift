@@ -442,22 +442,16 @@ struct MinerSettingsSheet: View {
     }
     
     private func removeMiner() {
-        // Delete associated updates first
-        let macAddress = miner.macAddress
-        let descriptor = FetchDescriptor<MinerUpdate>(
-            predicate: #Predicate<MinerUpdate> { $0.macAddress == macAddress }
-        )
-        
-        if let updates = try? modelContext.fetch(descriptor) {
-            for update in updates {
-                modelContext.delete(update)
-            }
-        }
-        
+        // Delete miner - cascade rule will delete all associated MinerUpdates
         modelContext.delete(miner)
         
-        try? modelContext.save()
-        showDeleteConfirmation = true
+        do {
+            try modelContext.save()
+            showDeleteConfirmation = true
+        } catch {
+            print("Failed to delete miner: \(error)")
+            Haptics.notification(.error)
+        }
     }
 }
 
