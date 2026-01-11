@@ -188,10 +188,37 @@ struct MinerDetailView: View {
                         .foregroundStyle(AppColors.textTertiary)
                 }
                 
-                // Miner type
-                Text(miner.minerType.displayName)
-                    .font(.captionLarge)
-                    .foregroundStyle(AppColors.textTertiary)
+                // Miner type + Difficulty stats in one line
+                if let update = latestUpdate {
+                    HStack(spacing: Spacing.sm) {
+                        Text(miner.minerType.displayName)
+                            .foregroundStyle(AppColors.textTertiary)
+                        
+                        Text("•")
+                            .foregroundStyle(AppColors.textQuaternary)
+                        
+                        HStack(spacing: 3) {
+                            Image(systemName: "trophy.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.yellow)
+                            Text(update.bestDiff ?? "—")
+                                .foregroundStyle(AppColors.textSecondary)
+                        }
+                        
+                        HStack(spacing: 3) {
+                            Image(systemName: "star.fill")
+                                .font(.system(size: 9))
+                                .foregroundStyle(.orange)
+                            Text(update.bestSessionDiff ?? "—")
+                                .foregroundStyle(AppColors.textSecondary)
+                        }
+                    }
+                    .font(.system(size: 11, weight: .medium))
+                } else {
+                    Text(miner.minerType.displayName)
+                        .font(.captionLarge)
+                        .foregroundStyle(AppColors.textTertiary)
+                }
             }
             
             Spacer()
@@ -252,26 +279,6 @@ struct MinerDetailView: View {
                 }
             }
             
-            // Second row - Best Difficulty & Session Best
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
-                if let update = latestUpdate {
-                    StatDisplay(
-                        value: update.bestDiff ?? "—",
-                        unit: "",
-                        label: "Best Difficulty",
-                        icon: "trophy.fill",
-                        color: .yellow
-                    )
-                    
-                    StatDisplay(
-                        value: update.bestSessionDiff ?? "—",
-                        unit: "",
-                        label: "Session Best",
-                        icon: "star.fill",
-                        color: .orange
-                    )
-                }
-            }
         }
         .padding(.horizontal)
         .opacity(statsAppeared ? 1 : 0)
