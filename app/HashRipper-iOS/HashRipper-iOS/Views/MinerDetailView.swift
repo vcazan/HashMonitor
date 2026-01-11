@@ -169,12 +169,6 @@ struct MinerDetailView: View {
             
             // Info
             VStack(alignment: .leading, spacing: Spacing.xs) {
-                // Status text
-                Text(miner.isOnline ? "Online" : "Offline")
-                    .font(.captionLarge)
-                    .fontWeight(.medium)
-                    .foregroundStyle(miner.isOnline ? AppColors.statusOnline : AppColors.statusOffline)
-                
                 // Hash rate
                 if let update = latestUpdate {
                     HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
