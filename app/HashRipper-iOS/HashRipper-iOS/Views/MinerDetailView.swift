@@ -377,6 +377,12 @@ struct MinerDetailView: View {
                     )
                     
                     DetailRow(
+                        icon: "star.fill",
+                        label: "Session Best",
+                        value: update.bestSessionDiff ?? "—"
+                    )
+                    
+                    DetailRow(
                         icon: "clock.fill",
                         label: "Uptime",
                         value: formatUptime(update.uptimeSeconds ?? 0)
