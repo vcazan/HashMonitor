@@ -64,18 +64,21 @@ struct AppColors {
     static let statusOffline = Color(red: 0.95, green: 0.33, blue: 0.31) // Soft red
     static let statusWarning = Color(red: 1.0, green: 0.62, blue: 0.04)  // Soft orange
     
-    // MARK: - Data Visualization Colors (Inspired by Health app)
-    static let hashRate = Color(red: 0.35, green: 0.78, blue: 0.98)      // Cyan
-    static let power = Color(red: 1.0, green: 0.58, blue: 0.0)           // Orange
-    static let temperature = Color(red: 1.0, green: 0.27, blue: 0.23)    // Red
-    static let frequency = Color(red: 0.69, green: 0.55, blue: 0.99)     // Purple
-    static let shares = Color(red: 0.30, green: 0.85, blue: 0.39)        // Green
-    static let efficiency = Color(red: 0.0, green: 0.48, blue: 1.0)      // Blue
+    // MARK: - Data Visualization Colors (Monochromatic server-style)
+    static let hashRate = Color(red: 0.30, green: 0.69, blue: 0.31)      // Green (same as online)
+    static let power = Color(.secondaryLabel)                             // Gray
+    static let temp = Color(.secondaryLabel)                              // Gray
+    static let frequency = Color(.secondaryLabel)                         // Gray
+    static let shares = Color(red: 0.30, green: 0.69, blue: 0.31)         // Green
+    static let efficiency = Color(.secondaryLabel)                        // Gray
     
     // MARK: - Chart Colors
-    static let chartLine = Color.teal
-    static let chartGradientTop = Color.teal.opacity(0.3)
-    static let chartGradientBottom = Color.teal.opacity(0.0)
+    static let chartLine = Color(red: 0.30, green: 0.69, blue: 0.31)     // Green
+    static let chartGradientTop = Color(red: 0.30, green: 0.69, blue: 0.31).opacity(0.3)
+    static let chartGradientBottom = Color(red: 0.30, green: 0.69, blue: 0.31).opacity(0.0)
+    
+    // MARK: - Primary Accent (Green)
+    static let primaryAccent = Color(red: 0.30, green: 0.69, blue: 0.31)
     
     // MARK: - Separator
     static let separator = Color(.separator)
@@ -220,7 +223,7 @@ struct StatusBadge: View {
     }
 }
 
-/// Large stat display (Health app style)
+/// Clean stat display (Server dashboard style)
 struct StatDisplay: View {
     let value: String
     let unit: String
@@ -231,23 +234,16 @@ struct StatDisplay: View {
     @State private var hasAppeared = false
     
     var body: some View {
-        VStack(alignment: .leading, spacing: Spacing.xs) {
-            // Icon and label
-            HStack(spacing: Spacing.xs) {
-                Image(systemName: icon)
-                    .font(.system(size: 12, weight: .semibold))
-                    .foregroundStyle(color)
-                
-                Text(label.uppercased())
-                    .font(.captionSmall)
-                    .foregroundStyle(AppColors.textTertiary)
-                    .tracking(0.5)
-            }
+        VStack(alignment: .leading, spacing: Spacing.sm) {
+            // Label
+            Text(label)
+                .font(.captionLarge)
+                .foregroundStyle(AppColors.textTertiary)
             
             // Value
             HStack(alignment: .lastTextBaseline, spacing: Spacing.xxs) {
                 Text(value)
-                    .font(.numericMedium)
+                    .font(.system(size: 22, weight: .semibold, design: .rounded))
                     .foregroundStyle(AppColors.textPrimary)
                     .contentTransition(.numericText())
                 
@@ -258,8 +254,14 @@ struct StatDisplay: View {
         }
         .frame(maxWidth: .infinity, alignment: .leading)
         .padding(Spacing.md)
-        .background(color.opacity(0.08))
-        .clipShape(RoundedRectangle(cornerRadius: Radius.md, style: .continuous))
+        .background(
+            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                .fill(AppColors.backgroundGroupedSecondary)
+                .overlay(
+                    RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                        .stroke(AppColors.separator.opacity(0.5), lineWidth: 0.5)
+                )
+        )
         .opacity(hasAppeared ? 1 : 0)
         .offset(y: hasAppeared ? 0 : 10)
         .onAppear {
@@ -459,7 +461,7 @@ struct Haptics {
             LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
                 StatDisplay(value: "524", unit: "GH/s", label: "Hash Rate", icon: "cube.fill", color: AppColors.hashRate)
                 StatDisplay(value: "14.2", unit: "W", label: "Power", icon: "bolt.fill", color: AppColors.power)
-                StatDisplay(value: "52", unit: "°C", label: "Temperature", icon: "thermometer.medium", color: AppColors.temperature)
+                StatDisplay(value: "52", unit: "°C", label: "Temperature", icon: "thermometer.medium", color: AppColors.temp)
                 StatDisplay(value: "575", unit: "MHz", label: "Frequency", icon: "waveform", color: AppColors.frequency)
             }
             .padding(.horizontal)

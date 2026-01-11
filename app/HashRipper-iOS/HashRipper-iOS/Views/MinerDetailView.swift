@@ -43,11 +43,8 @@ struct MinerDetailView: View {
         }
         
         var color: Color {
-            switch self {
-            case .hashRate: return .teal
-            case .temperature: return .orange
-            case .power: return .yellow
-            }
+            // Monochromatic - all use the same green accent
+            AppColors.statusOnline
         }
     }
     
@@ -197,21 +194,14 @@ struct MinerDetailView: View {
                         Text("•")
                             .foregroundStyle(AppColors.textQuaternary)
                         
-                        HStack(spacing: 3) {
-                            Image(systemName: "trophy.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.yellow)
-                            Text(update.bestDiff ?? "—")
-                                .foregroundStyle(AppColors.textSecondary)
-                        }
+                        Text("Best: \(update.bestDiff ?? "—")")
+                            .foregroundStyle(AppColors.textSecondary)
                         
-                        HStack(spacing: 3) {
-                            Image(systemName: "star.fill")
-                                .font(.system(size: 9))
-                                .foregroundStyle(.orange)
-                            Text(update.bestSessionDiff ?? "—")
-                                .foregroundStyle(AppColors.textSecondary)
-                        }
+                        Text("•")
+                            .foregroundStyle(AppColors.textQuaternary)
+                        
+                        Text("Session: \(update.bestSessionDiff ?? "—")")
+                            .foregroundStyle(AppColors.textSecondary)
                     }
                     .font(.system(size: 11, weight: .medium))
                 } else {
@@ -241,44 +231,40 @@ struct MinerDetailView: View {
     // MARK: - Primary Stats
     
     private var primaryStats: some View {
-        VStack(spacing: Spacing.md) {
-            // First row - Power, Temp, Frequency, Fan
-            LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.md) {
-                if let update = latestUpdate {
-                    StatDisplay(
-                        value: String(format: "%.1f", update.power),
-                        unit: "W",
-                        label: "Power",
-                        icon: "bolt.fill",
-                        color: AppColors.power
-                    )
-                    
-                    StatDisplay(
-                        value: String(format: "%.0f", update.temp ?? 0),
-                        unit: "°C",
-                        label: "ASIC Temp",
-                        icon: "thermometer.medium",
-                        color: temperatureColor(update.temp ?? 0)
-                    )
-                    
-                    StatDisplay(
-                        value: String(format: "%.0f", update.frequency ?? 0),
-                        unit: "MHz",
-                        label: "Frequency",
-                        icon: "waveform",
-                        color: AppColors.frequency
-                    )
-                    
-                    StatDisplay(
-                        value: fanDisplayValue(update: update),
-                        unit: update.autofanspeed == 1 ? "" : "%",
-                        label: "Fan Speed",
-                        icon: "fan.fill",
-                        color: AppColors.efficiency
-                    )
-                }
+        LazyVGrid(columns: [GridItem(.flexible()), GridItem(.flexible())], spacing: Spacing.sm) {
+            if let update = latestUpdate {
+                StatDisplay(
+                    value: String(format: "%.1f", update.power),
+                    unit: "W",
+                    label: "Power",
+                    icon: "bolt.fill",
+                    color: AppColors.textSecondary
+                )
+                
+                StatDisplay(
+                    value: String(format: "%.0f", update.temp ?? 0),
+                    unit: "°C",
+                    label: "ASIC Temp",
+                    icon: "thermometer.medium",
+                    color: AppColors.textSecondary
+                )
+                
+                StatDisplay(
+                    value: String(format: "%.0f", update.frequency ?? 0),
+                    unit: "MHz",
+                    label: "Frequency",
+                    icon: "waveform",
+                    color: AppColors.textSecondary
+                )
+                
+                StatDisplay(
+                    value: fanDisplayValue(update: update),
+                    unit: update.autofanspeed == 1 ? "" : "%",
+                    label: "Fan",
+                    icon: "fan.fill",
+                    color: AppColors.textSecondary
+                )
             }
-            
         }
         .padding(.horizontal)
         .opacity(statsAppeared ? 1 : 0)
@@ -320,7 +306,7 @@ struct MinerDetailView: View {
                                 .padding(.vertical, Spacing.sm)
                                 .background(
                                     Capsule()
-                                        .fill(selectedTimeRange == range ? Color.teal : AppColors.fillTertiary)
+                                        .fill(selectedTimeRange == range ? AppColors.statusOnline : AppColors.fillTertiary)
                                 )
                         }
                         .buttonStyle(.plain)
@@ -337,20 +323,10 @@ struct MinerDetailView: View {
                             selectedChartType = type
                         }
                     } label: {
-                        HStack(spacing: Spacing.xs) {
-                            Image(systemName: type.icon)
-                                .font(.system(size: 12, weight: .semibold))
-                            Text(type.rawValue)
-                                .font(.captionMedium)
-                                .fontWeight(.medium)
-                        }
-                        .foregroundStyle(selectedChartType == type ? .white : AppColors.textSecondary)
-                        .padding(.horizontal, Spacing.md)
-                        .padding(.vertical, Spacing.sm)
-                        .background(
-                            RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
-                                .fill(selectedChartType == type ? type.color : AppColors.fillTertiary)
-                        )
+                        Text(type.rawValue)
+                            .font(.captionMedium)
+                            .fontWeight(.medium)
+                            .foregroundStyle(selectedChartType == type ? AppColors.statusOnline : AppColors.textTertiary)
                     }
                     .buttonStyle(.plain)
                 }
@@ -363,7 +339,7 @@ struct MinerDetailView: View {
                 // Empty state for chart
                 VStack(spacing: Spacing.md) {
                     ProgressView()
-                        .tint(.teal)
+                        .tint(AppColors.statusOnline)
                     
                     Text("Collecting data...")
                         .font(.captionLarge)
@@ -408,7 +384,7 @@ struct MinerDetailView: View {
                     y: .value("Hash Rate", update.hashRate)
                 )
                 .interpolationMethod(.catmullRom)
-                .foregroundStyle(Color.teal.gradient)
+                .foregroundStyle(AppColors.statusOnline.gradient)
                 
                 AreaMark(
                     x: .value("Time", update.date),
@@ -417,7 +393,7 @@ struct MinerDetailView: View {
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.teal.opacity(0.3), Color.teal.opacity(0.0)],
+                        colors: [AppColors.statusOnline.opacity(0.3), AppColors.statusOnline.opacity(0.0)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -455,7 +431,7 @@ struct MinerDetailView: View {
                     series: .value("Type", "ASIC")
                 )
                 .interpolationMethod(.catmullRom)
-                .foregroundStyle(Color.orange)
+                .foregroundStyle(AppColors.statusOnline)
                 
                 // VR Temperature (if available)
                 if let vrTemp = update.vrTemp {
@@ -465,7 +441,7 @@ struct MinerDetailView: View {
                         series: .value("Type", "VR")
                     )
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(Color.red)
+                    .foregroundStyle(AppColors.textSecondary)
                 }
             }
         }
@@ -488,8 +464,8 @@ struct MinerDetailView: View {
             }
         }
         .chartForegroundStyleScale([
-            "ASIC": Color.orange,
-            "VR": Color.red
+            "ASIC": AppColors.statusOnline,
+            "VR": AppColors.textSecondary
         ])
         .chartLegend(position: .top, alignment: .trailing)
         .frame(height: 180)
@@ -503,7 +479,7 @@ struct MinerDetailView: View {
                     y: .value("Power", update.power)
                 )
                 .interpolationMethod(.catmullRom)
-                .foregroundStyle(Color.yellow.gradient)
+                .foregroundStyle(AppColors.statusOnline.gradient)
                 
                 AreaMark(
                     x: .value("Time", update.date),
@@ -512,7 +488,7 @@ struct MinerDetailView: View {
                 .interpolationMethod(.catmullRom)
                 .foregroundStyle(
                     LinearGradient(
-                        colors: [Color.yellow.opacity(0.3), Color.yellow.opacity(0.0)],
+                        colors: [AppColors.statusOnline.opacity(0.3), AppColors.statusOnline.opacity(0.0)],
                         startPoint: .top,
                         endPoint: .bottom
                     )
@@ -658,17 +634,21 @@ struct MinerDetailView: View {
                     VStack(spacing: Spacing.sm) {
                         Image(systemName: "arrow.clockwise")
                             .font(.system(size: 24, weight: .semibold))
-                            .foregroundStyle(.orange)
+                            .foregroundStyle(AppColors.textSecondary)
                         
                         Text("Restart")
                             .font(.captionLarge)
-                            .foregroundStyle(AppColors.textSecondary)
+                            .foregroundStyle(AppColors.textTertiary)
                     }
                     .frame(maxWidth: .infinity)
                     .padding(.vertical, Spacing.xl)
                     .background(
                         RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
                             .fill(AppColors.backgroundGroupedSecondary)
+                            .overlay(
+                                RoundedRectangle(cornerRadius: Radius.lg, style: .continuous)
+                                    .stroke(AppColors.separator.opacity(0.5), lineWidth: 0.5)
+                            )
                     )
                 }
                 .buttonStyle(PressableStyle())
@@ -676,7 +656,7 @@ struct MinerDetailView: View {
                 ActionButton(
                     icon: "safari",
                     label: "Web UI",
-                    color: .blue
+                    color: AppColors.textSecondary
                 ) {
                     openWebUI()
                 }
