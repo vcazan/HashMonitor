@@ -267,7 +267,7 @@ struct MinerHashOpsSummaryView: View  {
                 MetricCardView(
                     icon: "bolt.fill",
                     title: "Power",
-                    value: String(format: "%.1f", mostRecentUpdate?.power ?? 0),
+                    value: String(format: "%.1f", mostRecentUpdate?.power ?? 0.0),
                     unit: "W",
                     color: .yellow
                 )
@@ -281,7 +281,7 @@ struct MinerHashOpsSummaryView: View  {
                 MetricCardView(
                     icon: "cpu.fill",
                     title: "ASIC Temp",
-                    value: String(format: "%.1f", mostRecentUpdate?.temp ?? 0),
+                    value: String(format: "%.1f", mostRecentUpdate?.temp ?? 0.0),
                     unit: "°C",
                     color: Color.tempGradient(for: mostRecentUpdate?.temp ?? 0),
                     isTemperature: true
@@ -290,7 +290,7 @@ struct MinerHashOpsSummaryView: View  {
                 MetricCardView(
                     icon: "thermometer.variable",
                     title: "VR Temp",
-                    value: hasVRTemp ? String(format: "%.1f", mostRecentUpdate?.vrTemp ?? 0) : "N/A",
+                    value: hasVRTemp ? String(format: "%.1f", mostRecentUpdate?.vrTemp ?? 0.0) : "N/A",
                     unit: hasVRTemp ? "°C" : "",
                     color: hasVRTemp ? Color.tempGradient(for: mostRecentUpdate?.vrTemp ?? 0) : .gray,
                     isTemperature: hasVRTemp

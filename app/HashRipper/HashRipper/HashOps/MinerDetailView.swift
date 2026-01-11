@@ -438,7 +438,7 @@ struct MinerDetailView: View {
                     .tracking(0.3)
                 
                 HStack(alignment: .lastTextBaseline, spacing: 4) {
-                    Text(String(format: "%.0f", mostRecentUpdate?.power ?? 0))
+                    Text(String(format: "%.0f", mostRecentUpdate?.power ?? 0.0))
                         .font(.system(size: 32, weight: .semibold, design: .rounded))
                         .contentTransition(.numericText())
                     Text("W")
@@ -508,7 +508,7 @@ struct MinerDetailView: View {
     private var detailedStatsSection: some View {
         HStack(spacing: 0) {
             // Temperature
-            secondaryStat(label: "Temp", value: String(format: "%.0f°", mostRecentUpdate?.temp ?? 0))
+            secondaryStat(label: "Temp", value: String(format: "%.0f°", mostRecentUpdate?.temp ?? 0.0))
             
             // VR Temp
             secondaryStat(label: "VR Temp", value: mostRecentUpdate?.vrTemp.map { String(format: "%.0f°", $0) } ?? "—")
@@ -517,7 +517,7 @@ struct MinerDetailView: View {
             secondaryStat(label: "Fan", value: "\(mostRecentUpdate?.fanrpm ?? 0) RPM")
             
             // Frequency
-            secondaryStat(label: "Freq", value: String(format: "%.0f MHz", mostRecentUpdate?.frequency ?? 0))
+            secondaryStat(label: "Freq", value: String(format: "%.0f MHz", mostRecentUpdate?.frequency ?? 0.0))
             
             // Shares
             secondaryStat(label: "Shares", value: formatShares(mostRecentUpdate?.sharesAccepted ?? 0))

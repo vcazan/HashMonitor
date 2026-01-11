@@ -360,7 +360,7 @@ class MinerChartsViewModel: ObservableObject {
             let f = formatMinerHashRate(rawRateValue: value?.primary ?? 0)
             return "\(f.rateString)\(f.rateSuffix)"
         case .voltage, .power:
-            return String(format: "%.1f", value?.primary ?? 0)
+            return String(format: "%.1f", value?.primary ?? 0.0)
         case .voltageRegulatorTemperature, .asicTemperature:
             let mf = MeasurementFormatter()
             mf.unitOptions = .providedUnit
