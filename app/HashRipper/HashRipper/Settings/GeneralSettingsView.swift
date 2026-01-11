@@ -167,6 +167,11 @@ struct GeneralSettingsView: View {
                             Toggle("", isOn: $isStatusBarEnabled)
                                 .onChange(of: isStatusBarEnabled) { _, newValue in
                                     settings.isStatusBarEnabled = newValue
+                                    if newValue {
+                                        statusBarManager.showStatusBar()
+                                    } else {
+                                        statusBarManager.hideStatusBar()
+                                    }
                                 }
                         }
 

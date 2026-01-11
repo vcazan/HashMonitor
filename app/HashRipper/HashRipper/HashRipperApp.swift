@@ -80,9 +80,13 @@ struct HashRipperApp: App {
                     deploymentStore.clientManager = minerClientManager
                     deploymentStore.downloadsManager = firmwareDownloadsManager
 
-                    // Start status bar immediately for testing
-                    print("🚀 App onAppear - calling showStatusBar() immediately")
-                    statusBarManager.showStatusBar()
+                    // Start status bar if enabled in settings
+                    if AppSettings.shared.isStatusBarEnabled {
+                        print("🚀 App onAppear - calling showStatusBar()")
+                        statusBarManager.showStatusBar()
+                    } else {
+                        print("🚀 App onAppear - status bar disabled in settings")
+                    }
 
                     // Start stats aggregation with delay
                     DispatchQueue.main.asyncAfter(deadline: .now() + 1.0) {
