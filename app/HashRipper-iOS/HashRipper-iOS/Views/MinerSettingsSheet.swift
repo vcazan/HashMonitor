@@ -60,10 +60,13 @@ struct MinerSettingsSheet: View {
             .navigationTitle("Settings")
             .navigationBarTitleDisplayMode(.inline)
             .toolbar { toolbarContent }
-            .confirmationDialog("Remove Miner?", isPresented: $showRemoveConfirmation, titleVisibility: .visible) {
-                removeConfirmationButtons
+            .alert("Remove Miner?", isPresented: $showRemoveConfirmation) {
+                Button("Cancel", role: .cancel) { }
+                Button("Remove", role: .destructive) {
+                    removeMiner()
+                }
             } message: {
-                Text("This will remove the miner from your list. This cannot be undone.")
+                Text("Are you sure you want to remove \"\(miner.hostName)\"? This cannot be undone.")
             }
             .alert("Miner Removed", isPresented: $showRemovedAlert) {
                 removedAlertButton
@@ -91,14 +94,6 @@ struct MinerSettingsSheet: View {
         hasher.combine(poolUser)
         hasher.combine(poolPassword)
         return hasher.finalize()
-    }
-    
-    @ViewBuilder
-    private var removeConfirmationButtons: some View {
-        Button("Remove \(miner.hostName)", role: .destructive) {
-            removeMiner()
-        }
-        Button("Cancel", role: .cancel) { }
     }
     
     private var removedAlertButton: some View {
