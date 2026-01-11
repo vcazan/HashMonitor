@@ -75,7 +75,7 @@ public actor AxeOSWebsocketClient {
     }
 
     private func connectInternal(to url: URL) async {
-        Logger.websocketsLogger.debug("connectInternal starting for \(url.host ?? "unknown")")
+        Logger.websocketsLogger.debug("connectInternal starting for \(url.absoluteString)")
 
         // Cancel existing loops
         readLoopTask?.cancel()
@@ -89,10 +89,16 @@ public actor AxeOSWebsocketClient {
 
         setConnectionState(.connecting)
 
-        let newTask = session.webSocketTask(with: url)
+        // Use URLRequest to ensure the full URL path is preserved
+        var request = URLRequest(url: url)
+        request.timeoutInterval = 30
+        
+        let newTask = session.webSocketTask(with: request)
         task = newTask
         consecutivePingFailures = 0
         newTask.resume()
+        
+        Logger.websocketsLogger.debug("WebSocket connecting to: \(url.absoluteString)")
 
         Logger.websocketsLogger.debug("WebSocket task resumed for \(url.host ?? "unknown"), starting read/ping loops")
         setConnectionState(.connected)
