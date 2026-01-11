@@ -383,7 +383,7 @@ struct MinerSettingsSheet: View {
         
         if let update = latestUpdate {
             frequency = update.frequency ?? 575
-            voltage = update.voltage ?? 1200
+            voltage = Double(update.coreVoltage ?? 1200)
             fanSpeed = update.fanspeed ?? 100
             autoFan = update.autofanspeed == 1
             invertFanPolarity = update.invertfanpolarity == 1
