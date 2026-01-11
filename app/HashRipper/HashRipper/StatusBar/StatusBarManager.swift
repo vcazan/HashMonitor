@@ -102,7 +102,7 @@ class StatusBarManager: ObservableObject {
             print("🔧 Final check after 1 second:")
             print("🔧 statusItem exists: \(self.statusItem != nil)")
             print("🔧 statusItem.isVisible: \(self.statusItem?.isVisible ?? false)")
-            print("🔧 button.title: '\(button.title ?? "nil")'")
+            print("🔧 button.title: '\(button.title)'")
             print("🔧 button.frame after delay: \(button.frame)")
 
             // Check if there are other status items that might be taking space

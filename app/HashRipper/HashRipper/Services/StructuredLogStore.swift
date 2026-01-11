@@ -12,7 +12,8 @@ actor StructuredLogStore {
     private var entries: [WebSocketLogEntry] = []
     private var maxEntries: Int
 
-    private let entriesSubject = PassthroughSubject<[WebSocketLogEntry], Never>()
+    // nonisolated(unsafe) because this subject is designed to be accessed from outside the actor
+    private nonisolated(unsafe) let entriesSubject = PassthroughSubject<[WebSocketLogEntry], Never>()
     nonisolated var entriesPublisher: AnyPublisher<[WebSocketLogEntry], Never> {
         entriesSubject.eraseToAnyPublisher()
     }

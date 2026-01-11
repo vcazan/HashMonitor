@@ -635,7 +635,7 @@ struct MainContentView: View {
                     let miners = try context.fetch(FetchDescriptor<Miner>())
                     return miners.filter { $0.isOffline }.count
                 } catch {
-                    logger.error("Failed to fetch offline count: \(String(describing: error))")
+                    print("⚠️ Failed to fetch offline count: \(String(describing: error))")
                     return 0
                 }
             }
@@ -685,7 +685,8 @@ struct MainContentView: View {
 
     private func reconnectOfflineMiners() {
         Task {
-            logger.info("🔄 Reconnecting \(offlineMinersCount) offline miner(s)")
+            let countToReconnect = offlineMinersCount
+            logger.info("🔄 Reconnecting \(countToReconnect) offline miner(s)")
             await database.withModelContext { context in
                 do {
                     let miners = try context.fetch(FetchDescriptor<Miner>())
@@ -694,7 +695,7 @@ struct MainContentView: View {
                     }
                     try context.save()
                 } catch {
-                    logger.error("Failed to reset offline miners: \(String(describing: error))")
+                    print("⚠️ Failed to reset offline miners: \(String(describing: error))")
                 }
             }
             if let scanner = deviceRefresher {

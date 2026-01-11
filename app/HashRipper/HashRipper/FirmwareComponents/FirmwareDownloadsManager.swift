@@ -117,6 +117,26 @@ class FirmwareDownloadsManager: NSObject {
         }
     }
     
+    /// Sendable-friendly version that accepts individual components instead of FirmwareRelease
+    func downloadedFilePathByComponents(versionTag: String, device: String, fileType: FirmwareFileType, binUrl: String, shouldCreateDirectory: Bool) -> URL? {
+        do {
+            let appSupport = try applicationSupportDirectory()
+            let downloadDir = appSupport
+                .appendingPathComponent("miner-updates")
+                .appendingPathComponent(device)
+                .appendingPathComponent(versionTag)
+            if shouldCreateDirectory {
+                try fileManager.createDirectory(at: downloadDir, withIntermediateDirectories: true)
+            }
+            guard let url = URL(string: binUrl) else { return nil }
+            
+            let filePath = downloadDir.appendingPathComponent(url.lastPathComponent)
+            return fileManager.fileExists(atPath: filePath.path) ? filePath : nil
+        } catch {
+            return nil
+        }
+    }
+    
     func isDownloaded(release: FirmwareRelease, fileType: FirmwareFileType) -> Bool {
         return downloadedFilePath(for: release, fileType: fileType, shouldCreateDirectory: false) != nil
     }

@@ -137,9 +137,10 @@ actor MinerStatsAggregator {
         pendingForceUpdate?.cancel()
 
         // Schedule a new debounced update
+        let debounceInterval = forceUpdateDebounceInterval
         pendingForceUpdate = Task { [weak self] in
             do {
-                try await Task.sleep(nanoseconds: UInt64(forceUpdateDebounceInterval * 1_000_000_000))
+                try await Task.sleep(nanoseconds: UInt64(debounceInterval * 1_000_000_000))
                 await self?.calculateAndUpdateStats()
             } catch {
                 // Task was cancelled - this is normal for debouncing

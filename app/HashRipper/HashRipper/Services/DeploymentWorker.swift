@@ -11,7 +11,8 @@ import UserNotifications
 
 actor DeploymentWorker {
     let deploymentId: PersistentIdentifier
-    private let modelContext: ModelContext
+    // ModelContext is not Sendable but we manage thread safety through this actor
+    private nonisolated(unsafe) let modelContext: ModelContext
     private let clientManager: MinerClientManager
     private let downloadsManager: FirmwareDownloadsManager
     private var currentTasks: [PersistentIdentifier: Task<Void, Never>] = [:]
@@ -162,11 +163,29 @@ actor DeploymentWorker {
         let restartTimeout = deployment.restartTimeout
         let enableRestartMonitoring = deployment.enableRestartMonitoring
         
+        // Capture firmware release info for sendable context
+        let minerBinUrl = firmwareRelease.minerBinFileUrl
+        let wwwBinUrl = firmwareRelease.wwwBinFileUrl
+        let versionTag = firmwareRelease.versionTag
+        let device = firmwareRelease.device
+        
         // Get firmware file paths
-        guard let minerFilePath = await MainActor.run(body: {
-            downloadsManager.downloadedFilePath(for: firmwareRelease, fileType: .miner, shouldCreateDirectory: false)
-        }), let wwwFilePath = await MainActor.run(body: {
-            downloadsManager.downloadedFilePath(for: firmwareRelease, fileType: .www, shouldCreateDirectory: false)
+        guard let minerFilePath = await MainActor.run(body: { [downloadsManager] in
+            downloadsManager.downloadedFilePathByComponents(
+                versionTag: versionTag,
+                device: device,
+                fileType: .miner,
+                binUrl: minerBinUrl,
+                shouldCreateDirectory: false
+            )
+        }), let wwwFilePath = await MainActor.run(body: { [downloadsManager] in
+            downloadsManager.downloadedFilePathByComponents(
+                versionTag: versionTag,
+                device: device,
+                fileType: .www,
+                binUrl: wwwBinUrl,
+                shouldCreateDirectory: false
+            )
         }) else {
             throw DeploymentWorkerError.firmwareFilesNotFound
         }
@@ -414,10 +433,8 @@ actor DeploymentWorker {
             await onComplete()
 
             // NOW send completion notifications - store has refreshed its context
-            await MainActor.run { [modelContext] in
-                if let dep = modelContext.model(for: deploymentId) as? FirmwareDeployment {
-                    DeploymentNotificationHelper.postDeploymentCompleted(dep)
-                }
+            await MainActor.run {
+                DeploymentNotificationHelper.postDeploymentCompleted(deploymentId)
             }
 
             // Send local notification with accurate counts
@@ -428,10 +445,8 @@ actor DeploymentWorker {
             )
         } else {
             // Post update notification
-            await MainActor.run { [modelContext] in
-                if let dep = modelContext.model(for: deploymentId) as? FirmwareDeployment {
-                    DeploymentNotificationHelper.postDeploymentUpdated(dep)
-                }
+            await MainActor.run {
+                DeploymentNotificationHelper.postDeploymentUpdated(deploymentId)
             }
         }
     }

@@ -529,9 +529,9 @@ struct MinerSettingsView: View {
                         invertFanPolarity = latestUpdate.invertfanpolarity == 1
                         
                         // Load pool settings
-                        stratumURL = latestUpdate.stratumURL ?? ""
+                        stratumURL = latestUpdate.stratumURL
                         stratumPort = latestUpdate.stratumPort > 0 ? String(latestUpdate.stratumPort) : ""
-                        stratumUser = latestUpdate.stratumUser ?? ""
+                        stratumUser = latestUpdate.stratumUser
                         stratumPassword = "" // Password is not stored in updates for security
                     }
                     

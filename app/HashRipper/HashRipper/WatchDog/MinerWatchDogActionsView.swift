@@ -145,7 +145,7 @@ struct MinerWatchDogActionsView: View {
             try? await Task.sleep(nanoseconds: 10_000_000_000) // 10 seconds
             
             if !Task.isCancelled {
-                await markVisibleActionsAsRead()
+                markVisibleActionsAsRead()
             }
         }
     }
