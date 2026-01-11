@@ -14,6 +14,7 @@ struct AppSettingsView: View {
     enum SettingsSection: String, CaseIterable {
         case general = "General"
         case network = "Network"
+        case watchdog = "WatchDog"
     }
     
     var body: some View {
@@ -29,6 +30,8 @@ struct AppSettingsView: View {
                     GeneralSettingsView()
                 case .network:
                     NetworkSettingsView()
+                case .watchdog:
+                    WatchDogSettingsView()
                 }
             }
             .frame(minWidth: 500)
@@ -74,6 +77,7 @@ struct AppSettingsView: View {
         switch section {
         case .general: return "gearshape"
         case .network: return "network"
+        case .watchdog: return "shield.checkered"
         }
     }
 }
