@@ -23,6 +23,7 @@ struct MinerDetailView: View {
     @State private var isRefreshing = false
     @State private var showSettings = false
     @State private var showLogs = false
+    @State private var showRestartConfirmation = false
     @State private var selectedTimeRange: TimeRange = .oneHour
     
     // Animation states
@@ -106,6 +107,14 @@ struct MinerDetailView: View {
         }
         .sheet(isPresented: $showLogs) {
             MinerLogsSheet(miner: miner)
+        }
+        .alert("Restart Miner?", isPresented: $showRestartConfirmation) {
+            Button("Cancel", role: .cancel) { }
+            Button("Restart", role: .destructive) {
+                Task { await restartMiner() }
+            }
+        } message: {
+            Text("Are you sure you want to restart \(miner.hostName)? The miner will be temporarily offline while it reboots.")
         }
     }
     
@@ -440,7 +449,7 @@ struct MinerDetailView: View {
                     label: "Restart",
                     color: .orange
                 ) {
-                    Task { await restartMiner() }
+                    showRestartConfirmation = true
                 }
                 
                 ActionButton(
