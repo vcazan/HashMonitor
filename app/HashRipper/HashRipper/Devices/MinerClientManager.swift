@@ -6,11 +6,76 @@
 //
 
 import AxeOSClient
+import AvalonClient
 import Foundation
 import SwiftData
 import SwiftUI
 import Cocoa
 import os.log
+
+/// Enum to hold either an AxeOS or Avalon client
+enum MinerClient: Sendable {
+    case axeOS(AxeOSClient)
+    case avalon(AvalonClient)
+    
+    var ipAddress: String {
+        switch self {
+        case .axeOS(let client): return client.deviceIpAddress
+        case .avalon(let client): return client.deviceIpAddress
+        }
+    }
+    
+    /// Get system info from the miner using the appropriate API
+    func getSystemInfo() async -> MinerUpdateResult {
+        switch self {
+        case .axeOS(let client):
+            let result = await client.getSystemInfo()
+            switch result {
+            case .success(let info):
+                return .axeOS(info)
+            case .failure(let error):
+                return .failure(error)
+            }
+        case .avalon(let client):
+            let result = await client.getDeviceInfo()
+            switch result {
+            case .success(let info):
+                return .avalon(info)
+            case .failure(let error):
+                return .failure(error)
+            }
+        }
+    }
+    
+    /// Restart the miner
+    func restartClient() async -> Result<Bool, Error> {
+        switch self {
+        case .axeOS(let client):
+            let result = await client.restartClient()
+            switch result {
+            case .success(let success):
+                return .success(success)
+            case .failure(let error):
+                return .failure(error)
+            }
+        case .avalon(let client):
+            let result = await client.restart()
+            switch result {
+            case .success(let success):
+                return .success(success)
+            case .failure(let error):
+                return .failure(error)
+            }
+        }
+    }
+}
+
+/// Result of a miner update request
+enum MinerUpdateResult: Sendable {
+    case axeOS(AxeOSDeviceInfo)
+    case avalon(AvalonDeviceInfo)
+    case failure(Error)
+}
 
 extension Notification.Name {
     static let minerUpdateInserted = Notification.Name("minerUpdateInserted")
@@ -220,8 +285,9 @@ actor MinerRefreshScheduler {
                 }
 
                 // Perform the refresh - this is protected from cancellation
-                let update = await client.getSystemInfo()
-                let clientUpdate = ClientUpdate(ipAddress: ipAddress, response: update)
+                // Use the unified MinerClient interface that handles both AxeOS and Avalon
+                let updateResult = await client.getSystemInfo()
+                let clientUpdate = ClientUpdate(ipAddress: ipAddress, response: updateResult)
                 await MinerClientManager.processClientUpdate(clientUpdate, database: database, watchDog: watchDog)
 
                 // Remove from pending
@@ -298,10 +364,19 @@ class MinerClientManager: @unchecked Sendable {
 
     // important ensure updating on main thread
     private var updateInProgress: Bool = false
-    private var minerClients: [IPAddress: AxeOSClient] = [:]
+    private var minerClients: [IPAddress: MinerClient] = [:]
 
-    public var clients: [AxeOSClient] {
+    public var clients: [MinerClient] {
         return Array(minerClients.values)
+    }
+    
+    public var axeOSClients: [AxeOSClient] {
+        return minerClients.values.compactMap { client in
+            if case .axeOS(let axeClient) = client {
+                return axeClient
+            }
+            return nil
+        }
     }
 
 
@@ -357,9 +432,19 @@ class MinerClientManager: @unchecked Sendable {
     }
 
     @MainActor
-    func client(forIpAddress ipAddress: IPAddress) -> AxeOSClient? {
+    func client(forIpAddress ipAddress: IPAddress) -> MinerClient? {
         return schedulerLock.perform {
             return minerClients[ipAddress]
+        }
+    }
+    
+    @MainActor
+    func axeOSClient(forIpAddress ipAddress: IPAddress) -> AxeOSClient? {
+        return schedulerLock.perform {
+            if case .axeOS(let client) = minerClients[ipAddress] {
+                return client
+            }
+            return nil
         }
     }
 
@@ -465,38 +550,51 @@ class MinerClientManager: @unchecked Sendable {
     
     func refreshClientInfo() {
         Task {
-            // First, do synchronous database operations
-            let (newMinerIps, allMinerIps) = await database.withModelContext { context in
+            // First, do synchronous database operations - get miner info including protocol type
+            struct MinerInfo: Sendable {
+                let ipAddress: String
+                let protocolType: MinerProtocolType
+            }
+            
+            let (newMiners, allMinerIps) = await database.withModelContext { context in
                 // get all Miners
                 let miners = try? context.fetch(FetchDescriptor<Miner>())
                 guard let miners = miners, !miners.isEmpty else {
                     print("No miners found to refresh")
-                    return ([], []) as ([IPAddress], [IPAddress])
+                    return ([], []) as ([MinerInfo], [IPAddress])
                 }
 
-                var newIps: [IPAddress] = []
+                var newMinerInfos: [MinerInfo] = []
                 var allIps: [IPAddress] = []
                 miners.forEach { miner in
                     allIps.append(miner.ipAddress)
-                    let exisitingMiner = self.schedulerLock.perform {
+                    let existingMiner = self.schedulerLock.perform {
                         self.minerClients[miner.ipAddress]
                     }
-                    if exisitingMiner == nil {
-                        newIps.append(miner.ipAddress)
+                    if existingMiner == nil {
+                        newMinerInfos.append(MinerInfo(ipAddress: miner.ipAddress, protocolType: miner.protocolType))
                     }
                 }
-                return (newIps, allIps)
+                return (newMinerInfos, allIps)
             }
 
-            // Create clients for new miners (if any)
-            let newClients: [AxeOSClient] = {
-                guard !newMinerIps.isEmpty else { return [] }
+            // Create clients for new miners (if any), using appropriate client type
+            let newClients: [MinerClient] = {
+                guard !newMiners.isEmpty else { return [] }
                 let sessionConfig = URLSessionConfiguration.default
                 sessionConfig.timeoutIntervalForRequest = MinerClientManager.REQUEST_TIMEOUT
                 sessionConfig.timeoutIntervalForResource = MinerClientManager.REQUEST_TIMEOUT * 2
                 sessionConfig.waitsForConnectivity = false
                 let session = URLSession(configuration: sessionConfig)
-                return newMinerIps.map { AxeOSClient(deviceIpAddress: $0, urlSession: session) }
+                
+                return newMiners.map { minerInfo in
+                    switch minerInfo.protocolType {
+                    case .axeOS, .unknown:
+                        return .axeOS(AxeOSClient(deviceIpAddress: minerInfo.ipAddress, urlSession: session))
+                    case .cgminer:
+                        return .avalon(AvalonClient(deviceIpAddress: minerInfo.ipAddress, timeout: MinerClientManager.REQUEST_TIMEOUT))
+                    }
+                }
             }()
             
             // Exit early if no miners found at all
@@ -517,7 +615,7 @@ class MinerClientManager: @unchecked Sendable {
                 // Add new clients
                 for client in clientsToAdd {
                     self.schedulerLock.perform {
-                        self.minerClients[client.deviceIpAddress] = client
+                        self.minerClients[client.ipAddress] = client
                     }
                 }
                 
@@ -533,25 +631,44 @@ class MinerClientManager: @unchecked Sendable {
     @MainActor
     func handleNewlyDiscoveredMiners(_ ipAddresses: [IPAddress]) {
         Task {
+            // Fetch miner info from database to get protocol types
+            struct MinerInfo: Sendable {
+                let ipAddress: String
+                let protocolType: MinerProtocolType
+            }
+            
+            let minerInfos: [MinerInfo] = await database.withModelContext { context in
+                let miners = (try? context.fetch(FetchDescriptor<Miner>())) ?? []
+                return ipAddresses.compactMap { ip in
+                    if let miner = miners.first(where: { $0.ipAddress == ip }) {
+                        return MinerInfo(ipAddress: ip, protocolType: miner.protocolType)
+                    }
+                    return MinerInfo(ipAddress: ip, protocolType: .axeOS) // Default to AxeOS
+                }
+            }
+            
             // Create clients for new miners
-            var newClients: [AxeOSClient] = []
+            var newClients: [MinerClient] = []
             let sessionConfig = URLSessionConfiguration.default
             sessionConfig.timeoutIntervalForRequest = MinerClientManager.REQUEST_TIMEOUT
             sessionConfig.timeoutIntervalForResource = MinerClientManager.REFRESH_INTERVAL - 1
             sessionConfig.waitsForConnectivity = false
-//            sessionConfig.allowsCellularAccess = false
-//            sessionConfig.allowsExpensiveNetworkAccess = false
-//            sessionConfig.allowsConstrainedNetworkAccess = false
             let session = URLSession(configuration: sessionConfig)
 
-            for ipAddress in ipAddresses {
+            for minerInfo in minerInfos {
                 // Check if we already have a client for this IP
                 let hasExistingClient = schedulerLock.perform {
-                    return minerClients[ipAddress] != nil
+                    return minerClients[minerInfo.ipAddress] != nil
                 }
                 
                 if !hasExistingClient {
-                    let client = AxeOSClient(deviceIpAddress: ipAddress, urlSession: session)
+                    let client: MinerClient
+                    switch minerInfo.protocolType {
+                    case .axeOS, .unknown:
+                        client = .axeOS(AxeOSClient(deviceIpAddress: minerInfo.ipAddress, urlSession: session))
+                    case .cgminer:
+                        client = .avalon(AvalonClient(deviceIpAddress: minerInfo.ipAddress, timeout: MinerClientManager.REQUEST_TIMEOUT))
+                    }
                     newClients.append(client)
                 }
             }
@@ -566,7 +683,7 @@ class MinerClientManager: @unchecked Sendable {
                 // Add new clients
                 newClients.forEach { client in
                     self.schedulerLock.perform {
-                        self.minerClients[client.deviceIpAddress] = client
+                        self.minerClients[client.ipAddress] = client
                     }
                 }
                 
@@ -633,7 +750,7 @@ class MinerClientManager: @unchecked Sendable {
                 }
                 
                 switch (minerUpdate.response) {
-                case .success(let info):
+                case .axeOS(let info):
                     // Reset timeout error counter on successful update
                     miner.consecutiveTimeoutErrors = 0
                     
@@ -684,6 +801,56 @@ class MinerClientManager: @unchecked Sendable {
 
                     // Mark that we should check watchdog after database operations complete
                     needsWatchdogCheck = true
+                    
+                case .avalon(let info):
+                    // Reset timeout error counter on successful update
+                    miner.consecutiveTimeoutErrors = 0
+                    
+                    // Update hostname if it changed on the miner
+                    if !info.hostname.isEmpty && miner.hostName != info.hostname {
+                        miner.hostName = info.hostname
+                    }
+                    
+                    // Create MinerUpdate from Avalon device info
+                    // Note: hashRate from AvalonDeviceInfo is already in GH/s
+                    let updateModel = MinerUpdate(
+                        miner: miner,
+                        hostname: info.hostname,
+                        stratumUser: info.stratumUser,
+                        fallbackStratumUser: "",
+                        stratumURL: info.stratumURL,
+                        stratumPort: info.stratumPort,
+                        fallbackStratumURL: "",
+                        fallbackStratumPort: 0,
+                        minerFirmwareVersion: info.firmwareVersion,
+                        bestDiff: info.bestDiff,
+                        frequency: info.frequency,
+                        voltage: info.voltage,
+                        temp: info.temperature,
+                        intakeTemp: info.intakeTemp,
+                        chipTempMax: info.chipTempMax,
+                        chipTempMin: info.chipTempMin,
+                        fanrpm: info.fanSpeed,
+                        fanspeed: Double(info.fanSpeedPercent),
+                        hashRate: info.hashRate,  // Already in GH/s
+                        power: info.power,
+                        sharesAccepted: info.sharesAccepted,
+                        sharesRejected: info.sharesRejected,
+                        uptimeSeconds: info.uptimeSeconds,
+                        isUsingFallbackStratum: false,
+                        timestamp: timestamp
+                    )
+                    if (info.hostname != miner.hostName) {
+                        miner.hostName = info.hostname
+                    }
+                    context.insert(updateModel)
+
+                    // Post notification for efficient UI updates
+                    postMinerUpdateNotification(minerMacAddress: miner.macAddress)
+
+                    // Mark that we should check watchdog after database operations complete
+                    needsWatchdogCheck = true
+                    
                 case .failure(let error):
                     let errorCode = (error as NSError).code
                     let logger = HashRipperLogger.shared.loggerForCategory("MinerClientManager")
@@ -919,9 +1086,9 @@ class MinerClientManager: @unchecked Sendable {
 
 }
 
-struct ClientUpdate {
+struct ClientUpdate: Sendable {
     let ipAddress: IPAddress
-    let response: Result<AxeOSDeviceInfo, Error>
+    let response: MinerUpdateResult
 }
 
 

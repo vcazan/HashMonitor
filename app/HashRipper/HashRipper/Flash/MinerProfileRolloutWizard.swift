@@ -145,7 +145,7 @@ final class RolloutWizardModel {
                 autofanspeed: nil,
                 fanspeed: nil
             )
-            let client = clientManager.client(forIpAddress: miner.ipAddress) ?? AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: URLSession.shared)
+            let client = clientManager.axeOSClient(forIpAddress: miner.ipAddress) ?? AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: URLSession.shared)
             return (client, settings)
         }
         Task.detached {

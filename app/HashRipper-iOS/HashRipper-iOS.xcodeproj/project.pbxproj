@@ -20,6 +20,8 @@
 		A1000011 /* MinerLogsSheet.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000011 /* MinerLogsSheet.swift */; };
 		A1000012 /* Miner+iOS.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000012 /* Miner+iOS.swift */; };
 		A1000013 /* MinerUpdate+Factory.swift in Sources */ = {isa = PBXBuildFile; fileRef = A2000013 /* MinerUpdate+Factory.swift */; };
+		A1000014 /* AvalonClient in Frameworks */ = {isa = PBXBuildFile; productRef = A3000005 /* AvalonClient */; };
+		A1000015 /* AxeOSClient in Frameworks */ = {isa = PBXBuildFile; productRef = A3000006 /* AxeOSClient */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXFileReference section */
@@ -45,6 +47,8 @@
 			buildActionMask = 2147483647;
 			files = (
 				A1000010 /* HashRipperKit in Frameworks */,
+				A1000014 /* AvalonClient in Frameworks */,
+				A1000015 /* AxeOSClient in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -121,6 +125,8 @@
 			name = "HashRipper-iOS";
 			packageProductDependencies = (
 				A3000001 /* HashRipperKit */,
+				A3000005 /* AvalonClient */,
+				A3000006 /* AxeOSClient */,
 			);
 			productName = "HashRipper-iOS";
 			productReference = A2000020 /* HashRipper-iOS.app */;
@@ -153,6 +159,7 @@
 			packageReferences = (
 				A3000002 /* XCLocalSwiftPackageReference "../../libs/HashRipperKit" */,
 				A3000003 /* XCLocalSwiftPackageReference "../../libs/AxeOSClient" */,
+				A3000004 /* XCLocalSwiftPackageReference "../../libs/AvalonClient" */,
 			);
 			productRefGroup = A5000003 /* Products */;
 			projectDirPath = "";
@@ -409,12 +416,24 @@
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../libs/AxeOSClient;
 		};
+		A3000004 /* XCLocalSwiftPackageReference "../../libs/AvalonClient" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../libs/AvalonClient;
+		};
 /* End XCLocalSwiftPackageReference section */
 
 /* Begin XCSwiftPackageProductDependency section */
 		A3000001 /* HashRipperKit */ = {
 			isa = XCSwiftPackageProductDependency;
 			productName = HashRipperKit;
+		};
+		A3000005 /* AvalonClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AvalonClient;
+		};
+		A3000006 /* AxeOSClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			productName = AxeOSClient;
 		};
 /* End XCSwiftPackageProductDependency section */
 	};

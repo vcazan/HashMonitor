@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import HashRipperKit
 import AxeOSClient
+import AvalonClient
 
 // MARK: - Main View
 
@@ -283,6 +284,15 @@ struct MinerListView: View {
     }
     
     private func refreshMiner(_ miner: Miner) async {
+        // Use the appropriate client based on miner protocol type
+        if miner.isAvalonMiner {
+            await refreshAvalonMiner(miner)
+        } else {
+            await refreshAxeOSMiner(miner)
+        }
+    }
+    
+    private func refreshAxeOSMiner(_ miner: Miner) async {
         let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
         let result = await client.getSystemInfo()
         
@@ -311,6 +321,40 @@ struct MinerListView: View {
             await MainActor.run {
                 miner.consecutiveTimeoutErrors += 1
                 print("Miner refresh failed for \(miner.hostName): \(error)")
+                try? modelContext.save()
+            }
+        }
+    }
+    
+    private func refreshAvalonMiner(_ miner: Miner) async {
+        let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+        let result = await client.getDeviceInfo()
+        
+        switch result {
+        case .success(let info):
+            await MainActor.run {
+                // Reset error count on success
+                miner.consecutiveTimeoutErrors = 0
+                
+                // Update hostname if changed
+                if !info.hostname.isEmpty && miner.hostName != info.hostname {
+                    miner.hostName = info.hostname
+                }
+                
+                // Create update record
+                let update = MinerUpdate.from(miner: miner, info: info)
+                modelContext.insert(update)
+                
+                // Cache for UI
+                latestUpdates[miner.macAddress] = update
+                
+                // Save changes
+                try? modelContext.save()
+            }
+        case .failure(let error):
+            await MainActor.run {
+                miner.consecutiveTimeoutErrors += 1
+                print("Avalon miner refresh failed for \(miner.hostName): \(error)")
                 try? modelContext.save()
             }
         }

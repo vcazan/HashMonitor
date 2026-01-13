@@ -85,8 +85,10 @@ struct MinerDetailView: View {
                 }
             }
             
-            // Logs drawer at bottom
-            MinerLogsDrawerView(miner: miner, isExpanded: $isLogsDrawerExpanded)
+            // Logs drawer at bottom (only for AxeOS miners - websocket-based logs)
+            if miner.isAxeOSMiner {
+                MinerLogsDrawerView(miner: miner, isExpanded: $isLogsDrawerExpanded)
+            }
         }
         .background(Color(nsColor: .windowBackgroundColor))
         .onAppear {
@@ -341,7 +343,7 @@ struct MinerDetailView: View {
                     isRetrying = false
                     
                     switch result {
-                    case .success:
+                    case .axeOS, .avalon:
                         // Success! Reset the error counter so miner shows as online
                         miner.consecutiveTimeoutErrors = 0
                         // Trigger a full refresh to update the UI
@@ -507,26 +509,25 @@ struct MinerDetailView: View {
     
     private var detailedStatsSection: some View {
         HStack(spacing: 0) {
-            // Temperature
-            secondaryStat(label: "Temp", value: String(format: "%.0f°", mostRecentUpdate?.temp ?? 0.0))
-            
-            // VR Temp
-            secondaryStat(label: "VR Temp", value: mostRecentUpdate?.vrTemp.map { String(format: "%.0f°", $0) } ?? "—")
-            
-            // Fan
-            secondaryStat(label: "Fan", value: "\(mostRecentUpdate?.fanrpm ?? 0) RPM")
-            
-            // Frequency
-            secondaryStat(label: "Freq", value: String(format: "%.0f MHz", mostRecentUpdate?.frequency ?? 0.0))
-            
-            // Shares
-            secondaryStat(label: "Shares", value: formatShares(mostRecentUpdate?.sharesAccepted ?? 0))
-            
-            // Best Diff
-            secondaryStat(label: "Best Diff", value: mostRecentUpdate?.bestDiff ?? "—")
-            
-            // Session
-            secondaryStat(label: "Session", value: mostRecentUpdate?.bestSessionDiff ?? "—")
+            if miner.isAvalonMiner {
+                // Avalon miners have multiple temperature readings
+                secondaryStat(label: "Chip Avg", value: String(format: "%.0f°", mostRecentUpdate?.temp ?? 0.0))
+                secondaryStat(label: "Intake", value: mostRecentUpdate?.intakeTemp.map { String(format: "%.0f°", $0) } ?? "—")
+                secondaryStat(label: "Chip Max", value: mostRecentUpdate?.chipTempMax.map { String(format: "%.0f°", $0) } ?? "—")
+                secondaryStat(label: "Fan", value: "\(mostRecentUpdate?.fanrpm ?? 0) RPM")
+                secondaryStat(label: "Freq", value: String(format: "%.0f MHz", mostRecentUpdate?.frequency ?? 0.0))
+                secondaryStat(label: "Shares", value: formatShares(mostRecentUpdate?.sharesAccepted ?? 0))
+                secondaryStat(label: "Best Diff", value: mostRecentUpdate?.bestDiff ?? "—")
+            } else {
+                // AxeOS miners (Bitaxe, NerdQAxe)
+                secondaryStat(label: "Temp", value: String(format: "%.0f°", mostRecentUpdate?.temp ?? 0.0))
+                secondaryStat(label: "VR Temp", value: mostRecentUpdate?.vrTemp.map { String(format: "%.0f°", $0) } ?? "—")
+                secondaryStat(label: "Fan", value: "\(mostRecentUpdate?.fanrpm ?? 0) RPM")
+                secondaryStat(label: "Freq", value: String(format: "%.0f MHz", mostRecentUpdate?.frequency ?? 0.0))
+                secondaryStat(label: "Shares", value: formatShares(mostRecentUpdate?.sharesAccepted ?? 0))
+                secondaryStat(label: "Best Diff", value: mostRecentUpdate?.bestDiff ?? "—")
+                secondaryStat(label: "Session", value: mostRecentUpdate?.bestSessionDiff ?? "—")
+            }
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 16)
@@ -564,9 +565,22 @@ struct MinerDetailView: View {
     private var systemInfoSection: some View {
         HStack(spacing: 0) {
             secondaryStat(label: "Firmware", value: mostRecentUpdate?.minerFirmwareVersion ?? "—")
-            secondaryStat(label: "AxeOS", value: mostRecentUpdate?.axeOSVersion ?? "—")
+            
+            if miner.isAvalonMiner {
+                // Avalon doesn't have AxeOS
+                secondaryStat(label: "Model", value: miner.minerDeviceDisplayName)
+            } else {
+                secondaryStat(label: "AxeOS", value: mostRecentUpdate?.axeOSVersion ?? "—")
+            }
+            
             secondaryStat(label: "Uptime", value: formattedUptime)
-            secondaryStat(label: "MAC", value: miner.macAddress)
+            
+            if miner.isAvalonMiner {
+                // Avalon uses IP as identifier (no real MAC from API)
+                secondaryStat(label: "IP", value: miner.ipAddress)
+            } else {
+                secondaryStat(label: "MAC", value: miner.macAddress)
+            }
         }
         .padding(.vertical, 14)
         .padding(.horizontal, 16)

@@ -15,12 +15,13 @@ let package = Package(
         ),
     ],
     dependencies: [
-        .package(path: "../AxeOSClient")
+        .package(path: "../AxeOSClient"),
+        .package(path: "../AvalonClient")
     ],
     targets: [
         .target(
             name: "HashRipperKit",
-            dependencies: ["AxeOSClient"]
+            dependencies: ["AxeOSClient", "AvalonClient"]
         ),
         .testTarget(
             name: "HashRipperKitTests",

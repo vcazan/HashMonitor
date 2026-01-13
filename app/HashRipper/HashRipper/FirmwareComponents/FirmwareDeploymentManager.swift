@@ -98,8 +98,8 @@ class FirmwareDeploymentManager: NSObject {
             return
         }
         
-        // Get or create client for this miner
-        let client = clientManager.client(forIpAddress: miner.ipAddress) ?? AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: URLSession.shared)
+        // Get or create client for this miner (firmware deployment only works for AxeOS devices)
+        let client = clientManager.axeOSClient(forIpAddress: miner.ipAddress) ?? AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: URLSession.shared)
         
         var retryAttempts = 0
         let maxRetries = configuration.retryCount

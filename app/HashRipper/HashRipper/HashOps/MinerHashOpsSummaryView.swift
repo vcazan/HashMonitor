@@ -39,9 +39,6 @@ struct MinerHashOpsSummaryView: View  {
     @State
     var showRetryMinerDialog: Bool = false
 
-    @State
-    var showMinerSettings: Bool = false
-
 
     private func loadLatestUpdate() {
         Task { @MainActor in
@@ -171,16 +168,7 @@ struct MinerHashOpsSummaryView: View  {
                             .buttonStyle(.plain)
                             .pointerStyle(.link)
                             .help("Open in browser")
-                            Button(action: { showMinerSettings = true }) {
-                                Image(systemName: "slider.horizontal.3")
-                                    .resizable()
-                                    .aspectRatio(contentMode: .fit)
-                                    .frame(width: 22, height: 22)
-                                    .foregroundStyle(.blue)
-                            }
-                            .buttonStyle(.plain)
-                            .pointerStyle(.link)
-                            .help("Miner settings (overclock, fan, display)")
+                            
                             Button(action: restartDevice) {
                                 Image(systemName: "power.circle.fill")
                                     .resizable()
@@ -351,9 +339,6 @@ struct MinerHashOpsSummaryView: View  {
             }
         } message: {
             Text("Attempting to reconnect to \(miner.hostName). Scanning network for miner...")
-        }
-        .sheet(isPresented: $showMinerSettings) {
-            MinerSettingsView(miner: miner)
         }
     }
 }

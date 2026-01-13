@@ -190,9 +190,9 @@ actor DeploymentWorker {
             throw DeploymentWorkerError.firmwareFilesNotFound
         }
 
-        // Get AxeOS client for this miner
+        // Get AxeOS client for this miner (firmware deployment only works for AxeOS devices)
         let client = await MainActor.run {
-            clientManager.client(forIpAddress: minerIPAddress) ?? AxeOSClient(deviceIpAddress: minerIPAddress, urlSession: URLSession.shared)
+            clientManager.axeOSClient(forIpAddress: minerIPAddress) ?? AxeOSClient(deviceIpAddress: minerIPAddress, urlSession: URLSession.shared)
         }
 
         // Step 1: Upload miner firmware (skip if already completed)

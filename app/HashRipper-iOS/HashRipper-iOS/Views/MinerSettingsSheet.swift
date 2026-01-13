@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import HashRipperKit
 import AxeOSClient
+import AvalonClient
 
 struct MinerSettingsSheet: View {
     @Environment(\.dismiss) private var dismiss
@@ -129,9 +130,19 @@ struct MinerSettingsSheet: View {
             ScrollView {
                 LazyVStack(spacing: Spacing.xl) {
                     deviceSection
-                    performanceSection
-                    displaySection
-                    poolSection
+                    
+                    // Avalon miners - show available CGMiner API settings
+                    if miner.isAvalonMiner {
+                        avalonInfoSection
+                        avalonFanSection
+                        avalonPerformanceSection
+                        avalonApplySection
+                    } else {
+                        performanceSection
+                        displaySection
+                        poolSection
+                    }
+                    
                     dangerSection
                 }
                 .padding()
@@ -142,24 +153,27 @@ struct MinerSettingsSheet: View {
     @ToolbarContentBuilder
     private var toolbarContent: some ToolbarContent {
         ToolbarItem(placement: .cancellationAction) {
-            Button("Cancel") { dismiss() }
+            Button(miner.isAvalonMiner ? "Done" : "Cancel") { dismiss() }
         }
         
-        ToolbarItem(placement: .primaryAction) {
-            if hasChanges {
-                Button {
-                    Haptics.impact(.medium)
-                    Task { await saveSettings() }
-                } label: {
-                    if isSaving {
-                        ProgressView()
-                            .tint(.teal)
-                    } else {
-                        Text("Save")
-                            .fontWeight(.semibold)
+        // Only show save button for AxeOS miners (Avalon has no editable settings)
+        if !miner.isAvalonMiner {
+            ToolbarItem(placement: .primaryAction) {
+                if hasChanges {
+                    Button {
+                        Haptics.impact(.medium)
+                        Task { await saveSettings() }
+                    } label: {
+                        if isSaving {
+                            ProgressView()
+                                .tint(.teal)
+                        } else {
+                            Text("Save")
+                                .fontWeight(.semibold)
+                        }
                     }
+                    .disabled(isSaving)
                 }
-                .disabled(isSaving)
             }
         }
     }
@@ -169,20 +183,35 @@ struct MinerSettingsSheet: View {
     private var deviceSection: some View {
         SettingsSection(title: "Device", icon: "cpu") {
             VStack(spacing: 1) {
-                SettingsTextField(
-                    label: "Hostname",
-                    placeholder: "BitAxe",
-                    text: $hostname
-                )
+                if miner.isAvalonMiner {
+                    // Avalon miners: hostname is read-only (can't be changed via API)
+                    SettingsInfoRow(
+                        label: "Hostname",
+                        value: miner.hostName
+                    )
+                } else {
+                    SettingsTextField(
+                        label: "Hostname",
+                        placeholder: "BitAxe",
+                        text: $hostname
+                    )
+                }
                 
                 SettingsInfoRow(
                     label: "IP Address",
                     value: miner.ipAddress
                 )
                 
+                if !miner.isAvalonMiner {
+                    SettingsInfoRow(
+                        label: "MAC Address",
+                        value: miner.macAddress
+                    )
+                }
+                
                 SettingsInfoRow(
-                    label: "MAC Address",
-                    value: miner.macAddress
+                    label: "Model",
+                    value: miner.minerDeviceDisplayName
                 )
                 
                 if let update = latestUpdate {
@@ -192,6 +221,162 @@ struct MinerSettingsSheet: View {
                     )
                 }
             }
+        }
+    }
+    
+    // MARK: - Avalon Info Section (Read-only)
+    
+    @State private var avalonFanSpeed: Double = 100
+    @State private var avalonPerformanceMode: String = "normal"
+    @State private var isApplyingAvalonSettings: Bool = false
+    @State private var showAvalonApplySuccess: Bool = false
+    
+    private var avalonInfoSection: some View {
+        SettingsSection(title: "Mining Info", icon: "chart.bar.fill") {
+            VStack(spacing: 1) {
+                if let update = latestUpdate {
+                    SettingsInfoRow(
+                        label: "Pool",
+                        value: update.stratumURL.isEmpty ? "—" : update.stratumURL
+                    )
+                    
+                    SettingsInfoRow(
+                        label: "Worker",
+                        value: update.stratumUser.isEmpty ? "—" : update.stratumUser
+                    )
+                    
+                    SettingsInfoRow(
+                        label: "Hash Rate",
+                        value: formatHashRate(update.hashRate)
+                    )
+                    
+                    SettingsInfoRow(
+                        label: "Power",
+                        value: String(format: "%.0f W", update.power)
+                    )
+                    
+                    SettingsInfoRow(
+                        label: "Uptime",
+                        value: formatUptime(update.uptimeSeconds ?? 0)
+                    )
+                }
+            }
+        }
+    }
+    
+    // MARK: - Avalon Fan Control Section
+    
+    private var avalonFanSection: some View {
+        SettingsSection(title: "Fan Control", icon: "fan.fill") {
+            VStack(spacing: Spacing.lg) {
+                SettingsSlider(
+                    label: "Fan Speed",
+                    value: $avalonFanSpeed,
+                    range: 0...100,
+                    step: 5,
+                    unit: "%",
+                    color: AppColors.efficiency
+                )
+            }
+            .padding(Spacing.lg)
+        }
+        .onAppear {
+            if let update = latestUpdate {
+                avalonFanSpeed = update.fanspeed ?? 100
+            }
+        }
+    }
+    
+    // MARK: - Avalon Performance Section
+    
+    private var avalonPerformanceSection: some View {
+        SettingsSection(title: "Performance", icon: "gauge.with.dots.needle.67percent") {
+            VStack(spacing: Spacing.md) {
+                Picker("Mode", selection: $avalonPerformanceMode) {
+                    Text("Low Power").tag("low")
+                    Text("Normal").tag("normal")
+                    Text("High").tag("high")
+                }
+                .pickerStyle(.segmented)
+                
+                Text("Higher modes increase hash rate but also power and heat")
+                    .font(.caption)
+                    .foregroundStyle(AppColors.textTertiary)
+            }
+            .padding(Spacing.lg)
+        }
+    }
+    
+    // MARK: - Avalon Apply Settings Section
+    
+    private var avalonApplySection: some View {
+        SettingsSection(title: "Apply Changes", icon: "checkmark.circle") {
+            VStack(spacing: Spacing.md) {
+                Button {
+                    Haptics.impact(.medium)
+                    Task { await applyAvalonSettings() }
+                } label: {
+                    HStack {
+                        if isApplyingAvalonSettings {
+                            ProgressView()
+                                .tint(.white)
+                        } else {
+                            Image(systemName: "checkmark.circle.fill")
+                            Text("Apply Settings")
+                                .fontWeight(.semibold)
+                        }
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                }
+                .buttonStyle(.borderedProminent)
+                .tint(.teal)
+                .disabled(isApplyingAvalonSettings)
+                
+                Text("Fan speed and performance mode will be sent to the miner")
+                    .font(.caption)
+                    .foregroundStyle(AppColors.textTertiary)
+            }
+            .padding(Spacing.lg)
+        }
+    }
+    
+    private func applyAvalonSettings() async {
+        isApplyingAvalonSettings = true
+        
+        let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+        
+        // Apply fan speed
+        let _ = await client.setFanSpeed(percent: Int(avalonFanSpeed))
+        
+        // Apply performance mode
+        let _ = await client.setPerformanceMode(mode: avalonPerformanceMode)
+        
+        await MainActor.run {
+            isApplyingAvalonSettings = false
+            Haptics.notification(.success)
+        }
+    }
+    
+    private func formatHashRate(_ ghPerSec: Double) -> String {
+        if ghPerSec >= 1000 {
+            return String(format: "%.2f TH/s", ghPerSec / 1000)
+        } else {
+            return String(format: "%.0f GH/s", ghPerSec)
+        }
+    }
+    
+    private func formatUptime(_ seconds: Int) -> String {
+        let days = seconds / 86400
+        let hours = (seconds % 86400) / 3600
+        let minutes = (seconds % 3600) / 60
+        
+        if days > 0 {
+            return "\(days)d \(hours)h"
+        } else if hours > 0 {
+            return "\(hours)h \(minutes)m"
+        } else {
+            return "\(minutes)m"
         }
     }
     
@@ -476,14 +661,24 @@ struct MinerSettingsSheet: View {
     }
     
     private func restartMiner() async {
-        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
-        let result = await client.restartClient()
-        
-        switch result {
-        case .success:
-            Haptics.notification(.success)
-        case .failure:
-            Haptics.notification(.error)
+        if miner.isAvalonMiner {
+            let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+            let result = await client.restart()
+            switch result {
+            case .success:
+                Haptics.notification(.success)
+            case .failure:
+                Haptics.notification(.error)
+            }
+        } else {
+            let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
+            let result = await client.restartClient()
+            switch result {
+            case .success:
+                Haptics.notification(.success)
+            case .failure:
+                Haptics.notification(.error)
+            }
         }
     }
     

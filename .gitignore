@@ -78,6 +78,9 @@ DerivedData/
 
 build/
 
+# Swift Package Manager build folder
+.build/
+
 
 #####
 # Xcode private settings (window sizes, bookmarks, breakpoints, custom executables, smart groups)

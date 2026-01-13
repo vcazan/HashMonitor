@@ -108,6 +108,24 @@ class AppSettings {
             userDefaults.set(newValue, forKey: includePreReleasesKey)
         }
     }
+    
+    // MARK: - Avalon Miner Support
+    
+    @ObservationIgnored
+    private let scanForAvalonMinersKey = "scanForAvalonMiners"
+    /// Whether to scan for Avalon miners on the network (uses CGMiner API on port 4028)
+    var scanForAvalonMiners: Bool {
+        get {
+            // Default to true - scan for all miner types
+            if userDefaults.object(forKey: scanForAvalonMinersKey) == nil {
+                return true
+            }
+            return userDefaults.bool(forKey: scanForAvalonMinersKey)
+        }
+        set {
+            userDefaults.set(newValue, forKey: scanForAvalonMinersKey)
+        }
+    }
 
     @ObservationIgnored
     private let refreshIntervalKey = "minerRefreshInterval"

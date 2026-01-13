@@ -137,19 +137,36 @@ struct MinerSegmentedUpdateChartsView: View {
         let data = viewModel.chartDataBySegment[segment] ?? []
         let startTime = data.first?.time ?? Date()
         let endTime = data.last?.time ?? Date()
+        let isAvalon = currentMiner?.isAvalonMiner ?? false
         
         VStack(alignment: .leading, spacing: 16) {
             // Title section
             VStack(alignment: .leading) {
                 if segment == .asicTemperature {
-                    TitleValueView(
-                        segment: ChartSegments.asicTemperature,
-                        value: viewModel.mostRecentUpdateTitleValue(segmentIndex: ChartSegments.asicTemperature.rawValue)
-                    )
-                    TitleValueView(
-                        segment: ChartSegments.voltageRegulatorTemperature,
-                        value: viewModel.mostRecentUpdateTitleValue(segmentIndex: ChartSegments.voltageRegulatorTemperature.rawValue)
-                    )
+                    if isAvalon {
+                        // Avalon: Chip Avg, Intake, Chip Max
+                        TitleValueView(
+                            segment: ChartSegments.asicTemperature,
+                            value: viewModel.mostRecentUpdateTitleValue(segmentIndex: ChartSegments.asicTemperature.rawValue),
+                            customTitle: "Chip Avg"
+                        )
+                        TitleValueView(
+                            segment: ChartSegments.voltageRegulatorTemperature,
+                            value: viewModel.mostRecentUpdateTitleValue(segmentIndex: ChartSegments.voltageRegulatorTemperature.rawValue),
+                            customTitle: "Intake",
+                            customColor: .blue
+                        )
+                    } else {
+                        // AxeOS: ASIC + VR Temp
+                        TitleValueView(
+                            segment: ChartSegments.asicTemperature,
+                            value: viewModel.mostRecentUpdateTitleValue(segmentIndex: ChartSegments.asicTemperature.rawValue)
+                        )
+                        TitleValueView(
+                            segment: ChartSegments.voltageRegulatorTemperature,
+                            value: viewModel.mostRecentUpdateTitleValue(segmentIndex: ChartSegments.voltageRegulatorTemperature.rawValue)
+                        )
+                    }
                 } else {
                     TitleValueView(
                         segment: segment,
@@ -162,23 +179,54 @@ struct MinerSegmentedUpdateChartsView: View {
             Chart {
                 ForEach(data, id: \.time) { entry in
                     if segment == .asicTemperature {
-                        // ASIC Temp line (orange)
-                        LineMark(
-                            x: .value("Time", entry.time),
-                            y: .value("ASIC Temp", entry.values[ChartSegments.asicTemperature.rawValue].primary),
-                            series: .value("asic", "A")
-                        )
-                        .foregroundStyle(ChartSegments.asicTemperature.color)
-                        .interpolationMethod(.catmullRom)
+                        if isAvalon {
+                            // Avalon: Chip Avg (orange), Intake (blue), Chip Max (red)
+                            LineMark(
+                                x: .value("Time", entry.time),
+                                y: .value("Chip Avg", entry.values[ChartSegments.asicTemperature.rawValue].primary),
+                                series: .value("chipAvg", "A")
+                            )
+                            .foregroundStyle(.orange)
+                            .interpolationMethod(.catmullRom)
+                            
+                            // Intake temp (stored in VR temp slot for Avalon)
+                            LineMark(
+                                x: .value("Time", entry.time),
+                                y: .value("Intake", entry.values[ChartSegments.voltageRegulatorTemperature.rawValue].primary),
+                                series: .value("intake", "B")
+                            )
+                            .foregroundStyle(.blue)
+                            .interpolationMethod(.catmullRom)
+                            
+                            // Chip Max (stored as secondary on asic temp)
+                            if let chipMax = entry.values[ChartSegments.asicTemperature.rawValue].secondary, chipMax > 0 {
+                                LineMark(
+                                    x: .value("Time", entry.time),
+                                    y: .value("Chip Max", chipMax),
+                                    series: .value("chipMax", "C")
+                                )
+                                .foregroundStyle(.red)
+                                .interpolationMethod(.catmullRom)
+                            }
+                        } else {
+                            // AxeOS: ASIC Temp line (orange)
+                            LineMark(
+                                x: .value("Time", entry.time),
+                                y: .value("ASIC Temp", entry.values[ChartSegments.asicTemperature.rawValue].primary),
+                                series: .value("asic", "A")
+                            )
+                            .foregroundStyle(ChartSegments.asicTemperature.color)
+                            .interpolationMethod(.catmullRom)
 
-                        // VR Temp line (red)
-                        LineMark(
-                            x: .value("Time", entry.time),
-                            y: .value("VR Temp", entry.values[ChartSegments.voltageRegulatorTemperature.rawValue].primary),
-                            series: .value("vr", "B")
-                        )
-                        .foregroundStyle(ChartSegments.voltageRegulatorTemperature.color)
-                        .interpolationMethod(.catmullRom)
+                            // VR Temp line (red)
+                            LineMark(
+                                x: .value("Time", entry.time),
+                                y: .value("VR Temp", entry.values[ChartSegments.voltageRegulatorTemperature.rawValue].primary),
+                                series: .value("vr", "B")
+                            )
+                            .foregroundStyle(ChartSegments.voltageRegulatorTemperature.color)
+                            .interpolationMethod(.catmullRom)
+                        }
                     } else {
                         // Default single-line chart
                         LineMark(
@@ -230,7 +278,14 @@ struct MinerSegmentedUpdateChartsView: View {
     }
     
     var chartsToShow: [ChartSegments] {
-        ChartSegments.allCases.filter({ $0 != ChartSegments.voltageRegulatorTemperature })
+        let isAvalon = currentMiner?.isAvalonMiner ?? false
+        return ChartSegments.allCases.filter { segment in
+            // Always hide VR temp (shown inline with ASIC temp)
+            if segment == .voltageRegulatorTemperature { return false }
+            // Hide voltage chart for Avalon miners (not provided by CGMiner API)
+            if isAvalon && segment == .voltage { return false }
+            return true
+        }
     }
     
     var body: some View {
@@ -357,6 +412,16 @@ struct ChartSegmentValues: Hashable {
 struct TitleValueView: View {
     var segment: ChartSegments
     var value: String
+    var customTitle: String? = nil
+    var customColor: Color? = nil
+    
+    private var displayTitle: String {
+        customTitle ?? segment.title
+    }
+    
+    private var displayColor: Color {
+        customColor ?? segment.color
+    }
 
     var body: some View {
         HStack {
@@ -364,13 +429,13 @@ struct TitleValueView: View {
                 Image(systemName: segment.iconName)
                     .font(.title3)
                     .symbolEffect(.rotate)
-                    .foregroundStyle(segment.color)
+                    .foregroundStyle(displayColor)
             } else {
                 Image(systemName: segment.iconName)
                     .font(.title3)
-                    .foregroundStyle(segment.color)
+                    .foregroundStyle(displayColor)
             }
-            Text("\(segment.title) · \(value)")
+            Text("\(displayTitle) · \(value)")
                 .font(.headline)
         }
     }

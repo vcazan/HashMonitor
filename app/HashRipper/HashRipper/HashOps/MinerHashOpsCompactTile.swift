@@ -31,7 +31,6 @@ struct MinerHashOpsCompactTile: View {
     @State var hasAvailableFirmwareUpdate: Bool = false
     @State var availableFirmwareRelease: FirmwareRelease? = nil
     @State var showRetryMinerDialog: Bool = false
-    @State var showMinerSettings: Bool = false
 
     init(miner: Miner) {
         self.miner = miner
@@ -252,16 +251,9 @@ struct MinerHashOpsCompactTile: View {
             RoundedRectangle(cornerRadius: 8)
         )
         .contextMenu {
-            Button(action: { showMinerSettings = true }) {
-                Label("Settings", systemImage: "slider.horizontal.3")
-            }
-            Divider()
             Button(action: restartDevice) {
                 Label("Restart", systemImage: "power")
             }
-        }
-        .sheet(isPresented: $showMinerSettings) {
-            MinerSettingsView(miner: miner)
         }
         .sheet(isPresented: $showFirmwareReleaseNotes) {
             if let firmwareRelease = availableFirmwareRelease {

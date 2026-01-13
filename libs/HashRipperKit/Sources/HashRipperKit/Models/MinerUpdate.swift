@@ -24,8 +24,11 @@ public final class MinerUpdate {
     public var frequency: Double?
     public var voltage: Double?
     public var coreVoltage: Int?
-    public var temp: Double?
-    public var vrTemp: Double?
+    public var temp: Double?           // ASIC/Chip temp for AxeOS, or TAvg for Avalon
+    public var vrTemp: Double?          // VR temp for AxeOS, or TMax for Avalon
+    public var intakeTemp: Double?      // Avalon: ITemp (intake/internal temperature)
+    public var chipTempMax: Double?     // Avalon: TMax (maximum chip temperature)
+    public var chipTempMin: Double?     // Avalon: TMin (minimum chip temperature)
     public var fanrpm: Int?
     public var fanspeed: Double?
     public var autofanspeed: Int?
@@ -61,6 +64,9 @@ public final class MinerUpdate {
         coreVoltage: Int? = nil,
         temp: Double? = nil,
         vrTemp: Double? = nil,
+        intakeTemp: Double? = nil,
+        chipTempMax: Double? = nil,
+        chipTempMin: Double? = nil,
         fanrpm: Int? = nil,
         fanspeed: Double? = nil,
         autofanspeed: Int? = nil,
@@ -94,6 +100,9 @@ public final class MinerUpdate {
         self.coreVoltage = coreVoltage
         self.temp = temp
         self.vrTemp = vrTemp
+        self.intakeTemp = intakeTemp
+        self.chipTempMax = chipTempMax
+        self.chipTempMin = chipTempMin
         self.fanrpm = fanrpm
         self.fanspeed = fanspeed
         self.autofanspeed = autofanspeed

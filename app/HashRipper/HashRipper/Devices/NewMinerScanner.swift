@@ -6,11 +6,19 @@
 //
 
 import AxeOSClient
+import AvalonClient
 import Foundation
 import SwiftData
 import SwiftUI
 
 typealias IPAddress = String
+
+/// Result of scanning an IP address for miners
+enum ScanResult: Sendable {
+    case axeOS(DiscoveredDevice)
+    case avalon(DiscoveredAvalonDevice)
+    case none
+}
 
 @Observable
 class NewMinerScanner {
@@ -226,22 +234,20 @@ class NewMinerScanner {
     }
     
     /// Scans for new devices using streaming results - devices are collected and processed in batch
+    @MainActor
     func rescanDevicesStreaming() async {
+        // Check and set isScanning on MainActor BEFORE spawning detached task
+        // This ensures the caller can reliably poll isScanning
+        guard !isScanning else {
+            print("Scan already in progress")
+            return
+        }
+        isScanning = true
+        
         let database = self.database
         let lastUpdateLock = self.lastUpdateLock
         
         Task.detached {
-            let isAlreadyScanning = Task { @MainActor in
-                return self.isScanning
-            }
-            guard !(await isAlreadyScanning.value) else {
-                print("Scan already in progress")
-                return
-            }
-
-            Task { @MainActor in
-                self.isScanning = true
-            }
             print("Streaming swarm scanning initiated")
             do {
                 // Only extract IP addresses (Sendable) from the context
@@ -263,18 +269,30 @@ class NewMinerScanner {
 
                 let customSubnetIPs = AppSettings.shared.getSubnetsToScan()
                 print("🔍 Streaming scan using subnets: \(customSubnetIPs)")
+                
+                // Scan for AxeOS devices (Bitaxe, NerdQAxe)
                 try await AxeOSDevicesScanner.shared.executeSwarmScanV2(
                     knownMinerIps: knownMinerIps,
                     customSubnetIPs: customSubnetIPs
                 ) { device in
                     Task {
                         let count = await collector.append(device)
-                        print("Found device \(count): \(device.info.hostname) at \(device.client.deviceIpAddress)")
+                        print("Found AxeOS device \(count): \(device.info.hostname) at \(device.client.deviceIpAddress)")
                     }
                 }
                 
-                // Get collected devices
+                // Get collected AxeOS devices
                 let devicesToProcess = await collector.getDevices()
+                
+                // Also scan for Avalon miners if enabled
+                if AppSettings.shared.scanForAvalonMiners {
+                    print("🔍 Also scanning for Avalon miners on port 4028...")
+                    await self.scanForAvalonMinersInBackground(
+                        knownMinerIps: knownMinerIps,
+                        customSubnetIPs: customSubnetIPs,
+                        database: database
+                    )
+                }
                 
                 // Process all devices in a single batch with fresh miner lookups
                 let newMinerIpAddresses: [IPAddress] = await database.withModelContext({ modelContext -> [IPAddress] in
@@ -398,6 +416,142 @@ class NewMinerScanner {
             }
         }
     }
+    
+    // MARK: - Avalon Miner Scanning
+    
+    /// Scan for Avalon miners on the network using CGMiner API (port 4028)
+    private func scanForAvalonMinersInBackground(
+        knownMinerIps: [String],
+        customSubnetIPs: [String],
+        database: Database
+    ) async {
+        var subnetsToScan: [String] = []
+        if !customSubnetIPs.isEmpty {
+            subnetsToScan = customSubnetIPs
+        } else {
+            subnetsToScan = getMyIPAddress()
+        }
+        
+        // Generate IP addresses to scan (same logic as AxeOS scanner)
+        var ipAddressesToCheck: [String] = []
+        for subnetIP in subnetsToScan {
+            let ipAddresses = calculateIpRange(ip: subnetIP)?.filter { 
+                $0 != subnetIP && !knownMinerIps.contains($0)
+            } ?? []
+            ipAddressesToCheck.append(contentsOf: ipAddresses)
+        }
+        
+        // Scan for Avalon miners concurrently
+        await withTaskGroup(of: Void.self) { group in
+            for ipAddress in ipAddressesToCheck {
+                group.addTask { @Sendable [database] in
+                    let client = AvalonClient(deviceIpAddress: ipAddress, timeout: 3.0)
+                    let result = await client.getDeviceInfo()
+                    
+                    if case .success(let info) = result {
+                        print("🔍 Found Avalon miner at \(ipAddress): \(info.deviceModel)")
+                        await self.processDiscoveredAvalonMiner(
+                            ipAddress: ipAddress,
+                            info: info,
+                            database: database
+                        )
+                    }
+                }
+            }
+        }
+    }
+    
+    /// Process a discovered Avalon miner and add it to the database
+    @MainActor
+    private func processDiscoveredAvalonMiner(
+        ipAddress: String,
+        info: AvalonDeviceInfo,
+        database: Database
+    ) async {
+        await database.withModelContext { modelContext in
+            let allMiners: [Miner] = (try? modelContext.fetch(FetchDescriptor())) ?? []
+            
+            // Check for existing miner by IP or MAC
+            let existingIPMiner = allMiners.first { $0.ipAddress == ipAddress }
+            let existingMACMiner = !info.macAddr.isEmpty ? allMiners.first { $0.macAddress == info.macAddr } : nil
+            
+            let miner: Miner
+            if let existing = existingIPMiner {
+                // Update existing miner
+                existing.hostName = info.hostname
+                existing.ASICModel = info.deviceModel
+                existing.deviceModel = info.deviceModel
+                existing.protocolType = .cgminer
+                miner = existing
+                print("Updated Avalon miner at \(ipAddress): \(miner.hostName)")
+            } else if let existing = existingMACMiner {
+                // MAC exists but IP changed
+                modelContext.delete(existing)
+                miner = Miner(
+                    hostName: info.hostname,
+                    ipAddress: ipAddress,
+                    ASICModel: info.deviceModel,
+                    deviceModel: info.deviceModel,
+                    macAddress: info.macAddr.isEmpty ? UUID().uuidString : info.macAddr,
+                    protocolType: .cgminer
+                )
+                modelContext.insert(miner)
+                print("Avalon miner \(info.hostname) changed IP to \(ipAddress)")
+            } else {
+                // New miner
+                miner = Miner(
+                    hostName: info.hostname,
+                    ipAddress: ipAddress,
+                    ASICModel: info.deviceModel,
+                    deviceModel: info.deviceModel,
+                    macAddress: info.macAddr.isEmpty ? UUID().uuidString : info.macAddr,
+                    protocolType: .cgminer
+                )
+                modelContext.insert(miner)
+                print("Created new Avalon miner: \(miner.hostName) at \(ipAddress)")
+            }
+            
+            // Create a MinerUpdate record for the Avalon miner
+            // Note: hashRate from AvalonDeviceInfo is already in GH/s, matching MinerUpdate's expected unit
+            let minerUpdate = MinerUpdate(
+                miner: miner,
+                hostname: info.hostname,
+                stratumUser: info.stratumUser,
+                fallbackStratumUser: "",
+                stratumURL: info.stratumURL,
+                stratumPort: info.stratumPort,
+                fallbackStratumURL: "",
+                fallbackStratumPort: 0,
+                minerFirmwareVersion: info.firmwareVersion,
+                bestDiff: info.bestDiff,
+                frequency: info.frequency,
+                voltage: info.voltage,
+                temp: info.temperature,
+                intakeTemp: info.intakeTemp,
+                chipTempMax: info.chipTempMax,
+                chipTempMin: info.chipTempMin,
+                fanrpm: info.fanSpeed,
+                fanspeed: Double(info.fanSpeedPercent),
+                hashRate: info.hashRate,  // Already in GH/s
+                power: info.power,
+                sharesAccepted: info.sharesAccepted,
+                sharesRejected: info.sharesRejected,
+                uptimeSeconds: info.uptimeSeconds,
+                isUsingFallbackStratum: false
+            )
+            
+            modelContext.insert(minerUpdate)
+            
+            do {
+                try modelContext.save()
+            } catch {
+                print("Failed to save Avalon miner: \(error)")
+            }
+        }
+        
+        // Notify about newly discovered miner
+        onNewMinersDiscovered?([ipAddress])
+    }
 }
 
 extension EnvironmentValues {
@@ -419,4 +573,40 @@ extension View {
 struct NewDevice {
     let client: AxeOSClient
     let clientInfo: AxeOSDeviceInfo
+}
+
+// MARK: - IP Address Utilities for Avalon Scanning
+
+/// Calculate IP range for a given subnet (used for Avalon miner scanning)
+private func calculateIpRange(ip: String, netmask: String = "255.255.255.0") -> [String]? {
+    guard let ipInt = ipToInt(ip), let netmaskInt = ipToInt(netmask) else { return nil }
+    
+    let network = ipInt & netmaskInt
+    let broadcast = network | ~netmaskInt
+    
+    var ipAddresses: [String] = []
+    for current in (network + 1)...(broadcast - 1) {
+        ipAddresses.append(intToIp(current))
+    }
+    return ipAddresses
+}
+
+private func ipToInt(_ ip: String) -> UInt32? {
+    let parts = ip.split(separator: ".")
+    guard parts.count == 4 else { return nil }
+    
+    var ipInt: UInt32 = 0
+    for part in parts {
+        guard let octet = UInt32(part) else { return nil }
+        ipInt = (ipInt << 8) | octet
+    }
+    return ipInt
+}
+
+private func intToIp(_ ipInt: UInt32) -> String {
+    let a = (ipInt >> 24) & 0xFF
+    let b = (ipInt >> 16) & 0xFF
+    let c = (ipInt >> 8) & 0xFF
+    let d = ipInt & 0xFF
+    return "\(a).\(b).\(c).\(d)"
 }

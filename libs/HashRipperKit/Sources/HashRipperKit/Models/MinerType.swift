@@ -17,6 +17,7 @@ public enum MinerType: String, CaseIterable, Sendable, Codable {
     case NerdQAxePlusPlus // deviceModel "NerdQAxe++"
     case NerdOCTAXE       // deviceModel "NerdOCTAXE-γ"
     case NerdQX           // deviceModel NerdQX
+    case Avalon           // Avalon miners (CGMiner API)
     case Unknown
 
     public var deviceGenre: MinerDeviceGenre {
@@ -25,6 +26,8 @@ public enum MinerType: String, CaseIterable, Sendable, Codable {
             return .bitaxe
         case .NerdQAxePlus, .NerdQAxePlusPlus, .NerdOCTAXE, .NerdQX:
             return .nerdQAxe
+        case .Avalon:
+            return .avalon
         case .Unknown:
             return .unknown
         }
@@ -40,6 +43,7 @@ public enum MinerType: String, CaseIterable, Sendable, Codable {
         case .NerdQAxePlusPlus: return "NerdQAxe++"
         case .NerdOCTAXE: return "NerdOCTAXE-γ"
         case .NerdQX: return "NerdQX"
+        case .Avalon: return "Avalon Miner"
         case .Unknown: return "Unknown"
         }
     }
@@ -54,6 +58,7 @@ public enum MinerType: String, CaseIterable, Sendable, Codable {
         case .NerdQAxePlusPlus: return "NerdQAxePlusPlus"
         case .NerdOCTAXE: return "NerdOctaxe"
         case .NerdQX: return "NerdQX"
+        case .Avalon: return "AvalonQ"
         case .Unknown: return "UnknownMiner"
         }
     }

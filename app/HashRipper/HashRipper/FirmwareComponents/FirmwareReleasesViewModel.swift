@@ -122,6 +122,9 @@ final class FirmwareReleasesViewModel {
                                 return false
                             }
                             return release.device == deviceModel
+                        case .avalon:
+                            // Avalon firmware updates are managed externally
+                            return false
                         case .unknown:
                             return false
                         }
@@ -177,6 +180,9 @@ final class FirmwareReleasesViewModel {
                             return false
                         }
                         return release.device == deviceModel
+                    case .avalon:
+                        // Avalon firmware updates are managed externally
+                        return false
                     case .unknown:
                         return false
                     }
@@ -213,6 +219,9 @@ final class FirmwareReleasesViewModel {
                             return false
                         }
                         return release.device == deviceModel
+                    case .avalon:
+                        // Avalon firmware updates are managed externally
+                        return false
                     case .unknown:
                         return false
                     }
@@ -359,6 +368,9 @@ final class FirmwareReleasesViewModel {
                         case .failure(let error):
                             print("NerdAxe releases fetch failed with error: \(String(describing: error))")
                         }
+                    case .avalon:
+                        // Avalon firmware updates are managed externally through Canaan's tools
+                        print("Skipping firmware check for Avalon miner - use official Canaan tools")
                     case .unknown:
                         // no op
                         print("Skipping firmware check for unknown miner type")

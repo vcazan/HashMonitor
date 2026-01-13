@@ -8,6 +8,13 @@
 import Foundation
 import SwiftData
 
+/// Protocol type for miner communication
+public enum MinerProtocolType: String, Codable, Sendable {
+    case axeOS = "axeos"       // HTTP REST API (Bitaxe, NerdQAxe)
+    case cgminer = "cgminer"   // TCP API on port 4028 (Avalon)
+    case unknown = "unknown"
+}
+
 @Model
 public final class Miner {
     public var hostName: String
@@ -25,6 +32,9 @@ public final class Miner {
     /// Threshold for marking miner as offline
     public static let offlineThreshold: Int = 3
     
+    /// Protocol type for API communication (stored as raw string for SwiftData)
+    public var protocolTypeRaw: String = MinerProtocolType.axeOS.rawValue
+    
     /// Inverse relationship to MinerUpdate - cascade deletes all updates when miner is deleted
     @Relationship(deleteRule: .cascade, inverse: \MinerUpdate.miner)
     public var updates: [MinerUpdate]? = []
@@ -35,7 +45,8 @@ public final class Miner {
         ASICModel: String,
         boardVersion: String? = nil,
         deviceModel: String? = nil,
-        macAddress: String
+        macAddress: String,
+        protocolType: MinerProtocolType = .axeOS
     ) {
         self.hostName = hostName
         self.ipAddress = ipAddress
@@ -44,18 +55,46 @@ public final class Miner {
         self.deviceModel = deviceModel
         self.macAddress = macAddress
         self.consecutiveTimeoutErrors = 0
+        self.protocolTypeRaw = protocolType.rawValue
     }
 }
 
 // MARK: - Computed Properties
 
 public extension Miner {
+    /// The protocol type used to communicate with this miner
+    var protocolType: MinerProtocolType {
+        get {
+            MinerProtocolType(rawValue: protocolTypeRaw) ?? .axeOS
+        }
+        set {
+            protocolTypeRaw = newValue.rawValue
+        }
+    }
+    
+    /// Whether this is an Avalon miner (uses CGMiner API)
+    var isAvalonMiner: Bool {
+        protocolType == .cgminer
+    }
+    
+    /// Whether this is an AxeOS miner (Bitaxe, NerdQAxe)
+    var isAxeOSMiner: Bool {
+        protocolType == .axeOS
+    }
+    
     var minerType: MinerType {
-        MinerType.from(boardVersion: boardVersion, deviceModel: deviceModel)
+        // If this is an Avalon miner, return that type
+        if isAvalonMiner {
+            return .Avalon
+        }
+        return MinerType.from(boardVersion: boardVersion, deviceModel: deviceModel)
     }
     
     var minerDeviceDisplayName: String {
-        MinerType.displayName(boardVersion: boardVersion, deviceModel: deviceModel)
+        if isAvalonMiner {
+            return deviceModel ?? "Avalon Miner"
+        }
+        return MinerType.displayName(boardVersion: boardVersion, deviceModel: deviceModel)
     }
     
     var isOffline: Bool {

@@ -8,6 +8,7 @@
 import SwiftUI
 import SwiftData
 import AxeOSClient
+import AvalonClient
 
 /// Inspector wrapper for miner settings - displayed as a native macOS inspector
 struct MinerSettingsInspector: View {
@@ -70,6 +71,18 @@ struct MinerSettingsInspector: View {
             
             if isLoading {
                 loadingView
+            } else if miner.isAvalonMiner {
+                // Avalon miners - limited API access
+                ScrollView {
+                    VStack(alignment: .leading, spacing: 16) {
+                        avalonDeviceGroup
+                        avalonStatusGroup
+                        avalonFanGroup
+                        avalonPerformanceGroup
+                        avalonActionsGroup
+                    }
+                    .padding(12)
+                }
             } else {
                 ScrollView {
                     VStack(alignment: .leading, spacing: 16) {
@@ -506,6 +519,253 @@ struct MinerSettingsInspector: View {
         }
     }
     
+    // MARK: - Avalon Device Group
+    
+    private var avalonDeviceGroup: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Hostname")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(miner.hostName)
+                        .font(.system(size: 11))
+                }
+                
+                HStack {
+                    Text("Model")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(miner.minerDeviceDisplayName)
+                        .font(.system(size: 11))
+                }
+                
+                HStack {
+                    Text("IP Address")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Spacer()
+                    Text(miner.ipAddress)
+                        .font(.system(size: 11, design: .monospaced))
+                }
+                
+                Text("Avalon miners use CGMiner API with limited configuration")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        } label: {
+            Text("Device")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
+    }
+    
+    // MARK: - Avalon Status Group
+    
+    private var avalonStatusGroup: some View {
+        GroupBox {
+            Grid(alignment: .leading, horizontalSpacing: 12, verticalSpacing: 6) {
+                GridRow {
+                    Label("Pool", systemImage: "network")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text(stratumURL.isEmpty ? "—" : stratumURL)
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                
+                GridRow {
+                    Label("Worker", systemImage: "person")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text(stratumUser.isEmpty ? "—" : stratumUser)
+                        .font(.system(size: 11))
+                        .lineLimit(1)
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                
+                GridRow {
+                    Label("Frequency", systemImage: "cpu")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("\(currentFrequency) MHz")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+                
+                GridRow {
+                    Label("Fan", systemImage: "fan")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Text("\(currentFanSpeed)%")
+                        .font(.system(size: 11, weight: .medium, design: .monospaced))
+                        .frame(maxWidth: .infinity, alignment: .trailing)
+                }
+            }
+        } label: {
+            Text("Mining Status")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
+    }
+    
+    // MARK: - Avalon Fan Group
+    
+    @State private var avalonFanSpeed: Int = 100
+    
+    private var avalonFanGroup: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                HStack {
+                    Text("Fan Speed")
+                        .font(.system(size: 11))
+                        .foregroundStyle(.secondary)
+                    Slider(value: Binding(
+                        get: { Double(avalonFanSpeed) },
+                        set: { avalonFanSpeed = Int($0) }
+                    ), in: 0...100, step: 5)
+                    .controlSize(.small)
+                    Text("\(avalonFanSpeed)%")
+                        .font(.system(size: 10, design: .monospaced))
+                        .frame(width: 32, alignment: .trailing)
+                }
+            }
+        } label: {
+            Text("Fan Control")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
+        .onAppear {
+            avalonFanSpeed = currentFanSpeed
+        }
+    }
+    
+    // MARK: - Avalon Performance Group
+    
+    @State private var avalonPerformanceMode: String = "normal"
+    
+    private var avalonPerformanceGroup: some View {
+        GroupBox {
+            VStack(alignment: .leading, spacing: 8) {
+                Picker("Mode", selection: $avalonPerformanceMode) {
+                    Text("Low").tag("low")
+                    Text("Normal").tag("normal")
+                    Text("High").tag("high")
+                }
+                .pickerStyle(.segmented)
+                .controlSize(.small)
+                
+                Text("Higher modes increase hash rate but also power and heat")
+                    .font(.system(size: 9))
+                    .foregroundStyle(.tertiary)
+            }
+        } label: {
+            Text("Performance")
+                .font(.system(size: 10, weight: .medium))
+                .foregroundStyle(.secondary)
+                .textCase(.uppercase)
+        }
+    }
+    
+    // MARK: - Avalon Actions Group
+    
+    @State private var isApplyingAvalonSettings: Bool = false
+    
+    private var avalonActionsGroup: some View {
+        VStack(spacing: 8) {
+            // Apply Settings button
+            Button(action: applyAvalonSettings) {
+                HStack(spacing: 4) {
+                    if isApplyingAvalonSettings {
+                        ProgressView()
+                            .scaleEffect(0.5)
+                            .frame(width: 12, height: 12)
+                    }
+                    Text(isApplyingAvalonSettings ? "Applying…" : "Apply Settings")
+                }
+                .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderedProminent)
+            .controlSize(.regular)
+            .disabled(isApplyingAvalonSettings)
+            
+            HStack(spacing: 8) {
+                // Restart button
+                Button(action: restartAvalonMiner) {
+                    Label("Restart", systemImage: "arrow.clockwise")
+                        .font(.system(size: 11))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+                
+                // Web UI button
+                Button(action: openAvalonWebUI) {
+                    Label("Web UI", systemImage: "safari")
+                        .font(.system(size: 11))
+                        .frame(maxWidth: .infinity)
+                }
+                .buttonStyle(.bordered)
+                .controlSize(.small)
+            }
+            
+            Divider()
+                .padding(.vertical, 4)
+            
+            // Remove miner
+            Button(role: .destructive, action: { showRemoveConfirmation = true }) {
+                Label("Remove Miner…", systemImage: "trash")
+                    .font(.system(size: 11))
+                    .frame(maxWidth: .infinity)
+            }
+            .buttonStyle(.borderless)
+            .foregroundStyle(.red.opacity(0.8))
+            
+            Text("Pool settings can be changed via the web interface")
+                .font(.system(size: 9))
+                .foregroundStyle(.tertiary)
+                .multilineTextAlignment(.center)
+        }
+    }
+    
+    private func applyAvalonSettings() {
+        isApplyingAvalonSettings = true
+        
+        Task {
+            let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+            
+            // Apply fan speed
+            let _ = await client.setFanSpeed(percent: avalonFanSpeed)
+            
+            // Apply performance mode
+            let _ = await client.setPerformanceMode(mode: avalonPerformanceMode)
+            
+            await MainActor.run {
+                isApplyingAvalonSettings = false
+                showSuccessAlert = true
+            }
+        }
+    }
+    
+    private func restartAvalonMiner() {
+        Task {
+            let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+            let _ = await client.restart()
+        }
+    }
+    
+    private func openAvalonWebUI() {
+        if let url = URL(string: "http://\(miner.ipAddress)") {
+            NSWorkspace.shared.open(url)
+        }
+    }
+    
     // MARK: - Actions Group
     
     private var actionsGroup: some View {
@@ -612,8 +872,9 @@ struct MinerSettingsInspector: View {
     }
     
     private func saveSettings() {
-        guard let client = minerClientManager?.client(forIpAddress: miner.ipAddress) else {
-            errorMessage = "Could not connect to miner"
+        // Settings updates only work for AxeOS miners
+        guard let client = minerClientManager?.axeOSClient(forIpAddress: miner.ipAddress) else {
+            errorMessage = miner.isAvalonMiner ? "Settings updates not supported for Avalon miners" : "Could not connect to miner"
             showErrorAlert = true
             return
         }

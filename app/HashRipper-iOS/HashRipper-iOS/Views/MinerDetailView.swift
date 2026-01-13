@@ -10,6 +10,7 @@ import SwiftData
 import Charts
 import HashRipperKit
 import AxeOSClient
+import AvalonClient
 
 // MARK: - Main View
 
@@ -99,11 +100,14 @@ struct MinerDetailView: View {
         .toolbar {
             ToolbarItem(placement: .primaryAction) {
                 HStack(spacing: Spacing.md) {
-                    Button {
-                        Haptics.impact(.light)
-                        showLogs = true
-                    } label: {
-                        Image(systemName: "terminal")
+                    // Logs only available for AxeOS miners (websocket-based)
+                    if miner.isAxeOSMiner {
+                        Button {
+                            Haptics.impact(.light)
+                            showLogs = true
+                        } label: {
+                            Image(systemName: "terminal")
+                        }
                     }
                     
                     Button {
@@ -223,10 +227,11 @@ struct MinerDetailView: View {
                         color: AppColors.textSecondary
                     )
                     
+                    // For Avalon miners, show chip temp (TAvg), for AxeOS show ASIC temp
                     StatDisplay(
                         value: String(format: "%.0f", update.temp ?? 0),
                         unit: "°C",
-                        label: "ASIC Temp",
+                        label: miner.isAvalonMiner ? "Chip Avg" : "ASIC Temp",
                         icon: "thermometer.medium",
                         color: AppColors.textSecondary
                     )
@@ -245,6 +250,49 @@ struct MinerDetailView: View {
                         label: "Fan",
                         icon: "fan.fill",
                         color: AppColors.textSecondary
+                    )
+                }
+            }
+            
+            // Additional temperature row for Avalon miners
+            if miner.isAvalonMiner, let update = latestUpdate {
+                HStack(spacing: Spacing.sm) {
+                    // Intake temp
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "arrow.down.circle.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.blue)
+                        Text("Intake")
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text(String(format: "%.0f°", update.intakeTemp ?? 0))
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(AppColors.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .fill(AppColors.backgroundGroupedSecondary)
+                    )
+                    
+                    // Max chip temp
+                    HStack(spacing: Spacing.sm) {
+                        Image(systemName: "flame.fill")
+                            .font(.system(size: 12))
+                            .foregroundStyle(Color.orange)
+                        Text("Chip Max")
+                            .font(.captionLarge)
+                            .foregroundStyle(AppColors.textTertiary)
+                        Text(String(format: "%.0f°", update.chipTempMax ?? 0))
+                            .font(.system(size: 15, weight: .semibold, design: .rounded))
+                            .foregroundStyle(AppColors.textPrimary)
+                    }
+                    .frame(maxWidth: .infinity)
+                    .padding(.vertical, Spacing.md)
+                    .background(
+                        RoundedRectangle(cornerRadius: Radius.md, style: .continuous)
+                            .fill(AppColors.backgroundGroupedSecondary)
                     )
                 }
             }
@@ -454,24 +502,57 @@ struct MinerDetailView: View {
     private var temperatureChart: some View {
         Chart {
             ForEach(chartUpdates, id: \.timestamp) { update in
-                // ASIC Temperature
-                LineMark(
-                    x: .value("Time", update.date),
-                    y: .value("ASIC", update.temp ?? 0),
-                    series: .value("Type", "ASIC")
-                )
-                .interpolationMethod(.catmullRom)
-                .foregroundStyle(AppColors.statusOnline)
-                
-                // VR Temperature (if available)
-                if let vrTemp = update.vrTemp {
+                if miner.isAvalonMiner {
+                    // Avalon: Chip Avg temperature
                     LineMark(
                         x: .value("Time", update.date),
-                        y: .value("VR", vrTemp),
-                        series: .value("Type", "VR")
+                        y: .value("Chip Avg", update.temp ?? 0),
+                        series: .value("Type", "Chip Avg")
                     )
                     .interpolationMethod(.catmullRom)
-                    .foregroundStyle(AppColors.textSecondary)
+                    .foregroundStyle(AppColors.statusOnline)
+                    
+                    // Avalon: Intake temperature
+                    if let intakeTemp = update.intakeTemp {
+                        LineMark(
+                            x: .value("Time", update.date),
+                            y: .value("Intake", intakeTemp),
+                            series: .value("Type", "Intake")
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Color.blue)
+                    }
+                    
+                    // Avalon: Chip Max temperature
+                    if let chipMax = update.chipTempMax {
+                        LineMark(
+                            x: .value("Time", update.date),
+                            y: .value("Chip Max", chipMax),
+                            series: .value("Type", "Chip Max")
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(Color.orange)
+                    }
+                } else {
+                    // AxeOS: ASIC Temperature
+                    LineMark(
+                        x: .value("Time", update.date),
+                        y: .value("ASIC", update.temp ?? 0),
+                        series: .value("Type", "ASIC")
+                    )
+                    .interpolationMethod(.catmullRom)
+                    .foregroundStyle(AppColors.statusOnline)
+                    
+                    // AxeOS: VR Temperature (if available)
+                    if let vrTemp = update.vrTemp {
+                        LineMark(
+                            x: .value("Time", update.date),
+                            y: .value("VR", vrTemp),
+                            series: .value("Type", "VR")
+                        )
+                        .interpolationMethod(.catmullRom)
+                        .foregroundStyle(AppColors.textSecondary)
+                    }
                 }
             }
         }
@@ -493,10 +574,11 @@ struct MinerDetailView: View {
                 }
             }
         }
-        .chartForegroundStyleScale([
-            "ASIC": AppColors.statusOnline,
-            "VR": AppColors.textSecondary
-        ])
+        .chartForegroundStyleScale(
+            miner.isAvalonMiner
+                ? ["Chip Avg": AppColors.statusOnline, "Intake": Color.blue, "Chip Max": Color.orange]
+                : ["ASIC": AppColors.statusOnline, "VR": AppColors.textSecondary]
+        )
         .chartLegend(position: .top, alignment: .trailing)
         .frame(height: 180)
     }
@@ -631,11 +713,27 @@ struct MinerDetailView: View {
                         value: String(format: "%.0f mV", update.voltage ?? 0)
                     )
                     
-                    DetailRow(
-                        icon: "thermometer.snowflake",
-                        label: "VR Temp",
-                        value: String(format: "%.0f °C", update.vrTemp ?? 0)
-                    )
+                    if miner.isAvalonMiner {
+                        // Avalon-specific: Show intake temp and chip temp range
+                        DetailRow(
+                            icon: "arrow.down.circle.fill",
+                            label: "Intake Temp",
+                            value: String(format: "%.0f °C", update.intakeTemp ?? 0)
+                        )
+                        
+                        DetailRow(
+                            icon: "thermometer.high",
+                            label: "Chip Temp Range",
+                            value: String(format: "%.0f - %.0f °C", update.chipTempMin ?? 0, update.chipTempMax ?? 0)
+                        )
+                    } else {
+                        // AxeOS: Show VR Temp
+                        DetailRow(
+                            icon: "thermometer.snowflake",
+                            label: "VR Temp",
+                            value: String(format: "%.0f °C", update.vrTemp ?? 0)
+                        )
+                    }
                 }
                 
                 DetailRow(
@@ -755,6 +853,17 @@ struct MinerDetailView: View {
         guard !isRefreshing else { return }
         isRefreshing = true
         
+        // Use the appropriate client based on miner protocol type
+        if miner.isAvalonMiner {
+            await refreshAvalonMiner()
+        } else {
+            await refreshAxeOSMiner()
+        }
+        
+        isRefreshing = false
+    }
+    
+    private func refreshAxeOSMiner() async {
         let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
         let result = await client.getSystemInfo()
         
@@ -783,19 +892,58 @@ struct MinerDetailView: View {
                 try? modelContext.save()
             }
         }
+    }
+    
+    private func refreshAvalonMiner() async {
+        let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+        let result = await client.getDeviceInfo()
         
-        isRefreshing = false
+        switch result {
+        case .success(let info):
+            await MainActor.run {
+                miner.consecutiveTimeoutErrors = 0
+                
+                // Update hostname if changed
+                if !info.hostname.isEmpty && miner.hostName != info.hostname {
+                    miner.hostName = info.hostname
+                }
+                
+                let update = MinerUpdate.from(miner: miner, info: info)
+                modelContext.insert(update)
+                
+                latestUpdate = update
+                loadChartData()
+                
+                try? modelContext.save()
+            }
+        case .failure(let error):
+            await MainActor.run {
+                miner.consecutiveTimeoutErrors += 1
+                print("Detail refresh failed for Avalon \(miner.hostName): \(error)")
+                try? modelContext.save()
+            }
+        }
     }
     
     private func restartMiner() async {
-        let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
-        let result = await client.restartClient()
-        
-        switch result {
-        case .success:
-            Haptics.notification(.success)
-        case .failure:
-            Haptics.notification(.error)
+        if miner.isAvalonMiner {
+            let client = AvalonClient(deviceIpAddress: miner.ipAddress, timeout: 5.0)
+            let result = await client.restart()
+            switch result {
+            case .success:
+                Haptics.notification(.success)
+            case .failure:
+                Haptics.notification(.error)
+            }
+        } else {
+            let client = AxeOSClient(deviceIpAddress: miner.ipAddress, urlSession: session)
+            let result = await client.restartClient()
+            switch result {
+            case .success:
+                Haptics.notification(.success)
+            case .failure:
+                Haptics.notification(.error)
+            }
         }
     }
     

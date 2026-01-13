@@ -8,6 +8,7 @@
 
 /* Begin PBXBuildFile section */
 		C923FFA72DC8434A00D85C1D /* MarkdownUI in Frameworks */ = {isa = PBXBuildFile; productRef = C923FFA62DC8434A00D85C1D /* MarkdownUI */; };
+		C9AVA10B2E52C218003D0B1B /* AvalonClient in Frameworks */ = {isa = PBXBuildFile; productRef = C9AVA10A2E52C218003D0B1B /* AvalonClient */; };
 		C9F459FA2E52C218003D0B1B /* AxeOSClient in Frameworks */ = {isa = PBXBuildFile; productRef = C9F459F92E52C218003D0B1B /* AxeOSClient */; };
 /* End PBXBuildFile section */
 
@@ -71,6 +72,7 @@
 			buildActionMask = 2147483647;
 			files = (
 				C9F459FA2E52C218003D0B1B /* AxeOSClient in Frameworks */,
+				C9AVA10B2E52C218003D0B1B /* AvalonClient in Frameworks */,
 				C923FFA72DC8434A00D85C1D /* MarkdownUI in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
@@ -142,6 +144,7 @@
 			packageProductDependencies = (
 				C923FFA62DC8434A00D85C1D /* MarkdownUI */,
 				C9F459F92E52C218003D0B1B /* AxeOSClient */,
+				C9AVA10A2E52C218003D0B1B /* AvalonClient */,
 			);
 			productName = HashRipper;
 			productReference = C91EC6392DAF564B00432FA4 /* HashRipper.app */;
@@ -228,6 +231,7 @@
 			packageReferences = (
 				C923FFA52DC8434A00D85C1D /* XCRemoteSwiftPackageReference "swift-markdown-ui" */,
 				C9F4596F2E52C198003D0B1B /* XCLocalSwiftPackageReference "../../libs/AxeOSClient" */,
+				C9AVA1092E52C198003D0B1B /* XCLocalSwiftPackageReference "../../libs/AvalonClient" */,
 			);
 			preferredProjectObjectVersion = 77;
 			productRefGroup = C91EC63A2DAF564B00432FA4 /* Products */;
@@ -583,6 +587,10 @@
 /* End XCConfigurationList section */
 
 /* Begin XCLocalSwiftPackageReference section */
+		C9AVA1092E52C198003D0B1B /* XCLocalSwiftPackageReference "../../libs/AvalonClient" */ = {
+			isa = XCLocalSwiftPackageReference;
+			relativePath = ../../libs/AvalonClient;
+		};
 		C9F4596F2E52C198003D0B1B /* XCLocalSwiftPackageReference "../../libs/AxeOSClient" */ = {
 			isa = XCLocalSwiftPackageReference;
 			relativePath = ../../libs/AxeOSClient;
@@ -605,6 +613,11 @@
 			isa = XCSwiftPackageProductDependency;
 			package = C923FFA52DC8434A00D85C1D /* XCRemoteSwiftPackageReference "swift-markdown-ui" */;
 			productName = MarkdownUI;
+		};
+		C9AVA10A2E52C218003D0B1B /* AvalonClient */ = {
+			isa = XCSwiftPackageProductDependency;
+			package = C9AVA1092E52C198003D0B1B /* XCLocalSwiftPackageReference "../../libs/AvalonClient" */;
+			productName = AvalonClient;
 		};
 		C9F459F92E52C218003D0B1B /* AxeOSClient */ = {
 			isa = XCSwiftPackageProductDependency;

@@ -7,6 +7,20 @@
       {
         "basedOn" : null,
         "packageRef" : {
+          "identity" : "avalonclient",
+          "kind" : "fileSystem",
+          "location" : "/Users/vcazan/Projects/HashRipper/libs/AvalonClient",
+          "name" : "AvalonClient"
+        },
+        "state" : {
+          "name" : "fileSystem",
+          "path" : "/Users/vcazan/Projects/HashRipper/libs/AvalonClient"
+        },
+        "subpath" : "avalonclient"
+      },
+      {
+        "basedOn" : null,
+        "packageRef" : {
           "identity" : "axeosclient",
           "kind" : "fileSystem",
           "location" : "/Users/vcazan/Projects/HashRipper/libs/AxeOSClient",

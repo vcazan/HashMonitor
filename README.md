@@ -1,6 +1,6 @@
 # HashMonitor
 
-Manage your AxeOS-based Bitcoin miners from your Mac or iPhone. Monitor your fleet, deploy configurations, update firmware, and keep your miners hashing.
+Manage your Bitcoin miners from your Mac or iPhone. Supports AxeOS-based miners (Bitaxe, NerdQAxe) and Avalon miners (Avalon Q/Nano). Monitor your fleet, deploy configurations, update firmware, and keep your miners hashing.
 
 > **Note:** Requires NerdQAxe miners to run [AxeOS v1.0.30+](https://github.com/shufps/ESP-Miner-NerdQAxePlus/releases/tag/v1.0.30) for MAC address support.
 
@@ -14,9 +14,14 @@ Both apps share the same core libraries and communicate directly with your miner
 
 ## Supported Devices
 
+### AxeOS Miners
 - Bitaxe Ultra, Supra, Gamma, Gamma Turbo
 - NerdQAxe+, NerdQAxe++, NerdOctaxe, NerdQX
 - Any AxeOS-compatible miner
+
+### Avalon Miners (CGMiner API)
+- Avalon Nano / Avalon Q
+- Supports monitoring, fan control, and performance mode switching via CGMiner API (TCP port 4028)
 
 ## Features
 
@@ -96,15 +101,17 @@ Select **HashRipper-iOS > iPhone** as the destination and hit ⌘R to build and 
 
 ### Swift Packages
 
-The project includes two shared Swift packages:
+The project includes shared Swift packages:
 
 - **AxeOSClient** — HTTP and WebSocket client for AxeOS API
+- **AvalonClient** — TCP client for CGMiner API (Avalon miners)
 - **HashRipperKit** — Shared models (Miner, MinerUpdate, MinerType) and utilities
 
 To run package tests:
 
 ```bash
 cd libs/AxeOSClient && swift test
+cd libs/AvalonClient && swift test
 cd libs/HashRipperKit && swift test
 ```
 
@@ -118,7 +125,8 @@ HashRipper/
 │   ├── HashRipper/          # macOS app
 │   └── HashRipper-iOS/      # iOS app
 ├── libs/
-│   ├── AxeOSClient/         # Network client package
+│   ├── AxeOSClient/         # AxeOS HTTP/WebSocket client
+│   ├── AvalonClient/        # Avalon CGMiner TCP client
 │   └── HashRipperKit/       # Shared models package
 ├── icons/                   # Device icon assets
 └── HashRipper.xcworkspace   # Combined workspace

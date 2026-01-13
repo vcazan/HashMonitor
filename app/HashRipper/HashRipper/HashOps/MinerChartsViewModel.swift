@@ -205,12 +205,17 @@ class MinerChartsViewModel: ObservableObject {
                 }
 
                 let nextChartData = sampled.map { update in
-                    ChartSegmentedDataEntry(
+                    // For Avalon miners, use intakeTemp for index 2 (instead of vrTemp)
+                    // and include chipTempMax as secondary on asicTemperature
+                    let secondaryTemp = update.vrTemp ?? update.intakeTemp ?? 0
+                    let chipMaxTemp = update.chipTempMax
+                    
+                    return ChartSegmentedDataEntry(
                         time: Date(milliseconds: update.timestamp),
                         values: [
                             ChartSegmentValues(primary: update.hashRate, secondary: nil),
-                            ChartSegmentValues(primary: update.temp ?? 0, secondary: nil),
-                            ChartSegmentValues(primary: update.vrTemp ?? 0, secondary: nil),
+                            ChartSegmentValues(primary: update.temp ?? 0, secondary: chipMaxTemp), // secondary = chipTempMax for Avalon
+                            ChartSegmentValues(primary: secondaryTemp, secondary: update.intakeTemp), // primary = vrTemp or intakeTemp, secondary = intakeTemp for Avalon
                             ChartSegmentValues(primary: Double(update.fanrpm ?? 0), secondary: Double(update.fanspeed ?? 0)),
                             ChartSegmentValues(primary: update.power, secondary: nil),
                             ChartSegmentValues(primary: (update.voltage ?? 0) / 1000.0, secondary: nil)

@@ -13,6 +13,7 @@ struct NetworkSettingsView: View {
     @State private var customSubnets: [String] = []
     @State private var newSubnetInput: String = ""
     @State private var showAddSubnetDialog: Bool = false
+    @State private var scanForAvalonMiners: Bool = true
 
     var body: some View {
         Form {
@@ -79,6 +80,28 @@ struct NetworkSettingsView: View {
                     }
 
                     Divider()
+                    
+                    VStack(alignment: .leading, spacing: 8) {
+                        Text("Miner Types")
+                            .font(.headline)
+                        
+                        VStack(alignment: .leading, spacing: 12) {
+                            Toggle("Scan for Avalon Miners", isOn: $scanForAvalonMiners)
+                                .onChange(of: scanForAvalonMiners) { _, newValue in
+                                    settings.scanForAvalonMiners = newValue
+                                }
+                            
+                            Text("Avalon miners use a different protocol (CGMiner API on port 4028). Enable this to discover Avalon miners on your network in addition to AxeOS-based miners (Bitaxe, NerdQAxe).")
+                                .font(.caption)
+                                .foregroundColor(.secondary)
+                        }
+                        .padding(.horizontal, 12)
+                        .padding(.vertical, 8)
+                        .background(.thinMaterial)
+                        .clipShape(RoundedRectangle(cornerRadius: 8))
+                    }
+
+                    Divider()
 
                     VStack(alignment: .leading, spacing: 8) {
                         Text("Network Tips")
@@ -124,6 +147,7 @@ struct NetworkSettingsView: View {
         .onAppear {
             useAutoDetectedSubnets = settings.useAutoDetectedSubnets
             customSubnets = settings.customSubnets
+            scanForAvalonMiners = settings.scanForAvalonMiners
         }
     }
 

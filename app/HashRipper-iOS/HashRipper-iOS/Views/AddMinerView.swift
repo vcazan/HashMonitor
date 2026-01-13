@@ -9,6 +9,7 @@ import SwiftUI
 import SwiftData
 import HashRipperKit
 import AxeOSClient
+import AvalonClient
 
 struct AddMinerView: View {
     @Environment(\.dismiss) private var dismiss
@@ -33,15 +34,55 @@ struct AddMinerView: View {
         case manual = "Manual"
     }
     
+    /// Unified discovered device that can be either AxeOS or Avalon
+    enum DiscoveredDeviceInfo {
+        case axeOS(AxeOSDeviceInfo)
+        case avalon(AvalonDeviceInfo)
+        
+        var hostname: String {
+            switch self {
+            case .axeOS(let info): return info.hostname
+            case .avalon(let info): return info.hostname
+            }
+        }
+        
+        var uniqueId: String {
+            switch self {
+            case .axeOS(let info): return info.macAddr
+            case .avalon(let info): return "avalon-\(info.hostname)"
+            }
+        }
+        
+        var displayName: String {
+            switch self {
+            case .axeOS(let info):
+                return info.hostname.isEmpty ? "BitAxe" : info.hostname
+            case .avalon(let info):
+                return info.hostname.isEmpty ? "Avalon" : info.hostname
+            }
+        }
+        
+        var minerType: MinerType {
+            switch self {
+            case .axeOS(let info):
+                return MinerType.from(boardVersion: info.boardVersion, deviceModel: info.deviceModel)
+            case .avalon:
+                return .Avalon
+            }
+        }
+    }
+    
     struct DiscoveredDevice: Identifiable {
         let id = UUID()
         let ipAddress: String
-        let info: AxeOSDeviceInfo
+        let info: DiscoveredDeviceInfo
     }
     
     private var filteredDevices: [DiscoveredDevice] {
         let existingMACs = Set(existingMiners.map { $0.macAddress })
-        return discoveredDevices.filter { !existingMACs.contains($0.info.macAddr) }
+        return discoveredDevices.filter { device in
+            !existingMACs.contains(device.info.uniqueId)
+        }
     }
     
     var body: some View {
@@ -183,7 +224,7 @@ struct AddMinerView: View {
                     .font(.titleMedium)
                     .foregroundStyle(AppColors.textPrimary)
                 
-                Text("Scan your local network to automatically discover Bitcoin miners running AxeOS.")
+                Text("Scan your local network to automatically discover Bitcoin miners running AxeOS or Avalon firmware.")
                     .font(.bodySmall)
                     .foregroundStyle(AppColors.textSecondary)
                     .multilineTextAlignment(.center)
@@ -393,7 +434,7 @@ struct AddMinerView: View {
                 .disabled(!isValidIP || isConnecting)
                 
                 // Help text
-                Text("Enter the IP address of your AxeOS miner. You can find this in your router's connected devices list.")
+                Text("Enter the IP address of your miner. Supports both AxeOS (Bitaxe) and Avalon miners.")
                     .font(.captionLarge)
                     .foregroundStyle(AppColors.textTertiary)
                     .multilineTextAlignment(.center)
@@ -420,19 +461,29 @@ struct AddMinerView: View {
         isScanning = true
         discoveredDevices = []
         
-        // Scan common IP range
+        // Scan common IP range for both AxeOS and Avalon miners
         await withTaskGroup(of: DiscoveredDevice?.self) { group in
             for i in 1...254 {
                 let ip = "192.168.1.\(i)"
                 group.addTask {
-                    let client = AxeOSClient(deviceIpAddress: ip, urlSession: self.session)
-                    let result = await client.getSystemInfo()
+                    // Try AxeOS first (HTTP API)
+                    let axeOSClient = AxeOSClient(deviceIpAddress: ip, urlSession: self.session)
+                    let axeOSResult = await axeOSClient.getSystemInfo()
                     
-                    switch result {
+                    switch axeOSResult {
                     case .success(let info):
-                        return DiscoveredDevice(ipAddress: ip, info: info)
+                        return DiscoveredDevice(ipAddress: ip, info: .axeOS(info))
                     case .failure:
-                        return nil
+                        // If AxeOS fails, try Avalon (TCP port 4028)
+                        let avalonClient = AvalonClient(deviceIpAddress: ip, timeout: 3.0)
+                        let avalonResult = await avalonClient.getDeviceInfo()
+                        
+                        switch avalonResult {
+                        case .success(let info):
+                            return DiscoveredDevice(ipAddress: ip, info: .avalon(info))
+                        case .failure:
+                            return nil
+                        }
                     }
                 }
             }
@@ -458,32 +509,52 @@ struct AddMinerView: View {
         errorMessage = nil
         isConnecting = true
         
-        let client = AxeOSClient(deviceIpAddress: manualIP, urlSession: session)
-        let result = await client.getSystemInfo()
+        // Try AxeOS first
+        let axeOSClient = AxeOSClient(deviceIpAddress: manualIP, urlSession: session)
+        let axeOSResult = await axeOSClient.getSystemInfo()
         
-        switch result {
+        switch axeOSResult {
         case .success(let info):
-            addMiner(ip: manualIP, info: info)
+            addMiner(ip: manualIP, info: .axeOS(info))
+            isConnecting = false
+            return
         case .failure:
-            errorMessage = "Could not connect to miner. Please check the IP address and try again."
-            Haptics.notification(.error)
+            // Try Avalon
+            let avalonClient = AvalonClient(deviceIpAddress: manualIP, timeout: 5.0)
+            let avalonResult = await avalonClient.getDeviceInfo()
+            
+            switch avalonResult {
+            case .success(let info):
+                addMiner(ip: manualIP, info: .avalon(info))
+            case .failure:
+                errorMessage = "Could not connect to miner. Please check the IP address and try again."
+                Haptics.notification(.error)
+            }
         }
         
         isConnecting = false
     }
     
-    private func addMiner(ip: String, info: AxeOSDeviceInfo) {
-        // Check if already exists by MAC address
-        if existingMiners.contains(where: { $0.macAddress == info.macAddr }) {
+    private func addMiner(ip: String, info: DiscoveredDeviceInfo) {
+        // Check if already exists
+        if existingMiners.contains(where: { $0.macAddress == info.uniqueId }) {
             errorMessage = "This miner is already added."
             return
         }
         
-        let miner = MinerUpdate.createMiner(from: info, ipAddress: ip)
-        let update = MinerUpdate.from(miner: miner, info: info)
-        
-        modelContext.insert(miner)
-        modelContext.insert(update)
+        switch info {
+        case .axeOS(let axeOSInfo):
+            let miner = MinerUpdate.createMiner(from: axeOSInfo, ipAddress: ip)
+            let update = MinerUpdate.from(miner: miner, info: axeOSInfo)
+            modelContext.insert(miner)
+            modelContext.insert(update)
+            
+        case .avalon(let avalonInfo):
+            let miner = MinerUpdate.createMiner(from: avalonInfo, ipAddress: ip)
+            let update = MinerUpdate.from(miner: miner, info: avalonInfo)
+            modelContext.insert(miner)
+            modelContext.insert(update)
+        }
         
         try? modelContext.save()
         Haptics.notification(.success)
@@ -494,16 +565,24 @@ struct AddMinerView: View {
         let devicesToAdd = filteredDevices.filter { selectedDevices.contains($0.id) }
         
         for device in devicesToAdd {
-            // Skip if already exists by MAC address
-            guard !existingMiners.contains(where: { $0.macAddress == device.info.macAddr }) else {
+            // Skip if already exists
+            guard !existingMiners.contains(where: { $0.macAddress == device.info.uniqueId }) else {
                 continue
             }
             
-            let miner = MinerUpdate.createMiner(from: device.info, ipAddress: device.ipAddress)
-            let update = MinerUpdate.from(miner: miner, info: device.info)
-            
-            modelContext.insert(miner)
-            modelContext.insert(update)
+            switch device.info {
+            case .axeOS(let axeOSInfo):
+                let miner = MinerUpdate.createMiner(from: axeOSInfo, ipAddress: device.ipAddress)
+                let update = MinerUpdate.from(miner: miner, info: axeOSInfo)
+                modelContext.insert(miner)
+                modelContext.insert(update)
+                
+            case .avalon(let avalonInfo):
+                let miner = MinerUpdate.createMiner(from: avalonInfo, ipAddress: device.ipAddress)
+                let update = MinerUpdate.from(miner: miner, info: avalonInfo)
+                modelContext.insert(miner)
+                modelContext.insert(update)
+            }
         }
         
         try? modelContext.save()
@@ -520,7 +599,7 @@ struct DiscoveredDeviceRow: View {
     let onToggle: () -> Void
     
     private var minerType: MinerType {
-        MinerType.from(boardVersion: device.info.boardVersion, deviceModel: device.info.deviceModel)
+        device.info.minerType
     }
     
     var body: some View {
@@ -558,7 +637,7 @@ struct DiscoveredDeviceRow: View {
                 
                 // Info
                 VStack(alignment: .leading, spacing: Spacing.xxs) {
-                    Text(device.info.hostname.isEmpty ? "BitAxe" : device.info.hostname)
+                    Text(device.info.displayName)
                         .font(.bodyMedium)
                         .fontWeight(.medium)
                         .foregroundStyle(AppColors.textPrimary)
